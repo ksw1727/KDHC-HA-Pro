@@ -1,7 +1,7 @@
 # 01. 공통 계약 — 생성 파트와 취합 파트의 약속
 
 > 두 개발자 모두가 읽는 문서다. 코드 위치는 `src/contract/`이며 **두 사람의 공동 소유**다.
-> 이 문서와 `src/contract/`의 내용이 다르면 **이 문서가 우선**이다. 계약을 바꾸려면 9절의 절차를 따른다.
+> 이 문서와 `src/contract/`의 내용이 다르면 **이 문서가 우선**이다. 계약을 바꾸려면 10절의 절차를 따른다.
 
 ---
 
@@ -9,31 +9,37 @@
 
 ```
  생성 파트 ──(FormSchema대로 엑셀 생성 + FileMeta 기록)──► 엑셀 파일 ──(FileMeta 읽기)──► 취합 파트
+      └──────────── 같은 틀 레이아웃(src/contract/layout) 공유 ────────────┘
 ```
 
 - 생성 파트는 `FormSchema`로 엑셀을 만들고, 파일 안에 `FileMeta`를 숨겨 넣는다.
-- 취합 파트는 돌아온 파일의 `FileMeta`만 읽고도 어디서 무엇을 읽어 어떻게 합칠지 알 수 있다.
+- 취합 파트는 돌아온 파일의 `FileMeta`만 읽고도 어디서 무엇을 읽어 어떻게 합칠지 알 수 있다. **생성 화면 상태에 의존하지 않는다** → 다른 PC·다른 날에도 회신 파일만 있으면 취합할 수 있다.
+- **빈 양식과 취합본 첫 시트는 같은 틀**이어야 하므로, 시트 배치·서식을 만드는 레이아웃 엔진을 계약에 두고 두 파트가 함께 쓴다(7절).
 - 두 파트는 서로의 코드를 import하지 않는다. **공유하는 것은 `src/contract/`뿐이다.**
 
 ## 2. `src/contract/` 구성
 
 ```
 src/contract/
-  schema.ts        FormSchema, Block, Field 타입
-  meta.ts          FileMeta, CellMap 타입
+  schema.ts        FormSchema, Block, Field 타입, validateSchema()
+  meta.ts          FileMeta, CellMap, NormalizedSubmission 타입
   metaIO.ts        writeMeta(workbook, meta) / readMeta(workbook) — _meta 시트와 파일 속성 읽기·쓰기
+  recordsIO.ts     writeRecords / readRecords — _records 시트
   xlsxPatch.ts     ExcelJS가 지원하지 않는 부분 후처리 (파일 속성 custom.xml, 통합문서 구조 보호)
   checksum.ts      computeChecksum(meta)
   fieldTypes/      항목 타입 정의 (5절) — index.ts에 레지스트리
+  layout/          같은 틀 레이아웃 엔진 (7절) — layoutEngine.ts, sheetModel.ts, styles.ts
   aggregationIds.ts 취합 방식 ID 목록 (6절)
-  version.ts       CONTRACT_VERSION = 1
+  version.ts       CONTRACT_VERSION = 1, PROTECT_PASSWORD
   __tests__/
 ```
+
+`layout/`은 개발자1이 1단계에서 작성하고, 이후 변경은 계약 변경 절차(10절)를 따른다.
 
 ## 3. 양식 정의 `FormSchema`
 
 ```ts
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo';
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern';
 
 export interface Field {
   key: string;            // 내부 식별자. 생성 시 자동 발급(예: "f_8k2m"), 이후 절대 변경하지 않음
@@ -41,41 +47,69 @@ export interface Field {
   type: FieldType;
   required: boolean;
   help?: string;          // 작성 안내. 엑셀 입력 메시지로 표시
-  // 타입별 옵션 (해당 타입에서만 의미 있음)
-  maxLength?: number;                    // text
-  numberFormat?: 'integer' | 'decimal';  // number (기본 integer)
-  min?: number; max?: number;            // number
-  minDate?: string; maxDate?: string;    // date, 'YYYY-MM-DD'
-  options?: string[];                    // select (1개 이상, 중복 불가)
+
+  // ── 서식 (해당 타입에서만 의미 있음) ──
+  maxLength?: number;                         // text
+  decimals?: number;                          // number. 0 = 정수(기본), 1~4 = 소수 자릿수
+  thousands?: boolean;                        // number. 천 단위 쉼표 표시 (기본 true)
+  unit?: string;                              // number. 표시 단위, 예: '개', '원', '명', '%'
+  min?: number; max?: number;                 // number
+  dateFormat?: 'yyyy-mm-dd' | 'yyyy.mm.dd' | 'yyyy-mm' | 'yyyy';   // date (기본 yyyy-mm-dd). 'yyyy' = 연도
+  minDate?: string; maxDate?: string;         // date. 'YYYY-MM-DD' 또는 상대값 'today', 'today+30', 'today-7'
+  options?: string[];                         // select (1개 이상, 중복 불가)
+  pattern?: 'phone' | 'mobile' | 'email' | 'bizno';   // pattern (필수)
 }
 
 export interface FieldsBlock { kind: 'fields'; id: string; title?: string; fields: Field[]; }
-export interface ListBlock   { kind: 'list';   id: string; title?: string; columns: Field[]; maxRows: number; }
+
+export interface ListBlock {
+  kind: 'list'; id: string; title?: string;
+  columns: Field[];
+  maxRows: number;               // 입력 줄 수 (기본 100, D3)
+  exampleRow?: Record<string, string | number>;   // 첫 줄 회색 예시(선택). key = field.key
+}
+
 export interface MatrixBlock {
   kind: 'matrix'; id: string; title?: string;
   rowLabels: string[];     // 예: ['1학년', '2학년']
   colLabels: string[];     // 예: ['남', '여']
   cell: Field;             // 모든 칸에 적용되는 규칙. type은 반드시 'number'
-  totalRow: boolean;       // 취합 결과에 합계 행 추가 여부
+  totalRow: boolean;       // 합계 행 표시 여부 (빈 양식에는 수식, 취합본에는 값)
+  totalCol: boolean;       // 합계 열(계) 표시 여부
 }
-export type Block = FieldsBlock | ListBlock | MatrixBlock;
 
-export type Layout = 'list' | 'matrix' | 'header-list';
+/** 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내고 채운 칸을 겹쳐 합친다. */
+export type GridCell =
+  | { kind: 'fixed'; value: string | number }   // 본사가 미리 채운 고정 내용 (잠금)
+  | { kind: 'input'; field: Field }             // 작성자가 채우는 칸 (field.key는 블록 안에서 유일)
+  | { kind: 'blank' };                          // 아무것도 아닌 빈칸 (잠금)
+
+export interface GridBlock {
+  kind: 'grid'; id: string; title?: string;
+  colLabels: string[];        // 머리글 행. 빈 문자열 허용
+  rows: GridCell[][];         // [row][col], 길이 = colLabels.length
+  spareRows: number;          // 표 아래 여유 줄 수. 0이면 줄 추가 불가
+  spareColumns?: Field[];     // 여유 줄의 열 규칙. spareRows > 0이면 필수, 길이 = colLabels.length
+}
+
+export type Block = FieldsBlock | ListBlock | MatrixBlock | GridBlock;
+
+export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in';
 
 export interface FormSchema {
   contractVersion: 1;
   formId: string;          // UUID v4. 양식 동일성 판별 기준
-  formVersion: number;     // 1부터 시작. 양식을 수정해 다시 내보낼 때마다 +1
+  formVersion: number;     // 1부터 시작. 칸 구조를 바꿔 다시 내보낼 때마다 +1
   title: string;
-  guide?: string;          // 작성 안내 문구
+  guide?: string;          // 작성 안내 문구 (예: "11월 5일까지 회신")
   deadline?: string;       // 'YYYY-MM-DD'
   contact?: string;        // 문의처
   layout: Layout;
   blocks: Block[];
-  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 1개 이상
+  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 'same-frame'은 항상 포함
   org: {
-    mode: 'preset' | 'input';
-    orgs?: string[];       // preset: 필수(1개 이상). input: 선택(있으면 지사명 칸이 드롭다운)
+    mode: 'preset' | 'input' | 'none';
+    orgs?: string[];       // preset: 필수(1개 이상). input: 선택(있으면 지사명 칸이 드롭다운). none: 사용 안 함
   };
   createdAt: string;       // ISO 8601
   updatedAt: string;
@@ -84,14 +118,16 @@ export interface FormSchema {
 
 **구조별 블록 규칙 (검증 함수 `validateSchema()`로 강제)**
 
-| layout | blocks |
-|---|---|
-| `list` | `[ListBlock]` |
-| `matrix` | `[MatrixBlock]` |
-| `header-list` | `[FieldsBlock, ListBlock]` (이 순서) |
+| layout | 이름 | blocks |
+|---|---|---|
+| `list` | 목록형 | `[ListBlock]` |
+| `matrix` | 표형 | `[MatrixBlock]` |
+| `header-list` | 혼합형 | `[FieldsBlock, ListBlock]` (이 순서) |
+| `fill-in` | 빈칸채우기형 | `[GridBlock]` |
 
 - 블록 `id`는 `b1`, `b2`처럼 순서대로 부여한다.
-- 지사명 칸은 블록이 아니다. 생성 파트가 자동으로 넣고 위치를 `CellMap.orgCell`에 적는다.
+- 지사명 칸은 블록이 아니다. `org.mode`가 `preset`·`input`이면 생성 파트가 자동으로 넣고 위치를 `CellMap.orgCell`에 적는다. `none`이면 지사명 칸이 없다(파일 하나 = 응답 하나).
+- `fill-in`의 `input` 칸이 1개 이상이거나 `spareRows > 0`이어야 한다.
 
 ## 4. 파일 메타 `FileMeta`
 
@@ -104,21 +140,22 @@ export interface FileMeta {
   checksum: string;             // 4.4절
 
   // kind = 'submission'일 때
-  orgName?: string;             // preset 모드에서 미리 정해진 지사명. input 모드는 없음
-  sheetName?: string;           // 입력 시트 이름
+  orgName?: string;             // preset 모드에서 미리 정해진 지사명. input·none 모드는 없음
+  sheetName?: string;           // 입력 시트 이름 (= 양식 제목, 31자 제한·금지문자 치환)
   cellMap?: CellMap;
 
   // kind = 'aggregate'일 때
   aggregate?: {
-    includedOrgs: { org: string; sourceFile: string; savedAt: string }[];
+    includedSources: { org?: string; sourceFile: string; savedAt: string }[];
     methods: AggregationId[];
     recordsSheet: '_records';   // 4.5절
   };
 }
 
 export interface CellMap {
-  orgCell: string;              // 지사명 칸 주소, 예: "C4"
-  blocks: Record<string, FieldsBlockMap | ListBlockMap | MatrixBlockMap>;  // key = block.id
+  orgCell?: string;             // 지사명 칸 주소, 예: "B4". org.mode = 'none'이면 없음
+  printArea: string;            // 인쇄영역, 예: "A1:F106" (제목 ~ 입력 영역 끝)
+  blocks: Record<string, FieldsBlockMap | ListBlockMap | MatrixBlockMap | GridBlockMap>;  // key = block.id
 }
 export interface FieldsBlockMap {
   kind: 'fields';
@@ -129,6 +166,7 @@ export interface ListBlockMap {
   headerRow: number;            // 머리글 행 번호 (1부터)
   firstDataRow: number;
   lastDataRow: number;          // firstDataRow + maxRows - 1
+  exampleRow?: number;          // 예시 줄 행 번호 (있을 때)
   columns: Record<string, string>;   // key = field.key, 값 = 열 문자 예: "B"
 }
 export interface MatrixBlockMap {
@@ -137,6 +175,15 @@ export interface MatrixBlockMap {
   colLabelCells: string[];      // colLabels와 같은 순서
   cells: string[][];            // [rowIndex][colIndex] = 칸 주소
 }
+export interface GridBlockMap {
+  kind: 'grid';
+  headerRow: number;
+  firstRow: number;             // 본문 첫 행
+  columns: string[];            // colLabels 순서대로 열 문자
+  inputCells: Record<string, string>;   // key = field.key, 값 = 칸 주소
+  fixedCells: Record<string, string | number>;   // 주소 → 고정 값 (변경 감지용)
+  spare?: { firstRow: number; lastRow: number };  // 여유 줄 범위
+}
 ```
 
 ### 4.1 `_meta` 시트 저장 형식
@@ -144,6 +191,7 @@ export interface MatrixBlockMap {
 - `A1`에 문자열 `KDHC-META`, `A2`에 `contractVersion` 숫자.
 - `FileMeta`를 `JSON.stringify`한 뒤 **30,000자 단위로 잘라** `B1`, `B2`, `B3` … 에 순서대로 넣는다. (엑셀 셀 최대 32,767자)
 - 읽을 때는 `B`열을 빈칸이 나올 때까지 이어 붙여 `JSON.parse`한다.
+- 빈 양식·회신 파일·취합본 모두 `_meta`를 가진다. 생성 파트는 **빈 양식이나 취합본을 올리면 `_meta`로 양식 정의를 복원**할 수 있다.
 
 ### 4.2 파일 속성(사용자 지정 문서 속성) 이중 기록
 `_meta` 시트가 지워져도 최소 식별이 되도록 `docProps/custom.xml`에 다음을 쓴다.
@@ -157,9 +205,11 @@ export interface MatrixBlockMap {
 
 ExcelJS는 사용자 지정 속성을 지원하지 않으므로 `xlsxPatch.ts`가 **ExcelJS로 만든 xlsx 바이트를 JSZip으로 열어** `docProps/custom.xml`, `[Content_Types].xml`, `_rels/.rels`를 수정한다. 읽을 때도 JSZip으로 `custom.xml`을 직접 파싱한다.
 
+> 참고: 문서 속성 `created`(생성 시각)는 템플릿 생성 시각이 복사되어 모든 회신이 같으므로 최신 판단에 쓰지 않는다. **`modified`(마지막 저장 시각)**를 쓴다.
+
 ### 4.3 보호
-- 입력 시트: 시트 보호. 입력칸만 `locked = false`. 허용 동작: 셀 선택, 서식 없는 입력.
-- 통합문서 구조 보호(`<workbookProtection lockStructure="1"/>`): 시트 추가·삭제·숨기기 해제 차단. `xlsxPatch.ts`가 `xl/workbook.xml`에 삽입.
+- 입력 시트: 시트 보호. 입력칸(목록 입력 줄, 값 칸, 표 칸, 빈칸채우기 입력칸·여유 줄)만 `locked = false`. 허용 동작: 셀 선택, 서식 없는 입력.
+- 통합문서 구조 보호(`<workbookProtection lockStructure="1"/>`): 시트 추가·삭제·숨기기 해제 차단. `xlsxPatch.ts`가 `xl/workbook.xml`에 삽입. **취합본에는 넣지 않는다.**
 - 보호 비밀번호: 미결정(D2). 기본안은 앱 고정 비밀번호 상수 `PROTECT_PASSWORD`를 `contract/version.ts`에 둔다.
 
 ### 4.4 체크섬
@@ -168,92 +218,175 @@ ExcelJS는 사용자 지정 속성을 지원하지 않으므로 `xlsxPatch.ts`�
 - 읽을 때 다시 계산해 다르면 메타 변조로 간주한다(취합 파트 처리: 메타 없음과 같이 취급).
 
 ### 4.5 취합본의 `_records` 시트
-취합본은 **어떤 취합 방식을 골랐든 상관없이** 다시 취합할 수 있도록, 정규화된 원자료를 숨김 시트에 저장한다.
+취합본은 **어떤 취합 방식을 골랐든 상관없이** 다시 취합할 수 있도록, 정규화된 원자료(수정 반영 후)를 숨김 시트에 저장한다.
 - 시트 이름 `_records`, `veryHidden`.
 - 내용: `NormalizedSubmission[]`를 JSON으로 만든 뒤 4.1과 같은 방식(30,000자 단위, `B`열)으로 저장. `A1`은 `KDHC-RECORDS`.
 
 ```ts
-export type CellValue = string | number | null;   // 날짜는 'YYYY-MM-DD' 문자열
+export type CellValue = string | number | null;   // 날짜는 'YYYY-MM-DD' / 'YYYY-MM' / 'YYYY' 문자열
+
+export type RowFlag = 'hidden' | 'strike';          // 숨긴 줄(필터 포함) / 취소선
+
+export interface RowRecord {
+  values: Record<string, CellValue>;   // key = field.key
+  sourceRow: number;                   // 원본 파일의 행 번호
+  flags?: RowFlag[];
+}
 
 export interface NormalizedSubmission {
-  org: string;
+  org?: string;                                     // org.mode = 'none'이면 없음
   sourceFile: string;
   savedAt: string;                                  // ISO 8601
   header: Record<string, CellValue>;                // fields 블록 값, key = field.key
-  rows: Record<string, CellValue>[];                // list 블록의 빈 행 제외 값
+  rows: RowRecord[];                                // list 블록의 반영 행 (제외 행 빼고)
   matrix?: CellValue[][];                           // matrix 블록 값 [row][col]
+  grid?: Record<string, CellValue>;                 // grid 입력칸 값 (빈칸은 키 없음)
+  gridSpareRows?: RowRecord[];                      // grid 여유 줄에 추가된 행
 }
 ```
 
 시트 모으기 결과는 `_records`로 복원하지 않는다. 취합본을 다시 취합할 때 시트 모으기를 고르면, 취합본 안의 지사별 시트를 그대로 복사한다.
 
-## 5. 항목 타입 정의 (`fieldTypes/`)
+## 5. 항목 타입과 서식 (`fieldTypes/`)
 
 항목 타입은 **레지스트리**로 관리한다. 새 타입은 파일 하나를 추가하고 `index.ts`에 등록한다.
+**생성 시 정한 서식이 곧 취합 시 정리 기준이다.** 엑셀 입력 규칙(생성)과 값 정리(취합)를 같은 파일에 둬서 둘이 어긋나지 않게 한다.
 
 ```ts
 export interface FieldTypeDef {
   type: FieldType;
   label: string;                                    // 빌더에 보이는 이름: '텍스트' 등
   // 생성 파트가 사용
-  excelValidation(field: Field): ExcelJS.DataValidation | null;
-  excelNumFmt(field: Field): string | undefined;    // 예: 날짜 'yyyy-mm-dd'
+  excelValidation(field: Field, today: Date): ExcelJS.DataValidation | null;
+  excelNumFmt(field: Field): string | undefined;    // 예: '#,##0"개"', 'yyyy-mm-dd', '0'
   // 취합 파트가 사용
-  parse(raw: unknown): { value: CellValue; ok: boolean };   // 엑셀 셀 값 → 정규 값
-  validate(value: CellValue, field: Field): IssueCode | null; // 필수 여부 제외 규칙 검사
+  normalize(raw: unknown, field: Field, ctx: { year: number; today: Date }): NormalizeResult;
 }
+
+export interface NormalizeResult {
+  status: 'ok' | 'auto' | 'proposal' | 'invalid';
+  value: CellValue;          // ok·auto: 정리된 값. proposal·invalid: 원래 값(문자열)
+  proposal?: CellValue;      // proposal일 때 자동 수정안
+  issue?: IssueCode;         // proposal·invalid일 때
+}
+// ok       = 그대로 맞음
+// auto     = 확실한 정리 (원래 값은 셀 메모로 남김, 연한 파란색)
+// proposal = 애매함 → 오류로 보고하고 자동 수정안 제시
+// invalid  = 수정안 없음 → 오류, 운영자가 직접 수정하거나 그대로 둠
+
 export const FIELD_TYPES: Record<FieldType, FieldTypeDef>;
 
 export type IssueCode =
-  | 'REQUIRED_EMPTY' | 'TOO_LONG' | 'NOT_NUMBER' | 'NOT_DATE' | 'OUT_OF_RANGE' | 'NOT_IN_OPTIONS';
+  | 'REQUIRED_EMPTY' | 'TOO_LONG' | 'NOT_NUMBER' | 'NOT_DATE' | 'OUT_OF_RANGE'
+  | 'NOT_IN_OPTIONS' | 'BAD_PATTERN' | 'FORMULA_ERROR';
 ```
 
-| type | 엑셀 입력 규칙 | parse | validate 실패 코드 |
-|---|---|---|---|
-| text | 텍스트 길이 ≤ maxLength | 문자열로 변환, 앞뒤 공백 제거 | `TOO_LONG` |
-| number | 정수/소수, min~max | 숫자 또는 숫자 모양 문자열 → number | `NOT_NUMBER`, `OUT_OF_RANGE` |
-| date | 날짜, minDate~maxDate, 서식 yyyy-mm-dd | Date 또는 엑셀 일련번호 또는 'YYYY-MM-DD'/'YYYY.MM.DD' 문자열 → 'YYYY-MM-DD' | `NOT_DATE`, `OUT_OF_RANGE` |
-| select | 드롭다운(options) | 문자열 | `NOT_IN_OPTIONS` |
-| memo | 없음, 줄바꿈 서식 | 문자열 | 없음 |
+**타입별 엑셀 입력 규칙과 값 정리 규칙**
 
-필수 여부(`required`)는 공통 규칙으로 취합 파트가 검사한다(코드 `REQUIRED_EMPTY`).
+| type | 서식 옵션 | 엑셀 입력 규칙 (생성) | auto (확실) | proposal (수정안) | invalid |
+|---|---|---|---|---|---|
+| text | maxLength | 텍스트 길이 ≤ maxLength | 앞뒤 공백·줄바꿈 제거 | — | `TOO_LONG` |
+| number | decimals, thousands, unit, min, max | 정수/소수, min~max, 표시 서식 `#,##0.00"단위"` | `1,000개`→1000, `₩5,000`→5000, `15%`→15, 숫자 모양 문자열 | `약 10`→10, `다섯`→5, 자릿수 초과(`3.456`, decimals 2)→3.46 | `10~20` 등 (`NOT_NUMBER`), 범위 밖 (`OUT_OF_RANGE`) |
+| date | dateFormat, minDate, maxDate | 날짜, 범위, 표시 서식 | `2026.11.1`, `2026/11/01`, `11월 1일`, `11/1`(연도 없으면 취합 연도), 엑셀 날짜 숫자 → 형식대로. 연도형: `2026년`→2026 | 연도형 `26`→2026 | 해석 불가 (`NOT_DATE`), 범위 밖 (`OUT_OF_RANGE`) |
+| select | options | 드롭다운 | 공백·대소문자 차이 → 목록 값 | 목록에 없는 비슷한 값(`notebook`→`노트북` 등 편집거리·포함관계) → 후보 | 그 외 (`NOT_IN_OPTIONS`) |
+| memo | — | 없음, 줄바꿈 서식 | 앞뒤 공백 제거 | — | — |
+| pattern | pattern | 텍스트 길이 제한 + 입력 메시지 | 전화 `0212345678`→`02-1234-5678`, 휴대폰 `01012345678`→`010-1234-5678`, 사업자 `1234567890`→`123-45-67890`, 이메일 앞뒤 공백·도메인 소문자 | — | 자릿수·형식·사업자번호 검증 실패 (`BAD_PATTERN`) |
+
+- 공통: 엑셀 오류 값(`#N/A`, `#REF!` 등) → `invalid`, `FORMULA_ERROR`, 값은 빈칸 처리. 수식 칸은 결과 값을 사용한다.
+- 필수 여부(`required`)는 공통 규칙으로 취합 파트가 검사한다(코드 `REQUIRED_EMPTY`). 수정안 없음.
+- 상대 날짜(`today+30`)는 생성 시점 기준으로 엑셀 입력 규칙을 만들고, 취합 시에는 취합 시점 기준으로 검사한다.
 
 ## 6. 취합 방식 ID (`aggregationIds.ts`)
 
 ```ts
 export type AggregationId =
-  | 'append'             // 행 이어붙이기          — layout: list
-  | 'header-append'      // 머리정보 붙여 잇기     — layout: header-list
-  | 'spread'             // 지사별 펼치기          — layout: matrix
-  | 'collect-sheets'     // 시트 모으기            — 모든 layout
-  | 'submission-status'; // 제출 현황표            — 모든 layout
+  | 'same-frame'         // 같은 틀 시트        — 모든 layout, 항상 포함
+  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in
+  | 'collect-sheets'     // 시트 모으기         — 모든 layout
+  | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
+export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]>;  // same-frame, matrix는 spread도
 ```
 
-- 생성 파트는 빌더에서 해당 layout이 지원하는 방식만 보여준다.
+- 생성 파트는 빌더에서 해당 layout이 지원하는 방식만 보여주고, 필수 방식은 체크 해제할 수 없게 한다.
 - "다시 취합"은 취합 방식이 아니라 취합 파트의 **입력 처리 기능**이다(취합본을 넣으면 `_records`를 풀어 일반 제출본처럼 다룬다).
-- 새 취합 방식을 추가할 때 이 목록에 ID를 추가하는 것은 계약 변경이다(9절).
+- 새 취합 방식을 추가할 때 이 목록에 ID를 추가하는 것은 계약 변경이다(10절).
 
-## 7. 셀 배치 규칙 (생성 파트가 지키고, 취합 파트는 `CellMap`으로만 읽는다)
+## 7. 같은 틀 레이아웃 (`layout/`)
 
-취합 파트는 배치 규칙을 가정하지 말고 **반드시 `CellMap`을 사용**한다. 아래는 생성 파트의 기본 배치이며 참고용이다.
+빈 양식과 취합본 첫 시트(같은 틀 시트)를 **같은 엔진**으로 만든다. 따로 만들면 모양이 어긋난다.
+
+```ts
+// src/contract/layout/layoutEngine.ts — 순수 함수
+export function layoutSheet(schema: FormSchema, input: LayoutInput): SheetModel;
+
+type LayoutInput =
+  | { mode: 'template'; orgName?: string }                    // 빈 양식
+  | { mode: 'aggregate'; info: string; data: AggregateFill }; // 같은 틀 시트 (취합 파트가 data를 채워 호출)
+
+interface SheetModel {
+  sheetName: string;
+  columns: { width: number }[];
+  cells: ModelCell[];                // 값이 있거나 서식이 있는 칸만
+  merges: string[];                  // 예: 'A1:E1'
+  validations: { address: string; rule: ExcelJS.DataValidation }[];  // template에서만
+  printArea: string;
+  freeze?: { row: number };
+  cellMap: CellMap;
+}
+interface ModelCell {
+  address: string;
+  value?: string | number;
+  formula?: string;                  // 합계 행·열 등
+  role: 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
+      | 'example' | 'fixed' | 'auto-header' | 'auto-value';
+  required?: boolean;
+  numFmt?: string;
+  wrap?: boolean;
+  mark?: 'auto-fixed' | 'error' | 'muted' | 'strike';   // aggregate에서 연한 파랑 / 노랑 / 흐리게 / 취소선
+  note?: string;                     // 셀 메모 (원래 값, 오류 내용, 출처 등)
+}
+```
+
+- `role`별 스타일 표(`styles.ts`) 하나를 생성 미리보기·빈 양식·같은 틀 시트가 공유한다.
+- `AggregateFill`의 구체 모양(행 목록, 합계 값, 자동 칸 값)은 `03-aggregator.md` 3.7과 맞춰 `layout/sheetModel.ts`에 정의한다.
+
+### 7.1 기본 배치 (생성 파트가 지키고, 취합 파트는 `CellMap`으로만 읽는다)
+
+취합 파트는 배치 규칙을 가정하지 말고 **반드시 `CellMap`을 사용**한다. 아래는 참고용이다.
 
 ```
-1행  제목 (A~마지막 열 병합)
-2행  작성 안내 · 제출 기한 · 문의처 (병합)
+1행  제목 (A~마지막 열 병합)                         ← 시트 이름 = 양식 제목
+2행  정보칸 (병합)   빈 양식: 작성 안내 · 제출 기한 · 문의처
+                    같은 틀 시트: 취합일 · 파일 수 · 오류 수 · 검산 결과
 3행  (빈 행)
-4행  A: "지사명"  B: 지사명 값 칸
+4행  A: "지사명"  B: 지사명 값 칸                    ← org.mode = 'none'이면 4~5행 없음
 5행  (빈 행)
 6행~ 블록들을 위에서 아래로 배치, 블록 사이 빈 행 1개
      fields: 한 행에 [라벨 | 값] 한 쌍
-     list:   머리글 행 + maxRows개 입력 행, A열은 번호(잠금)
-     matrix: 첫 행 = [빈칸 | 열 제목들], 이후 행 = [행 제목 | 입력칸들]
+     list:   머리글 행 + (예시 줄) + maxRows개 입력 행, A열은 번호(잠금)
+     matrix: 첫 행 = [빈칸 | 열 제목들 (| 계)], 이후 행 = [행 제목 | 입력칸들 (| 계)], (합계 행)
+     grid:   머리글 행 + 본문 행(고정/입력/빈칸) + spareRows개 여유 줄
+인쇄영역 = 1행 ~ 입력 영역 마지막 행, A ~ 마지막 열. 인쇄영역 밖은 작성자 자유 메모 공간.
 ```
+
+### 7.2 같은 틀 시트 규칙 (구조별)
+
+| layout | 같은 틀 시트 모양 | 오른쪽 끝 자동 칸 |
+|---|---|---|
+| list | 양식과 같은 머리글, 입력 줄 자리에 모든 반영 행 | `지사`(org 사용 시), `출처 파일`, `원본 줄`, `상태` |
+| header-list | 위쪽 머리정보 칸은 비우고 "(줄별 자동 칸 참고)", 목록 칸 위치는 양식 그대로 | `지사`, **머리정보 항목들**(줄마다 반복), `출처 파일`, `원본 줄`, `상태` |
+| matrix | 양식과 같은 표에 **모든 제출의 합계** | 없음 (지사별 값은 `spread` 시트, 항상 포함) |
+| fill-in | 양식과 같은 표에 **모든 제출을 겹쳐 채움**, 여유 줄 자리에 추가된 행 전부 | 여유 줄에만 `지사`, `출처 파일`, `원본 줄`. 입력칸 출처는 셀 메모 |
+
+- 자동 칸은 **양식 칸 오른쪽 끝**에 붙여 원래 열 위치를 유지한다. 머리글 색으로 자동 칸임을 구분한다(`auto-header`).
+- 같은 틀 시트는 시트 보호·입력 규칙을 넣지 않는다. 인쇄영역 = 제목 ~ 마지막 줄.
 
 ## 8. 테스트용 샘플 파일 (`fixtures/`)
 
 0단계에서 함께 만들고, 2단계에서 실제 생성 파일로 교체한다. 파일명 규칙: `{layout}__{상황}.xlsx`
+개발자2 프로토타입의 `selfcheck.js` 회신 세트를 옮겨 `messy__*`로 둔다.
 
 | 파일 | 내용 |
 |---|---|
@@ -262,25 +395,22 @@ export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
 | `header-list__columns-swapped.xlsx` | 목록 열 순서 바뀜, 1개 열 삭제 |
 | `header-list__dup_seoul_newer.xlsx` | 서울 중복 제출(저장 시각이 더 늦음) |
 | `header-list__meta-deleted.xlsx` | `_meta` 시트 제거, 파일 속성만 남음 |
-| `header-list__meta-and-props-deleted.xlsx` | 메타·속성 모두 없음(복사·붙여넣기 상황) |
+| `header-list__meta-and-props-deleted.xlsx` | 메타·속성 모두 없음(새 파일에 복사·붙여넣기) |
 | `header-list__meta-tampered.xlsx` | 메타 JSON 수정됨(체크섬 불일치) |
 | `other-form.xlsx` | 다른 formId |
 | `input-mode__unknown-org.xlsx` | input 모드, 목록에 없는 지사명 |
+| `none-mode__a.xlsx`, `none-mode__a_copy.xlsx`, `none-mode__b.xlsx` | 식별 안 함 모드, 내용 완전 동일 파일 포함 |
 | `list__ok_*.xlsx`, `matrix__ok_*.xlsx` | 구조별 정상본 |
+| `fill-in__ok_*.xlsx` 3개 | 빈칸채우기형, 서로 다른 칸을 채움 + 여유 줄 추가 |
+| `fill-in__conflict.xlsx` | 다른 파일과 같은 칸에 다른 값, 고정 칸 수정 |
+| `messy__hidden-strike-merge.xlsx` | 숨긴 줄, 필터로 가린 줄, 취소선, 합친 셀, `〃` |
+| `messy__units-dates.xlsx` | `1,000개`, `₩5,000`, `2026.11.1`, `11/1`, `약 10`, `#REF!` |
+| `messy__total-example-memo.xlsx` | 예시 줄 미삭제, 합계 줄, 메모 줄, 인쇄영역 밖 메모, 인쇄영역 밖으로 이어진 표 |
+| `messy__extra-column.xlsx` | 양식에 없는 칸 추가, 칸 이름 공백 차이 |
 | `aggregate__north.xlsx`, `aggregate__south.xlsx` | 본부 취합본(다시 취합 테스트) |
-| `schema__header-list.json` | 위 파일들의 양식 JSON |
+| `schema__header-list.json` 외 구조별 | 위 파일들의 양식 JSON |
 
-## 9. 계약 변경 절차
-
-1. 변경이 필요한 사람이 상대에게 알리고 합의한다.
-2. 이 문서를 먼저 고친다.
-3. `src/contract/`를 고치고, 하위 호환이 깨지면 `CONTRACT_VERSION`을 올린다.
-4. `fixtures/`와 계약 테스트를 함께 갱신한다.
-5. 두 사람 모두 확인한 뒤 병합한다.
-
-**LLM 규칙**: 각자의 LLM은 `src/contract/`를 수정하지 않는다. 계약에 없는 정보가 필요하면 작업을 멈추고 사람에게 알린다.
-
-## 10. 0단계 호환성 테스트 체크리스트 (D1)
+## 9. 0단계 호환성 테스트 체크리스트 (D1)
 
 생성한 파일을 각 프로그램에서 열어 작성·저장한 뒤 다시 읽어 확인한다.
 
@@ -289,8 +419,21 @@ export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
 | `_meta` 시트 유지 | | | |
 | veryHidden 유지 | | | |
 | 사용자 지정 속성 유지 | | | |
+| 문서 속성 `modified` 갱신 | | | |
+| 인쇄영역 유지 | | | |
 | 데이터 유효성 검사 동작 | | | |
 | 시트 보호 유지 | | | |
 | 날짜 값이 날짜로 저장 | | | |
+| 숫자 표시 서식(단위·쉼표) 유지 | | | |
 
-결과를 이 표에 기록하고, 유지되지 않는 항목은 대응 방안(예: 메타를 숨김 이름 정의에 추가 저장)을 정한다.
+결과를 이 표에 기록하고, 유지되지 않는 항목은 대응 방안(예: 메타를 숨김 이름 정의에 추가 저장, 인쇄영역 없으면 `CellMap` 범위 사용)을 정한다.
+
+## 10. 계약 변경 절차
+
+1. 변경이 필요한 사람이 상대에게 알리고 합의한다.
+2. 이 문서를 먼저 고친다.
+3. `src/contract/`를 고치고, 하위 호환이 깨지면 `CONTRACT_VERSION`을 올린다.
+4. `fixtures/`와 계약 테스트를 함께 갱신한다.
+5. 두 사람 모두 확인한 뒤 병합한다.
+
+**LLM 규칙**: 각자의 LLM은 `src/contract/`를 수정하지 않는다. 계약에 없는 정보가 필요하면 작업을 멈추고 사람에게 알린다.
