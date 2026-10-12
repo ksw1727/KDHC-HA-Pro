@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>양식 취합 설계안</title>
+<style>
+:root{
+  --bg:#f7f6f2; --card:#ffffff; --ink:#1f1e1b; --sub:#5f5e5a; --muted:#8a8880; --line:#e2e0d8; --line2:#cfccc2;
+  --teal-bg:#e1f5ee; --teal:#0f6e56; --teal-ink:#085041;
+  --coral-bg:#faece7; --coral:#993c1d; --coral-ink:#712b13;
+  --purple-bg:#eeedfe; --purple:#534ab7; --purple-ink:#3c3489;
+  --amber-bg:#faeeda; --amber-ink:#633806;
+  --red-bg:#fcebeb; --red-ink:#a32d2d;
+  --green-ink:#3b6d11; --green-bg:#eaf3de;
+  --blue-bg:#e6f1fb; --blue-ink:#0c447c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1b1b19; --card:#252523; --ink:#ecebe6; --sub:#b4b2a9; --muted:#888780; --line:#3a3a37; --line2:#4a4a46;
+    --teal-bg:#0a3d31; --teal:#5dcaa5; --teal-ink:#9fe1cb;
+    --coral-bg:#4a1b0c; --coral:#f0997b; --coral-ink:#f5c4b3;
+    --purple-bg:#26215c; --purple:#afa9ec; --purple-ink:#cecbf6;
+    --amber-bg:#412402; --amber-ink:#fac775;
+    --red-bg:#501313; --red-ink:#f7c1c1;
+    --green-ink:#c0dd97; --green-bg:#173404;
+    --blue-bg:#042c53; --blue-ink:#b5d4f4;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1b1b19; --card:#252523; --ink:#ecebe6; --sub:#b4b2a9; --muted:#888780; --line:#3a3a37; --line2:#4a4a46;
+  --teal-bg:#0a3d31; --teal:#5dcaa5; --teal-ink:#9fe1cb;
+  --coral-bg:#4a1b0c; --coral:#f0997b; --coral-ink:#f5c4b3;
+  --purple-bg:#26215c; --purple:#afa9ec; --purple-ink:#cecbf6;
+  --amber-bg:#412402; --amber-ink:#fac775;
+  --red-bg:#501313; --red-ink:#f7c1c1;
+  --green-ink:#c0dd97; --green-bg:#173404;
+  --blue-bg:#042c53; --blue-ink:#b5d4f4;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;line-height:1.7;font-size:16px}
+.wrap{max-width:900px;margin:0 auto;padding:40px 16px 80px}
+header{margin-bottom:28px}
+.eyebrow{font-size:13px;color:var(--muted);letter-spacing:.02em}
+h1{font-size:30px;font-weight:600;margin:6px 0 10px;line-height:1.35}
+h2{font-size:22px;font-weight:600;margin:0 0 6px}
+h3{font-size:17px;font-weight:600;margin:22px 0 8px}
+.lead{font-size:17px;color:var(--sub);margin:0}
+nav{display:flex;flex-wrap:wrap;gap:6px;margin:22px 0 0}
+nav a{font-size:13px;color:var(--sub);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:4px 11px;background:var(--card)}
+nav a:hover{border-color:var(--line2);color:var(--ink)}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 26px;margin:18px 0}
+.num{display:inline-block;font-size:13px;color:var(--muted);margin-bottom:2px}
+p{margin:8px 0}
+.sub{color:var(--sub)}
+.small{font-size:13px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--bg)}
+.card b{display:block;margin-bottom:2px}
+.tag{display:inline-block;font-size:12px;border-radius:6px;padding:1px 8px;margin-right:4px}
+.t-teal{background:var(--teal-bg);color:var(--teal-ink)}
+.t-coral{background:var(--coral-bg);color:var(--coral-ink)}
+.t-purple{background:var(--purple-bg);color:var(--purple-ink)}
+.t-amber{background:var(--amber-bg);color:var(--amber-ink)}
+.t-red{background:var(--red-bg);color:var(--red-ink)}
+.t-green{background:var(--green-bg);color:var(--green-ink)}
+.t-gray{background:var(--bg);color:var(--sub);border:1px solid var(--line)}
+table.plain{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+table.plain th,table.plain td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.plain th{font-weight:600;color:var(--sub);font-size:13px}
+.scroll{overflow-x:auto}
+.xl{border-collapse:collapse;font-size:12px;background:var(--card)}
+.xl td{border:1px solid var(--line2);padding:3px 7px;white-space:nowrap}
+.xl .h{background:var(--bg);font-weight:600}
+.xl .req{background:var(--amber-bg)}
+.xl .add{background:var(--blue-bg);color:var(--blue-ink)}
+.xl .err{background:var(--red-bg);color:var(--red-ink)}
+.xl .lock{color:var(--muted)}
+.ex{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.arrow{color:var(--muted);font-size:18px}
+.term{display:grid;grid-template-columns:150px 1fr;gap:4px 16px;font-size:15px;margin:10px 0}
+.term dt{font-weight:600}
+.term dd{margin:0 0 8px;color:var(--sub)}
+@media (max-width:560px){.term{grid-template-columns:1fr}.term dd{margin-bottom:12px}}
+.mock{border:1px solid var(--line2);border-radius:10px;overflow:hidden;font-size:12px;background:var(--card)}
+.mock-top{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.btn{border:1px solid var(--line2);border-radius:6px;padding:3px 9px;font-size:12px;background:var(--card);color:var(--ink);display:inline-block}
+.btn.on{background:var(--blue-bg);color:var(--blue-ink);border-color:transparent}
+.mock-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}
+@media (max-width:640px){.mock-body{grid-template-columns:1fr}}
+.panel{padding:12px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.panel .lbl{color:var(--sub);margin-bottom:3px}
+.box{border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+.list-row{display:flex;justify-content:space-between;padding:4px 8px;border-bottom:1px solid var(--line)}
+.list-row:last-child{border-bottom:0}
+.preview{padding:12px;background:var(--bg)}
+.callout{border-left:3px solid var(--purple);padding:4px 0 4px 14px;margin:14px 0;color:var(--sub)}
+.decide{counter-reset:d}
+.decide li{list-style:none;position:relative;padding:12px 14px 12px 50px;border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--bg)}
+.decide li::before{counter-increment:d;content:counter(d);position:absolute;left:14px;top:12px;width:24px;height:24px;border-radius:50%;background:var(--purple-bg);color:var(--purple-ink);font-size:13px;display:flex;align-items:center;justify-content:center;font-weight:600}
+.decide ul{padding:0;margin:0}
+.timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.step{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--bg)}
+.step .who{font-size:12px;color:var(--muted)}
+svg text{font-family:inherit}
+.svg-wrap{width:100%;overflow-x:auto}
+.svg-wrap svg{min-width:620px;width:100%;height:auto;display:block}
+footer{font-size:13px;color:var(--muted);text-align:center;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">KDHC-HA-Pro · 설계안 · 2026-10-12</div>
+  <h1>합치기 쉬운 엑셀 양식을 만들고,<br>돌아온 파일을 자동으로 합쳐 주는 프로그램</h1>
+  <p class="lead">본사가 지사에 조사표를 보내고, 돌아온 파일을 하나로 합치는 일을 자동으로 처리합니다. 이 문서는 지금까지 함께 정한 내용을 개발 용어 없이 정리한 것입니다.</p>
+  <nav>
+    <a href="#s1">한눈에 보기</a><a href="#s2">전체 흐름</a><a href="#s3">양식 만들기 화면</a><a href="#s4">양식 형태와 합치는 방법</a><a href="#s5">숨은 설계도</a><a href="#s6">취합 화면</a><a href="#s7">문제 파일 처리</a><a href="#s8">두 사람 분업</a><a href="#s9">진행 순서</a><a href="#s10">결정할 것</a><a href="#s11">나중에 할 것</a><a href="#s12">용어 풀이</a>
+  </nav>
+</header>
+
+<section id="s1">
+  <span class="num">01</span>
+  <h2>한눈에 보기</h2>
+  <p>지금은 이런 문제가 있습니다.</p>
+  <div class="grid2">
+    <div class="card"><b>지사마다 칸이 달라짐</b><span class="sub">양식을 만들 때 합칠 일을 생각하지 않아서, 지사가 열을 지우거나 순서를 바꾸면 손으로 맞춰야 합니다.</span></div>
+    <div class="card"><b>누가 냈는지, 뭐가 틀렸는지 모름</b><span class="sub">미제출 지사와 잘못 쓴 칸을 일일이 열어 봐야 합니다.</span></div>
+  </div>
+  <p style="margin-top:16px">그래서 이렇게 풉니다.</p>
+  <div class="grid3">
+    <div class="card"><span class="tag t-teal">1단계</span><b>양식 만들기</b><span class="sub">웹 화면에서 항목을 고르면 입력 규칙이 걸린 엑셀이 만들어집니다. 처음부터 합치기 쉬운 형태입니다.</span></div>
+    <div class="card"><span class="tag t-gray">중간</span><b>배포와 회수</b><span class="sub">지금처럼 메신저·메일·공문으로 엑셀 파일을 주고받습니다. 지사는 우리 프로그램을 쓰지 않습니다.</span></div>
+    <div class="card"><span class="tag t-coral">2단계</span><b>합치기(취합)</b><span class="sub">돌아온 파일을 한꺼번에 넣으면 검사하고, 결정이 필요한 것만 묻고, 결과 파일을 줍니다.</span></div>
+  </div>
+  <div class="callout">모든 처리는 <b>사용자 컴퓨터의 인터넷 창(브라우저) 안에서만</b> 일어납니다. 파일이 외부 서버로 나가지 않으므로 개인정보가 담긴 조사표에도 안전합니다.</div>
+</section>
+
+<section id="s2">
+  <span class="num">02</span>
+  <h2>전체 흐름</h2>
+  <p class="sub">양식을 만들어 보내고, 돌아온 파일을 합치기까지의 순서입니다. 초록색은 "양식 만들기", 주황색은 "합치기" 담당입니다.</p>
+  <div class="svg-wrap">
+  <svg viewBox="0 0 860 330" role="img" aria-labelledby="flowT flowD">
+    <title id="flowT">전체 흐름도</title>
+    <desc id="flowD">운영자가 양식을 만들면 지사별 엑셀 파일이 생기고, 지사가 작성해 돌려주면 합치기 프로그램이 검사하고 운영자 결정을 받아 결과 파일을 만든다</desc>
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <g>
+      <rect x="20" y="30" width="170" height="70" rx="10" fill="var(--teal-bg)" stroke="var(--teal)" stroke-width="1"/>
+      <text x="105" y="58" text-anchor="middle" font-size="15" font-weight="600" fill="var(--teal-ink)">① 양식 만들기</text>
+      <text x="105" y="80" text-anchor="middle" font-size="12.5" fill="var(--teal-ink)">항목·규칙·합칠 방법 선택</text>
+    </g>
+    <line x1="190" y1="65" x2="238" y2="65" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="242" y="30" width="170" height="70" rx="10" fill="var(--teal-bg)" stroke="var(--teal)" stroke-width="1"/>
+      <text x="327" y="58" text-anchor="middle" font-size="15" font-weight="600" fill="var(--teal-ink)">② 엑셀 내보내기</text>
+      <text x="327" y="80" text-anchor="middle" font-size="12.5" fill="var(--teal-ink)">지사별 파일 묶음(zip)</text>
+    </g>
+    <line x1="412" y1="65" x2="460" y2="65" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="464" y="30" width="170" height="70" rx="10" fill="var(--bg)" stroke="var(--line2)" stroke-width="1" stroke-dasharray="5 4"/>
+      <text x="549" y="58" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">③ 배포·작성·회수</text>
+      <text x="549" y="80" text-anchor="middle" font-size="12.5" fill="var(--sub)">메신저·메일 (기존 방식)</text>
+    </g>
+    <line x1="634" y1="65" x2="682" y2="65" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="686" y="30" width="154" height="70" rx="10" fill="var(--coral-bg)" stroke="var(--coral)" stroke-width="1"/>
+      <text x="763" y="58" text-anchor="middle" font-size="15" font-weight="600" fill="var(--coral-ink)">④ 파일 넣기</text>
+      <text x="763" y="80" text-anchor="middle" font-size="12.5" fill="var(--coral-ink)">여러 개 또는 zip</text>
+    </g>
+    <path d="M763 100 L763 140 L763 160" fill="none" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="686" y="164" width="154" height="70" rx="10" fill="var(--coral-bg)" stroke="var(--coral)" stroke-width="1"/>
+      <text x="763" y="192" text-anchor="middle" font-size="15" font-weight="600" fill="var(--coral-ink)">⑤ 알아보기</text>
+      <text x="763" y="214" text-anchor="middle" font-size="12.5" fill="var(--coral-ink)">어느 양식·어느 지사?</text>
+    </g>
+    <line x1="686" y1="199" x2="638" y2="199" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="464" y="164" width="170" height="70" rx="10" fill="var(--coral-bg)" stroke="var(--coral)" stroke-width="1"/>
+      <text x="549" y="192" text-anchor="middle" font-size="15" font-weight="600" fill="var(--coral-ink)">⑥ 읽고 검사하기</text>
+      <text x="549" y="214" text-anchor="middle" font-size="12.5" fill="var(--coral-ink)">빈칸·잘못된 값 찾기</text>
+    </g>
+    <line x1="464" y1="199" x2="416" y2="199" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="242" y="164" width="170" height="70" rx="10" fill="var(--amber-bg)" stroke="var(--amber-ink)" stroke-width="1"/>
+      <text x="327" y="192" text-anchor="middle" font-size="15" font-weight="600" fill="var(--amber-ink)">⑦ 운영자 결정</text>
+      <text x="327" y="214" text-anchor="middle" font-size="12.5" fill="var(--amber-ink)">필요한 것만 물어봄</text>
+    </g>
+    <line x1="242" y1="199" x2="194" y2="199" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="20" y="164" width="170" height="70" rx="10" fill="var(--coral-bg)" stroke="var(--coral)" stroke-width="1"/>
+      <text x="105" y="192" text-anchor="middle" font-size="15" font-weight="600" fill="var(--coral-ink)">⑧ 합치기</text>
+      <text x="105" y="214" text-anchor="middle" font-size="12.5" fill="var(--coral-ink)">고른 방법들로 동시에</text>
+    </g>
+    <path d="M105 234 L105 262" fill="none" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar)"/>
+    <g>
+      <rect x="20" y="266" width="400" height="50" rx="10" fill="var(--card)" stroke="var(--line2)" stroke-width="1"/>
+      <text x="220" y="296" text-anchor="middle" font-size="14" fill="var(--ink)">⑨ 결과 엑셀 1개: 합친 시트들 + 제출 현황 + 오류 목록</text>
+    </g>
+    <text x="450" y="286" font-size="12.5" fill="var(--muted)">결과 파일을 다시 넣으면 상위 기관이</text>
+    <text x="450" y="306" font-size="12.5" fill="var(--muted)">또 합칠 수 있음 (본부 → 본사)</text>
+  </svg>
+  </div>
+</section>
+
+<section id="s3">
+  <span class="num">03</span>
+  <h2>양식 만들기 화면</h2>
+  <p class="sub">왼쪽에서 고르면 오른쪽에 실제 엑셀 모양이 바로 보입니다. 화면에 보이는 모양과 내려받은 엑셀은 똑같은 설계도에서 만들어지므로 어긋나지 않습니다.</p>
+  <div class="mock" style="margin-top:12px">
+    <div class="mock-top"><b>2026 하반기 교육 참가자 조사</b><span><span class="btn">양식 저장</span> <span class="btn on">엑셀 내보내기</span></span></div>
+    <div class="mock-body">
+      <div class="panel">
+        <div><div class="lbl">① 기본 정보</div><div class="box">제목 · 작성 안내 · 제출 기한 · 문의처</div></div>
+        <div><div class="lbl">② 양식 형태</div><span class="btn">목록형</span> <span class="btn">표형</span> <span class="btn on">혼합형</span></div>
+        <div><div class="lbl">③ 항목</div>
+          <div class="box" style="padding:0">
+            <div class="list-row small">위쪽 정보</div>
+            <div class="list-row"><span>담당자 *</span><span class="small">글자</span></div>
+            <div class="list-row small">아래쪽 목록</div>
+            <div class="list-row"><span>이름 *</span><span class="small">글자</span></div>
+            <div class="list-row"><span>직급</span><span class="small">고르기</span></div>
+            <div class="list-row"><span>참가일 *</span><span class="small">날짜</span></div>
+          </div>
+        </div>
+        <div><div class="lbl">④ 합치는 방법 (여러 개 가능)</div><div class="box">☑ 위쪽 정보 붙여 잇기 &nbsp;☑ 제출 현황표</div></div>
+        <div><div class="lbl">⑤ 지사/기관</div><div class="box">목록 있음 · 서울, 부산, 대구 외 12곳</div></div>
+      </div>
+      <div class="preview">
+        <div class="small" style="margin-bottom:6px">실시간 미리보기 (서울 지사용)</div>
+        <div class="scroll">
+        <table class="xl">
+          <tr><td colspan="4" style="font-weight:600">2026 하반기 교육 참가자 조사</td></tr>
+          <tr><td colspan="4" class="lock">10/20까지 제출 · 문의 인사팀</td></tr>
+          <tr><td class="h">지사명</td><td class="lock">🔒 서울</td><td class="h">담당자 *</td><td class="req"></td></tr>
+          <tr><td colspan="4" style="border:0;height:8px"></td></tr>
+          <tr><td class="h">번호</td><td class="h">이름 *</td><td class="h">직급 ▾</td><td class="h">참가일 *</td></tr>
+          <tr><td class="lock">1</td><td class="req"></td><td></td><td class="req"></td></tr>
+          <tr><td class="lock">2</td><td class="req"></td><td></td><td class="req"></td></tr>
+          <tr><td class="lock">…</td><td></td><td></td><td></td></tr>
+        </table>
+        </div>
+        <p class="small" style="margin-top:8px"><span class="tag t-amber">노란 칸</span> 꼭 써야 하는 칸 · 🔒 잠긴 칸 · 제목 줄은 고칠 수 없고 빈칸에만 입력 가능</p>
+      </div>
+    </div>
+  </div>
+  <h3>만들어지는 엑셀의 특징</h3>
+  <div class="grid2">
+    <div class="card"><b>입력 규칙</b><span class="sub">숫자 칸엔 숫자만, 날짜 칸엔 날짜만, 고르기 칸은 목록에서 선택. 틀리게 쓰면 엑셀이 바로 막아 줍니다.</span></div>
+    <div class="card"><b>잠금</b><span class="sub">제목 줄과 지사명은 잠겨 있어 지사가 칸을 지우거나 바꾸기 어렵습니다.</span></div>
+    <div class="card"><b>지사별 파일</b><span class="sub">지사 목록을 넣으면 지사 이름이 미리 들어간 파일을 지사 수만큼 만들어 한 묶음으로 줍니다.</span></div>
+    <div class="card"><b>목록 줄 수</b><span class="sub">잠금 때문에 지사가 줄을 끼워 넣을 수 없어서, 미리 넉넉하게(기본 100줄) 칸을 만들어 둡니다.</span></div>
+  </div>
+</section>
+
+<section id="s4">
+  <span class="num">04</span>
+  <h2>양식 형태와 합치는 방법</h2>
+  <p class="sub">처음 버전에서 만들 수 있는 양식 형태 3가지와, 함께 고를 수 있는 합치는 방법입니다. 파란 칸은 프로그램이 합칠 때 자동으로 붙이는 부분입니다.</p>
+
+  <h3>목록형 → 줄 이어붙이기</h3>
+  <div class="ex">
+    <table class="xl"><tr><td class="h">이름</td><td class="h">학년</td></tr><tr><td>김OO</td><td>3</td></tr><tr><td>이OO</td><td>2</td></tr></table>
+    <span class="arrow">→</span>
+    <table class="xl"><tr><td class="add">지사</td><td class="h">이름</td><td class="h">학년</td></tr><tr><td>서울</td><td>김OO</td><td>3</td></tr><tr><td>서울</td><td>이OO</td><td>2</td></tr><tr><td>부산</td><td>박OO</td><td>1</td></tr></table>
+  </div>
+
+  <h3>혼합형(위쪽 정보 + 아래 목록) → 위쪽 정보를 줄마다 붙여 잇기</h3>
+  <div class="ex">
+    <div><table class="xl" style="margin-bottom:4px"><tr><td class="h">담당자</td><td>홍OO</td></tr></table><table class="xl"><tr><td class="h">품목</td><td class="h">수량</td></tr><tr><td>의자</td><td>4</td></tr></table></div>
+    <span class="arrow">→</span>
+    <table class="xl"><tr><td class="h">지사</td><td class="add">담당자</td><td class="h">품목</td><td class="h">수량</td></tr><tr><td>서울</td><td>홍OO</td><td>의자</td><td>4</td></tr></table>
+  </div>
+
+  <h3>표형(줄·칸 제목 고정) → 지사별로 펼치기</h3>
+  <div class="ex">
+    <table class="xl"><tr><td class="h"></td><td class="h">남</td><td class="h">여</td></tr><tr><td class="h">1학년</td><td>12</td><td>10</td></tr></table>
+    <span class="arrow">→</span>
+    <table class="xl"><tr><td class="add">지사</td><td class="h">1학년 남</td><td class="h">1학년 여</td></tr><tr><td>서울</td><td>12</td><td>10</td></tr><tr><td>부산</td><td>33</td><td>31</td></tr><tr><td class="add">합계</td><td class="add">45</td><td class="add">41</td></tr></table>
+  </div>
+
+  <h3>어떤 형태든 함께 고를 수 있는 것</h3>
+  <div class="grid3">
+    <div class="card"><b>시트 모으기</b><span class="sub">파일 15개 → 결과 파일 1개 안에 시트 15장. 시트 이름은 지사명.</span></div>
+    <div class="card"><b>제출 현황표</b><span class="sub">지사별 제출·미제출·제외, 저장 시각, 오류 수를 한 장에.</span></div>
+    <div class="card"><b>다시 합치기</b><span class="sub">본부가 만든 결과 파일을 본사가 또 넣어 전체를 합칠 수 있음.</span></div>
+  </div>
+  <p class="small" style="margin-top:12px">합치는 방법은 "끼워 넣는 부품"처럼 만들어서, 나중에 새 방법(합계, 소계, 피벗 등)을 하나씩 쉽게 추가할 수 있습니다.</p>
+</section>
+
+<section id="s5">
+  <span class="num">05</span>
+  <h2>숨은 설계도: 두 파트를 잇는 약속</h2>
+  <p>만들기 담당과 합치기 담당이 따로 일하려면, <b>"엑셀 파일 안에 무엇을 어떤 모양으로 적어 둘지"</b>를 먼저 약속해야 합니다. 이 약속을 <b>공통 계약</b>이라고 부릅니다.</p>
+  <div class="svg-wrap">
+  <svg viewBox="0 0 680 330" role="img" aria-labelledby="ctT ctD">
+    <title id="ctT">공통 계약 구조</title>
+    <desc id="ctD">양식 설계도를 두 담당자가 함께 따르고, 엑셀 파일 안에 설계도 사본이 숨은 시트로 들어가 합치기 담당이 이를 읽는다</desc>
+    <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+    <rect x="200" y="20" width="280" height="58" rx="10" fill="var(--purple-bg)" stroke="var(--purple)" stroke-width="1"/>
+    <text x="340" y="44" text-anchor="middle" font-size="15" font-weight="600" fill="var(--purple-ink)">공통 계약 = 양식 설계도</text>
+    <text x="340" y="64" text-anchor="middle" font-size="12.5" fill="var(--purple-ink)">두 사람이 가장 먼저 함께 정함</text>
+    <path d="M200 49 L110 49 L110 132" fill="none" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar2)"/>
+    <path d="M480 49 L570 49 L570 132" fill="none" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar2)"/>
+    <rect x="20" y="136" width="180" height="60" rx="10" fill="var(--teal-bg)" stroke="var(--teal)" stroke-width="1"/>
+    <text x="110" y="161" text-anchor="middle" font-size="15" font-weight="600" fill="var(--teal-ink)">만들기 담당</text>
+    <text x="110" y="181" text-anchor="middle" font-size="12.5" fill="var(--teal-ink)">설계도대로 엑셀 생성</text>
+    <rect x="245" y="112" width="190" height="196" rx="12" fill="none" stroke="var(--line2)" stroke-dasharray="5 4"/>
+    <text x="340" y="134" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">지사가 돌려준 엑셀</text>
+    <rect x="262" y="148" width="156" height="58" rx="8" fill="var(--bg)" stroke="var(--line2)"/>
+    <text x="340" y="172" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">입력 시트</text>
+    <text x="340" y="191" text-anchor="middle" font-size="12.5" fill="var(--sub)">지사에게 보이는 부분</text>
+    <rect x="262" y="222" width="156" height="70" rx="8" fill="var(--purple-bg)" stroke="var(--purple)"/>
+    <text x="340" y="246" text-anchor="middle" font-size="14" font-weight="600" fill="var(--purple-ink)">숨은 설계도 시트</text>
+    <text x="340" y="265" text-anchor="middle" font-size="12.5" fill="var(--purple-ink)">설계도 사본·칸 위치</text>
+    <text x="340" y="281" text-anchor="middle" font-size="12.5" fill="var(--purple-ink)">·지사 이름</text>
+    <line x1="200" y1="166" x2="241" y2="166" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar2)"/>
+    <line x1="435" y1="166" x2="476" y2="166" stroke="var(--muted)" stroke-width="1.4" marker-end="url(#ar2)"/>
+    <rect x="480" y="136" width="180" height="60" rx="10" fill="var(--coral-bg)" stroke="var(--coral)" stroke-width="1"/>
+    <text x="570" y="161" text-anchor="middle" font-size="15" font-weight="600" fill="var(--coral-ink)">합치기 담당</text>
+    <text x="570" y="181" text-anchor="middle" font-size="12.5" fill="var(--coral-ink)">사본을 읽고 합침</text>
+  </svg>
+  </div>
+  <div class="callout">택배로 비유하면, 만들기 담당은 상자(엑셀)에 <b>송장</b>(숨은 설계도)을 붙여 보내고, 합치기 담당은 돌아온 상자의 송장만 보고 내용물을 정리합니다. 송장 양식만 미리 정해 두면 두 사람이 서로의 작업을 몰라도 됩니다.</div>
+
+  <h3>지사가 숨은 시트를 지우면? 3단계로 막습니다</h3>
+  <div class="grid3">
+    <div class="card"><span class="tag t-purple">1</span><b>아예 안 보이게</b><span class="sub">일반 "숨기기"보다 강한 숨김을 써서 엑셀 메뉴에서 찾을 수 없고, 시트 삭제도 잠가 둡니다.</span></div>
+    <div class="card"><span class="tag t-purple">2</span><b>두 군데 적어 두기</b><span class="sub">양식 번호와 지사 이름은 파일 속성(파일 정보 칸)에도 적어 둡니다. 내용을 몰래 고치면 알아챕니다.</span></div>
+    <div class="card"><span class="tag t-purple">3</span><b>그래도 사라지면</b><span class="sub">새 파일에 복사해 붙여넣은 경우입니다. 운영자가 저장해 둔 <b>양식 파일</b>을 넣으면 제목 줄 이름으로 맞춰서 합칩니다.</span></div>
+  </div>
+</section>
+
+<section id="s6">
+  <span class="num">06</span>
+  <h2>합치기(취합) 화면</h2>
+  <p class="sub">파일을 넣으면 지사별로 한 줄씩 보여 줍니다. 자동으로 처리할 수 있는 건 처리하고, <b>운영자가 정해야 하는 것만 버튼</b>으로 묻습니다.</p>
+  <div class="mock" style="margin-top:12px">
+    <div class="mock-top"><span><b>2026 하반기 교육 참가자 조사</b> <span class="small">파일 17개</span></span><span class="btn">파일 더 넣기</span></div>
+    <div class="grid3" style="padding:12px;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+      <div class="card" style="padding:8px 10px"><span class="small">제출</span><br><b style="font-size:18px">12 / 15</b></div>
+      <div class="card" style="padding:8px 10px"><span class="small">처리 필요</span><br><b style="font-size:18px;color:var(--amber-ink)">3</b></div>
+      <div class="card" style="padding:8px 10px"><span class="small">자동 제외</span><br><b style="font-size:18px">1</b></div>
+      <div class="card" style="padding:8px 10px"><span class="small">미제출</span><br><b style="font-size:18px;color:var(--red-ink)">3</b></div>
+    </div>
+    <div class="scroll">
+    <table class="plain" style="font-size:13px;margin:0">
+      <tr><th style="padding-left:14px">지사</th><th>상태</th><th>내용</th><th>처리</th></tr>
+      <tr><td style="padding-left:14px">서울</td><td><span class="tag t-green">정상</span></td><td class="sub">24줄</td><td></td></tr>
+      <tr><td style="padding-left:14px">부산</td><td><span class="tag t-amber">값 오류 2</span></td><td class="sub">이름 빈칸, 참가일에 "다음주"</td><td><span class="btn on">포함</span> <span class="btn">제외</span></td></tr>
+      <tr><td style="padding-left:14px">대구</td><td><span class="tag t-amber">중복 2개</span></td><td class="sub">최신 파일 사용 중</td><td><span class="btn">파일 바꾸기 ▾</span></td></tr>
+      <tr><td style="padding-left:14px">"에이지사"</td><td><span class="tag t-amber">지사 확인</span></td><td class="sub">목록에 없는 이름</td><td><span class="btn">지사 연결 ▾</span></td></tr>
+      <tr><td style="padding-left:14px">광주</td><td><span class="tag t-gray">칸 순서 바뀜</span></td><td class="sub">제목 줄 이름으로 자동 맞춤</td><td class="small">자동</td></tr>
+      <tr><td style="padding-left:14px">작년_조사표</td><td><span class="tag t-gray">다른 양식</span></td><td class="sub">이번 조사 파일이 아님</td><td class="small">자동 제외</td></tr>
+      <tr><td style="padding-left:14px">울산·세종·제주</td><td><span class="tag t-red">미제출</span></td><td></td><td></td></tr>
+    </table>
+    </div>
+    <div class="mock-top" style="border-top:1px solid var(--line);border-bottom:0"><span class="small">결과에 넣을 시트: ☑ 위쪽 정보 붙여 잇기 ☑ 제출 현황표 ☐ 시트 모으기</span><span class="btn on">결과 파일 받기</span></div>
+  </div>
+</section>
+
+<section id="s7">
+  <span class="num">07</span>
+  <h2>문제 있는 파일은 이렇게 처리합니다 (확정)</h2>
+  <div class="scroll">
+  <table class="plain">
+    <tr><th>상황</th><th>예시</th><th>처리</th></tr>
+    <tr><td>값이 잘못됨</td><td><table class="xl"><tr><td class="err">(빈칸)</td><td class="err">삼</td></tr></table></td><td><span class="tag t-amber">운영자가 선택</span><br><span class="small">파일마다 포함/제외. 포함하면 결과에서 빨갛게 표시</span></td></tr>
+    <tr><td>칸을 지우거나 순서를 바꿈</td><td class="small">이름·학년 → 학년·이름</td><td><span class="tag t-green">자동</span><br><span class="small">제목 줄 이름으로 맞춰 포함. 사라진 칸은 빈칸 + 안내</span></td></tr>
+    <tr><td>다른 양식 파일</td><td class="small">작년 조사표</td><td><span class="tag t-gray">자동 제외</span><br><span class="small">알림만 표시</span></td></tr>
+    <tr><td>같은 지사가 두 번 냄</td><td class="small">서울.xlsx / 서울(수정).xlsx</td><td><span class="tag t-green">최신 파일 사용</span><br><span class="small">운영자가 다른 파일로 바꿀 수 있음</span></td></tr>
+    <tr><td>목록에 없는 지사 이름</td><td class="small">"에이지사"</td><td><span class="tag t-amber">운영자가 연결</span><br><span class="small">지사 목록에서 골라 연결</span></td></tr>
+  </table>
+  </div>
+  <p class="small">결과 파일에는 이 내용이 모두 "오류 목록" 시트로 남습니다.</p>
+</section>
+
+<section id="s8">
+  <span class="num">08</span>
+  <h2>두 사람이 나눠서 만드는 방법</h2>
+  <p>각자 AI(LLM)에게 일을 맡길 때, <b>공통 문서 2개 + 자기 담당 문서 1개</b>만 주면 상대 작업을 몰라도 개발할 수 있게 문서를 나눴습니다.</p>
+  <div class="grid3">
+    <div class="card"><span class="tag t-purple">공통</span><b>00 개요 · 01 공통 계약</b><span class="sub">목적, 범위, 용어, 그리고 숨은 설계도의 정확한 모양.</span></div>
+    <div class="card"><span class="tag t-teal">개발자 1</span><b>02 만들기 파트</b><span class="sub">양식 만들기 화면, 미리보기, 엑셀 생성.</span></div>
+    <div class="card"><span class="tag t-coral">개발자 2</span><b>03 합치기 파트</b><span class="sub">파일 읽기, 검사, 검토 화면, 합치기, 결과 파일.</span></div>
+  </div>
+  <div class="callout">합치기 담당은 만들기 파트가 끝나길 기다리지 않습니다. 첫날 함께 만든 <b>연습용 샘플 파일</b>(정상 파일, 오류 파일, 숨은 시트가 지워진 파일 등)로 바로 시작합니다.</div>
+  <p class="small">공통 계약은 혼자 바꾸지 않습니다. 바꿀 일이 생기면 상대에게 알리고 함께 고칩니다. 이 규칙은 각자의 AI에게도 알려 줍니다.</p>
+</section>
+
+<section id="s9">
+  <span class="num">09</span>
+  <h2>진행 순서</h2>
+  <div class="timeline">
+    <div class="step"><div class="who">함께</div><b>0. 약속 정하기</b><p class="sub small">공통 계약 만들기, 연습용 샘플 파일, 한셀·구글 시트에서 숨은 시트가 살아남는지 시험</p></div>
+    <div class="step"><div class="who">각자</div><b>1. 나눠서 만들기</b><p class="sub small">개발자 1은 만들기 화면, 개발자 2는 합치기 화면. 각자 자동 시험 통과</p></div>
+    <div class="step"><div class="who">함께</div><b>2. 이어 붙이기</b><p class="sub small">실제로 만든 파일을 실제로 합쳐 보기. 처음부터 끝까지 흐름 확인</p></div>
+    <div class="step"><div class="who">각자</div><b>3. 시연 준비</b><p class="sub small">화면 다듬기, 시연 시나리오 연습</p></div>
+  </div>
+  <h3>시연 시나리오 (제안)</h3>
+  <p class="sub">본사 인사팀이 15개 지사에 "교육 참가자 조사"를 보냅니다. 12곳이 냈는데 그중 오류 파일, 두 번 낸 파일, 작년 파일이 섞여 있습니다. 검토 화면에서 정리하고 결과 파일을 받습니다. 마지막으로 두 본부의 결과 파일을 본사가 다시 합치는 장면까지 보여 줍니다.</p>
+</section>
+
+<section id="s10">
+  <span class="num">10</span>
+  <h2>결정해 주셔야 할 것</h2>
+  <p class="sub">아래 항목은 기본안을 정해 두었습니다. 바꾸실 것만 알려 주세요.</p>
+  <ol class="decide" style="padding:0">
+    <li><b>한셀에서 저장해도 숨은 설계도가 남는지</b><br><span class="sub">공공기관은 한셀을 많이 씁니다. 0단계에서 직접 시험한 뒤 결과를 보고 대응을 정합니다. <span class="tag t-gray">시험 후 결정</span></span></li>
+    <li><b>잠금에 비밀번호를 걸지</b><br><span class="sub">걸지 않으면 엑셀을 조금 아는 사람은 잠금을 풀 수 있습니다. <span class="tag t-purple">기본안: 프로그램이 정한 비밀번호 사용</span></span></li>
+    <li><b>목록형 양식의 기본 줄 수</b><br><span class="sub">지사가 줄을 끼워 넣을 수 없으므로 미리 만들어 둘 줄 수입니다. 양식마다 바꿀 수 있습니다. <span class="tag t-purple">기본안: 100줄</span></span></li>
+    <li><b>프로그램을 어떻게 나눠 줄지</b><br><span class="sub">① 사내 PC에 파일로 두고 열기 ② 인터넷 주소(GitHub Pages)로 접속. 어느 쪽이든 파일은 외부로 나가지 않습니다. 기관 보안 정책에 따라 정해 주세요.</span></li>
+    <li><b>누가 어느 파트를 맡을지</b><br><span class="sub">만들기 담당 1명, 합치기 담당 1명.</span></li>
+    <li><b>시연 시나리오와 실제 업무 양식 샘플</b><br><span class="sub">실제로 쓰는 양식(개인정보는 지운 것) 1~2개를 주시면 시연이 훨씬 현실적이 됩니다.</span></li>
+  </ol>
+</section>
+
+<section id="s11">
+  <span class="num">11</span>
+  <h2>나중에 할 것 (이번 범위 밖)</h2>
+  <div class="grid2">
+    <div class="card"><b>외부 양식 표준화</b><span class="sub">정부·외부 기관이 보낸 양식을 들여와 우리 양식으로 바꾸기. "정부 → 우리 기관" 업무가 이 기능으로 편해집니다.</span></div>
+    <div class="card"><b>합치는 방법 추가 (12가지 후보)</b><span class="sub">칸별 합계, 항목별 소계, 지사별 요약, 피벗 표, 응답 분포, 평균·최대·최소, 순위, 중복 제거, 기준표 대조, 지난 차수 대비 증감, 본부 단계별 합계, 출처 기록.</span></div>
+    <div class="card"><b>여러 시트짜리 양식</b><span class="sub">한 양식이 시트 2장 이상으로 나뉜 경우. 지금은 혼합형으로 대부분 대신할 수 있습니다.</span></div>
+    <div class="card"><b>AI 기능 검토</b><span class="sub">말로 설명하면 양식 초안 만들기, 외부 양식 자동 분석, 잘못된 값 고치기 제안.</span></div>
+  </div>
+</section>
+
+<section id="s12">
+  <span class="num">12</span>
+  <h2>용어 풀이</h2>
+  <dl class="term">
+    <dt>브라우저 웹앱</dt><dd>크롬·엣지 같은 인터넷 창에서 열어 쓰는 프로그램. 설치가 필요 없습니다.</dd>
+    <dt>서버 없음</dt><dd>파일을 다른 컴퓨터로 보내지 않고, 내 컴퓨터 안에서만 처리한다는 뜻입니다.</dd>
+    <dt>취합</dt><dd>여러 지사가 낸 파일을 하나로 합치는 일.</dd>
+    <dt>공통 계약</dt><dd>두 개발자가 지키기로 한 약속. "엑셀 안에 설계도를 이런 모양으로 적는다."</dd>
+    <dt>숨은 설계도 시트</dt><dd>엑셀 안에 들어 있지만 작성자에게는 보이지 않는 시트. 양식 정보와 칸 위치가 적혀 있습니다.</dd>
+    <dt>양식 파일 (JSON)</dt><dd>만든 양식을 저장해 두는 작은 파일. 다음에 다시 쓰거나, 숨은 시트가 사라진 파일을 살릴 때 씁니다.</dd>
+    <dt>입력 규칙</dt><dd>엑셀의 "데이터 유효성 검사". 숫자 칸에 글자를 못 쓰게 막는 기능입니다.</dd>
+    <dt>시트 잠금</dt><dd>엑셀의 "시트 보호". 정해진 칸만 고칠 수 있게 하는 기능입니다.</dd>
+    <dt>LLM</dt><dd>ChatGPT, Claude 같은 AI. 이번에는 개발자가 코드를 짤 때 돕는 도구로만 씁니다.</dd>
+    <dt>PRD</dt><dd>무엇을 왜 어떻게 만들지 적은 제품 요구사항 문서. 이번에 쓴 docs/prd 폴더의 문서 4개입니다.</dd>
+    <dt>zip</dt><dd>여러 파일을 하나로 묶은 압축 파일.</dd>
+  </dl>
+</section>
+
+<footer>문서 위치: docs/prd/00-overview.md · 01-contract.md · 02-generator.md · 03-aggregator.md</footer>
+</div>
+</body>
+</html>
