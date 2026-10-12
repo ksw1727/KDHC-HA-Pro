@@ -1,0 +1,14 @@
+#!/bin/sh
+# 커밋 메시지 형식 검사: "타입: 내용"
+msg=$(head -n1 "$1")
+
+case "$msg" in
+  Merge*|Revert*|fixup!*|squash!*) exit 0 ;;
+esac
+
+if ! echo "$msg" | grep -qE '^(feat|fix|docs|refactor|test|chore)(\([^)]+\))?: .+'; then
+  echo "❌ 커밋 메시지 형식 위반: '$msg'"
+  echo "   형식: 타입: 내용   (타입 = feat fix docs refactor test chore)"
+  echo "   예시: feat: 로그인 화면 추가"
+  exit 1
+fi
