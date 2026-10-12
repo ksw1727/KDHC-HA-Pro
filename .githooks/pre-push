@@ -1,0 +1,9 @@
+#!/bin/sh
+# main으로 직접 push 금지 (PR로만 병합)
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "❌ main으로 직접 push할 수 없습니다. 작업 브랜치를 push한 뒤 PR을 열어 주세요."
+    echo "   git push -u origin \$(git branch --show-current) && gh pr create --fill"
+    exit 1
+  fi
+done

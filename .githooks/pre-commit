@@ -1,0 +1,19 @@
+#!/bin/sh
+# main 직접 커밋 금지 + 브랜치 이름 규칙 검사
+branch=$(git symbolic-ref --short HEAD 2>/dev/null) || exit 0
+
+if [ "$branch" = "main" ]; then
+  echo "❌ main 브랜치에는 직접 커밋할 수 없습니다."
+  echo "   작업 브랜치를 만들어 주세요:  git switch -c feat/작업이름"
+  exit 1
+fi
+
+case "$branch" in
+  feat/?*|fix/?*|docs/?*|refactor/?*|test/?*|chore/?*|claude/?*) ;;
+  *)
+    echo "❌ 브랜치 이름 규칙 위반: '$branch'"
+    echo "   형식: feat/ fix/ docs/ refactor/ test/ chore/ 뒤에 작업 이름"
+    echo "   이름 바꾸기:  git branch -m feat/작업이름"
+    exit 1
+    ;;
+esac
