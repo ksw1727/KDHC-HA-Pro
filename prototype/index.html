@@ -1,0 +1,1203 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>엑셀 취합 도우미</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+// 엑셀 부품은 setImmediate가 없으면 setTimeout을 쓰는데, 탭이 뒤에 있으면 브라우저가 이를 크게 늦춘다
+if (!window.setImmediate) {
+  const ch = new MessageChannel(), q = [];
+  ch.port1.onmessage = () => q.shift()();
+  window.setImmediate = (fn, ...a) => { q.push(() => fn(...a)); ch.port2.postMessage(0); };
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script id="core">
+// 엑셀 취합 도우미 — 핵심 로직 (브라우저: window.Core, 점검: selfcheck.js가 이 블록을 읽어 씀)
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('exceljs'));
+  else root.Core = factory(root.ExcelJS);
+})(typeof self !== 'undefined' ? self : this, function (ExcelJS) {
+  'use strict';
+
+  const APP = 'excel-chwihap';
+  const META = '_meta', LISTS = '_lists';
+  const HEAD_ROW = 3, FIRST_ROW = 4;
+  const AUTO = { src: '출처 파일', row: '원본 줄', status: '상태' };
+  const AUTO_NOTE = '[자동] ';
+  const FILL = { head: 'FFE3F1EC', auto: 'FFE6EEFB', err: 'FFFFF2A8', fixed: 'FFDCE8FB', chg: 'FFFFE0B2' };
+  const SUM_RE = /^(합\s*계|소\s*계|총\s*계|총\s*합|계|total|sum|subtotal)$/i;
+  const DITTO_RE = /^(〃|"|″|”|상동|위와\s*같음|동상)$/;
+  const NUM_UNITS = '개|대|명|건|원|EA|ea|Ea|개월|일|회|권|장|식|세트|set|SET|박스|box|켤레|부|매';
+  const MAX_ROWS = 5000, MAX_COLS = 200;
+
+  // ---------- 작은 도구
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  const norm = (s) => String(s == null ? '' : s).replace(/[\s​ ]+/g, '').replace(/\*+$/, '').toLowerCase();
+  const isEmpty = (v) => v == null || (typeof v === 'string' && v.trim() === '');
+  const toHalf = (s) => s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+
+  function lev(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++)
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  function similar(a, b) {
+    a = norm(a); b = norm(b);
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    if (a.includes(b) || b.includes(a)) return 0.8;
+    return 1 - lev(a, b) / Math.max(a.length, b.length);
+  }
+  function colLetter(n) {
+    let s = '';
+    while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+  function colNumber(s) { let n = 0; for (const ch of s) n = n * 26 + ch.charCodeAt(0) - 64; return n; }
+  function parseRange(a) {
+    const m = String(a || '').split(',')[0].match(/\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)/);
+    return m ? { c1: colNumber(m[1]), r1: +m[2], c2: colNumber(m[3]), r2: +m[4] } : null;
+  }
+  const sheetTitle = (name) => (String(name).replace(/[\[\]:*?\/\\']/g, ' ').trim() || '양식').slice(0, 31);
+  const isoDate = (d) => d.toISOString().slice(0, 10);
+  function validYMD(y, m, d) {
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d ? isoDate(dt) : null;
+  }
+  function plain(v) {
+    if (v == null) return null;
+    if (v instanceof Date) return v;
+    if (typeof v === 'object') {
+      if (v.richText) return v.richText.map((t) => t.text).join('');
+      if ('formula' in v || 'sharedFormula' in v || 'result' in v)
+        return v.result === undefined ? { error: '수식 결과 없음' } : plain(v.result);
+      if (v.error) return { error: v.error };
+      if (v.text !== undefined) return plain(v.text);
+      return String(v);
+    }
+    return v;
+  }
+  function noteText(n) {
+    if (!n) return '';
+    if (typeof n === 'string') return n;
+    return (n.texts || []).map((t) => t.text).join('');
+  }
+  const showValue = (v) => (v instanceof Date ? isoDate(v) : v && v.error ? v.error : v == null ? '' : String(v));
+
+  // ---------- 양식
+  function newColumn(name) {
+    return { id: uid(), name: name || '새 칸', type: 'text', required: false, options: [], min: '', max: '', unique: false, calc: null };
+  }
+  function newForm() {
+    return { id: uid(), name: '새 양식', notice: '', rows: 20, version: 1, columns: [newColumn('항목')] };
+  }
+  function signature(form) {
+    return JSON.stringify([form.rows, form.columns.map((c) => [c.id, c.name, c.type, c.required, c.options, c.min, c.max, c.unique, c.calc])]);
+  }
+  function checkForm(form) {
+    const problems = [];
+    if (!String(form.name).trim()) problems.push('양식 이름이 비어 있습니다.');
+    if (!form.columns.length) problems.push('칸이 하나도 없습니다.');
+    const seen = new Set();
+    for (const c of form.columns) {
+      const n = norm(c.name);
+      if (!n) problems.push('이름이 빈 칸이 있습니다.');
+      else if (seen.has(n)) problems.push(`칸 이름 "${c.name}"이 겹칩니다.`);
+      else if ([AUTO.src, AUTO.row, AUTO.status].map(norm).includes(n)) problems.push(`"${c.name}"은 자동 칸 이름이라 쓸 수 없습니다.`);
+      seen.add(n);
+      if (c.type === 'list' && !c.options.length) problems.push(`"${c.name}" 선택목록에 항목이 없습니다.`);
+    }
+    if (!(form.rows >= 1 && form.rows <= 1000)) problems.push('입력 줄 수는 1~1000 사이여야 합니다.');
+    return problems;
+  }
+
+  // ---------- 엑셀 쓰기 (빈 양식과 취합본이 같은 틀을 쓰도록 한 곳에서)
+  function validationFor(col, listRef) {
+    const base = { allowBlank: true, showErrorMessage: true, errorStyle: 'stop', errorTitle: '입력 확인' };
+    const bounds = (lo, hi, fallbackLo, fallbackHi) => {
+      if (lo !== '' && hi !== '') return { operator: 'between', formulae: [lo, hi] };
+      if (lo !== '') return { operator: 'greaterThanOrEqual', formulae: [lo] };
+      if (hi !== '') return { operator: 'lessThanOrEqual', formulae: [hi] };
+      return { operator: 'between', formulae: [fallbackLo, fallbackHi] };
+    };
+    if (col.type === 'list') return { ...base, type: 'list', formulae: [listRef], error: '목록에서 골라 주세요.' };
+    if (col.type === 'number') {
+      const lo = col.min === '' ? '' : Number(col.min), hi = col.max === '' ? '' : Number(col.max);
+      return { ...base, type: 'decimal', ...bounds(lo, hi, -1e15, 1e15), error: '숫자만 입력해 주세요' + (lo !== '' || hi !== '' ? ` (${col.min || ''} ~ ${col.max || ''})` : '') + '.' };
+    }
+    if (col.type === 'date') {
+      const d = (s) => (s ? new Date(s + 'T00:00:00Z') : '');
+      return { ...base, type: 'date', ...bounds(d(col.min), d(col.max), new Date('1900-01-02T00:00:00Z'), new Date('9999-12-31T00:00:00Z')), error: '날짜를 2026-11-01 형식으로 입력해 주세요.' };
+    }
+    return null;
+  }
+
+  function writeFrame(wb, form, { kind, dataRows, info }) {
+    const cols = form.columns;
+    const ws = wb.addWorksheet(sheetTitle(form.name), { views: [{ state: 'frozen', ySplit: HEAD_ROW }] });
+    const total = cols.length + (kind === 'result' ? 3 : 0);
+    const thin = { style: 'thin', color: { argb: 'FFC9C8C0' } };
+    const border = { top: thin, left: thin, bottom: thin, right: thin };
+
+    // 선택목록 항목은 숨김 시트에 둔다 (길이 제한 회피)
+    const lists = wb.addWorksheet(LISTS);
+    lists.state = 'veryHidden';
+    const listRef = {};
+    cols.forEach((c, i) => {
+      if (c.type !== 'list') return;
+      c.options.forEach((o, j) => (lists.getCell(j + 1, i + 1).value = o));
+      const L = colLetter(i + 1);
+      listRef[c.id] = `${LISTS}!$${L}$1:$${L}$${Math.max(1, c.options.length)}`;
+    });
+
+    cols.forEach((c, i) => (ws.getColumn(i + 1).width = Math.max(10, Math.min(40, c.name.length * 2 + 6))));
+    if (kind === 'result') [24, 9, 22].forEach((w, k) => (ws.getColumn(cols.length + 1 + k).width = w));
+    if (kind === 'template') // 표 밖(메모 공간)과 표 아래(넘겨 쓰기)는 잠그지 않는다
+      for (let c = 1; c <= Math.max(total + 30, 60); c++) ws.getColumn(c).protection = { locked: false };
+
+    ws.getCell(1, 1).value = form.name;
+    ws.getCell(1, 1).font = { bold: true, size: 14 };
+    ws.getCell(2, 1).value = kind === 'template' ? form.notice || '' : info || '';
+    ws.getCell(2, 1).font = { color: { argb: 'FF5D5D58' } };
+
+    const heads = cols.map((c) => c.name + (c.required ? ' *' : ''));
+    if (kind === 'result') heads.push(AUTO.src, AUTO.row, AUTO.status);
+    heads.forEach((h, i) => {
+      const cell = ws.getCell(HEAD_ROW, i + 1);
+      cell.value = h;
+      cell.font = { bold: true, color: i < cols.length && cols[i].required ? { argb: 'FFB3261E' } : undefined };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i < cols.length ? FILL.head : FILL.auto } };
+      cell.border = border;
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    });
+    if (kind === 'template')
+      for (let r = 1; r <= HEAD_ROW; r++) for (let c = 1; c <= total; c++) ws.getCell(r, c).protection = { locked: true };
+
+    const lastData = HEAD_ROW + dataRows;
+    const lastValid = kind === 'template' ? lastData + 50 : lastData;
+    cols.forEach((c, i) => {
+      const dv = validationFor(c, listRef[c.id]);
+      for (let r = FIRST_ROW; r <= lastValid; r++) {
+        const cell = ws.getCell(r, i + 1);
+        if (dv) cell.dataValidation = dv;
+        if (c.type === 'date') cell.numFmt = 'yyyy-mm-dd';
+        if (c.type === 'text') cell.numFmt = '@';
+        if (r <= lastData) cell.border = border;
+      }
+    });
+    if (kind === 'result') for (let r = FIRST_ROW; r <= lastData; r++) for (let k = 1; k <= 3; k++) ws.getCell(r, cols.length + k).border = border;
+    ws.pageSetup.printArea = `A1:${colLetter(total)}${Math.max(lastData, HEAD_ROW)}`;
+    ws.pageSetup.orientation = total > 6 ? 'landscape' : 'portrait';
+    ws.pageSetup.fitToPage = true;
+    ws.pageSetup.fitToWidth = 1;
+    ws.pageSetup.fitToHeight = 0;
+    return ws;
+  }
+
+  function writeMeta(wb, data) {
+    const ms = wb.addWorksheet(META);
+    ms.state = 'veryHidden';
+    ms.getCell(1, 1).value = JSON.stringify({ app: APP, ...data });
+  }
+
+  async function buildTemplate(form) {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = APP;
+    const ws = writeFrame(wb, form, { kind: 'template', dataRows: form.rows });
+    writeMeta(wb, { kind: 'template', form });
+    await ws.protect('', { selectLockedCells: true, selectUnlockedCells: true, formatCells: true, formatColumns: true, formatRows: true, insertRows: true, deleteRows: true, autoFilter: true, sort: true });
+    return wb.xlsx.writeBuffer();
+  }
+
+  function addTable(wb, name, head, rows) {
+    const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.addRow(head).font = { bold: true };
+    head.forEach((h, i) => (ws.getColumn(i + 1).width = Math.max(12, h.length * 2 + 4)));
+    rows.forEach((r) => ws.addRow(r));
+    return ws;
+  }
+
+  async function buildResult(form, res) {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = APP;
+    const cols = form.columns;
+    const info = `취합 ${res.date} · 반영 파일 ${res.check.filesUsed}개 · 오류 ${res.errors.length}건 · 검산 ${res.check.ok ? '통과' : '불일치'}`;
+    const ws = writeFrame(wb, form, { kind: 'result', dataRows: res.rows.length, info });
+    res.rows.forEach((row, k) => {
+      const r = FIRST_ROW + k;
+      cols.forEach((c, i) => {
+        const cell = ws.getCell(r, i + 1);
+        const v = row.values[c.id];
+        cell.value = v == null ? null : c.type === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + 'T00:00:00Z') : v;
+        const notes = [];
+        if (row.notes[c.id]) notes.push(row.notes[c.id]);
+        if (row.fixed[c.id] != null) notes.push(`${AUTO_NOTE}원래 값: ${row.fixed[c.id]}`);
+        if (row.changed[c.id] != null) notes.push(`${AUTO_NOTE}이전 값: ${row.changed[c.id]}`);
+        if (row.errors[c.id]) notes.push(`${AUTO_NOTE}오류: ${row.errors[c.id]}`);
+        if (notes.length) cell.note = notes.join('\n');
+        const fill = row.errors[c.id] ? FILL.err : row.changed[c.id] != null ? FILL.chg : row.fixed[c.id] != null ? FILL.fixed : null;
+        if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+        if (row.strike || row.hidden) cell.font = { strike: !!row.strike, color: row.hidden ? { argb: 'FF9A9992' } : undefined };
+      });
+      ws.getCell(r, cols.length + 1).value = row.src;
+      ws.getCell(r, cols.length + 2).value = row.srcRow;
+      ws.getCell(r, cols.length + 3).value = row.status.join(', ');
+    });
+
+    addTable(wb, '오류', ['출처 파일', '원본 줄', '칸', '값', '내용'], res.errors.map((e) => [e.src, e.srcRow, e.col, e.value, e.msg]));
+    addTable(wb, '파일목록', ['파일', '개정', '저장 시각', '읽은 줄', '반영 줄', '제외 줄', '상태', '비고'],
+      res.files.map((f) => [f.name, f.revLabel, f.modified ? new Date(f.modified).toISOString().replace('T', ' ').slice(0, 16) : '', f.read, f.used, f.excluded, f.state, f.notes.join(' / ')]));
+    addTable(wb, '메모', ['파일', '시트', '셀', '내용'], res.memos.map((m) => [m.file, m.sheet, m.cell, m.text]));
+    addTable(wb, '판단 기록', ['종류', '파일', '질문', '선택', '기본값 그대로'], res.questions.map((q) => [q.kindLabel, q.file, q.title, q.options.find((o) => o.value === q.value).label, q.value === q.def ? '예' : '아니오(직접 바꿈)']));
+    if (res.extras.length) addTable(wb, '추가 칸', ['출처 파일', '원본 줄', '칸 이름', '값'], res.extras.map((x) => [x.src, x.srcRow, x.name, x.value]));
+    const files = {};
+    res.files.forEach((f) => { if (f.modified) files[f.name] = f.modified; });
+    writeMeta(wb, { kind: 'result', form, files });
+    return wb.xlsx.writeBuffer();
+  }
+
+  // ---------- 엑셀 읽기 (양식과 무관하게 원본을 그대로 옮겨 둔다)
+  async function readFile(buffer, name, fileMtime) {
+    if (!/\.xlsx$/i.test(name)) return { name, ok: false, reason: '.xlsx 파일만 받습니다. 엑셀에서 .xlsx로 다시 저장해서 보내 달라고 요청하세요.' };
+    const wb = new ExcelJS.Workbook();
+    try { await wb.xlsx.load(buffer); } catch (e) {
+      return { name, ok: false, reason: '파일을 열 수 없습니다 (암호가 걸렸거나 손상된 파일).' };
+    }
+    let meta = null;
+    const ms = wb.getWorksheet(META);
+    if (ms) { try { meta = JSON.parse(plain(ms.getCell(1, 1).value)); if (meta.app !== APP) meta = null; } catch (e) { meta = null; } }
+    const sheets = [];
+    wb.eachSheet((ws) => {
+      if (ws.name === META || ws.name === LISTS || ws.state === 'veryHidden' || ws.state === 'hidden') return;
+      const nr = Math.min(ws.rowCount, MAX_ROWS), nc = Math.min(ws.columnCount, MAX_COLS);
+      const rows = [];
+      for (let r = 1; r <= nr; r++) {
+        const row = ws.getRow(r);
+        const cells = [];
+        for (let c = 1; c <= nc; c++) {
+          const cell = row.getCell(c);
+          const v = plain(cell.value);
+          if (isEmpty(v)) { cells.push(null); continue; }
+          cells.push({ v, strike: !!(cell.font && cell.font.strike), note: noteText(cell.note), merged: cell.isMerged && cell.master !== cell });
+        }
+        rows.push({ hidden: !!row.hidden, cells });
+      }
+      sheets.push({ name: ws.name, printArea: parseRange(ws.pageSetup && ws.pageSetup.printArea), rows });
+    });
+    const modified = wb.modified instanceof Date && !isNaN(wb.modified) ? wb.modified.getTime() : fileMtime || 0;
+    return { name, ok: true, meta, modified, sheets };
+  }
+
+  // ---------- 개정 표시
+  function parseRevision(fileName) {
+    let base = String(fileName).replace(/\.xlsx$/i, '');
+    let num = null, flag = 0, changed = true;
+    const pats = [
+      [/(?:[\s_\-.]+|[(\[])(?:v|ver|rev|r)\.?\s*(\d+)\s*[)\]]?$/i, (m) => { if (num == null) num = +m[1]; }],
+      [/[\s_\-]*[(\[]?\s*(\d+)\s*차\s*[)\]]?$/, (m) => { if (num == null) num = +m[1]; }],
+      [/[\s_\-]*[(\[]?\s*(최종|final)\s*(\d*)\s*[)\]]?$/i, (m) => { flag = Math.max(flag, 2); if (m[2] && num == null) num = +m[2]; }],
+      [/[\s_\-]*[(\[]?\s*(수정본|수정)\s*(\d*)\s*[)\]]?$/, (m) => { flag = Math.max(flag, 1); if (m[2] && num == null) num = +m[2]; }],
+    ];
+    while (changed) {
+      changed = false;
+      for (const [re, fn] of pats) {
+        const m = base.match(re);
+        if (m && m.index > 0) { fn(m); base = base.slice(0, m.index); changed = true; break; }
+      }
+    }
+    const parts = [];
+    if (num != null) parts.push('v' + num);
+    if (flag === 2) parts.push('최종'); else if (flag === 1) parts.push('수정');
+    return { base: norm(base), num: num == null ? 1 : num, flag, label: parts.join(' ') || '-' };
+  }
+  const revCompare = (a, b) => b.rev.num - a.rev.num || b.rev.flag - a.rev.flag || (b.modified || 0) - (a.modified || 0);
+
+  // ---------- 값 정리
+  function normValue(col, v, ctx) {
+    // ctx: { prev, year, ask(kind, def, options, title) -> value }
+    if (v && v.error) return { value: null, error: `엑셀 오류값 ${v.error}` };
+    if (typeof v === 'string' && DITTO_RE.test(v.trim())) {
+      if (ctx.prev == null) return { value: null, error: `"${v.trim()}" 표시인데 윗줄 값이 없음` };
+      return { value: ctx.prev, fixed: v.trim() };
+    }
+    if (col.type === 'number') {
+      if (typeof v === 'number') return { value: v };
+      if (v instanceof Date) return { value: null, error: '숫자 칸에 날짜가 들어 있음' };
+      const s = toHalf(String(v)).trim();
+      const m = s.match(new RegExp(`^([₩$])?\\s*(-?(?:\\d{1,3}(?:,\\d{3})+|\\d+)(?:\\.\\d+)?)\\s*(?:${NUM_UNITS})?$`));
+      if (m) return { value: Number(m[2].replace(/,/g, '')), fixed: s };
+      const any = s.match(/-?\d[\d,]*(?:\.\d+)?/);
+      if (any) {
+        const n = Number(any[0].replace(/,/g, ''));
+        const pick = ctx.ask('num', 'error', [{ value: 'use', label: `${n}(으)로 넣기` }, { value: 'error', label: '오류로 두기' }], `"${s}"을(를) 숫자 ${n}(으)로 넣을까요?`);
+        if (pick === 'use') return { value: n, fixed: s };
+      }
+      return { value: s, error: '숫자가 아님' };
+    }
+    if (col.type === 'date') {
+      if (v instanceof Date) return { value: isoDate(v) };
+      if (typeof v === 'number') {
+        if (v > 20000 && v < 80000) return { value: isoDate(new Date(Math.round((v - 25569) * 86400000))), fixed: String(v) };
+        return { value: String(v), error: '날짜가 아님' };
+      }
+      const s = toHalf(String(v)).trim();
+      let m, iso = null;
+      if ((m = s.match(/^(\d{4})\s*[.\-\/년]\s*(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})\s*일?\.?$/))) iso = validYMD(+m[1], +m[2], +m[3]);
+      else if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/))) iso = validYMD(+m[1], +m[2], +m[3]);
+      else if ((m = s.match(/^(\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})\.?$/))) iso = validYMD(2000 + +m[1], +m[2], +m[3]);
+      else if ((m = s.match(/^(\d{1,2})\s*[.\-\/월]\s*(\d{1,2})\s*일?\.?$/))) iso = validYMD(ctx.year, +m[1], +m[2]);
+      if (iso) return { value: iso, fixed: s === iso ? undefined : s };
+      return { value: s, error: '날짜가 아님' };
+    }
+    let s = v instanceof Date ? isoDate(v) : String(v);
+    const trimmed = s.replace(/[​]/g, '').trim();
+    if (col.type === 'text') return { value: trimmed, fixed: v instanceof Date ? showValue(v) : undefined };
+    // 선택목록
+    const exact = col.options.find((o) => o === trimmed);
+    if (exact) return { value: exact };
+    const loose = col.options.find((o) => norm(o) === norm(trimmed));
+    if (loose) return { value: loose, fixed: trimmed };
+    const parts = trimmed.split(/\s*[,，、\/·]\s*/).filter(Boolean);
+    if (parts.length > 1 && parts.every((p) => col.options.some((o) => norm(o) === norm(p)))) {
+      const vals = parts.map((p) => col.options.find((o) => norm(o) === norm(p)));
+      const pick = ctx.ask('split', 'keep', [{ value: 'split', label: `${vals.length}줄로 나누기` }, { value: 'keep', label: '그대로 두기(오류)' }], `"${trimmed}"을(를) ${vals.join(' / ')} ${vals.length}줄로 나눌까요?`);
+      if (pick === 'split') return { value: vals[0], split: vals, fixed: trimmed };
+      return { value: trimmed, error: '한 칸에 여러 값' };
+    }
+    let best = null, score = 0;
+    for (const o of col.options) { const sc = similar(o, trimmed); if (sc > score) { score = sc; best = o; } }
+    if (best && score >= 0.5) {
+      const pick = ctx.ask('list', 'error', [{ value: 'use', label: `"${best}"(으)로 넣기` }, { value: 'error', label: '오류로 두기' }], `목록에 없는 "${trimmed}"을(를) "${best}"(으)로 볼까요?`);
+      if (pick === 'use') return { value: best, fixed: trimmed };
+    }
+    return { value: trimmed, error: '목록에 없는 값' };
+  }
+
+  // ---------- 표 찾기
+  function headerMap(sheet, form, fileCols) {
+    // fileCols: 이 파일이 만들어진 양식 버전의 칸 (id로 현재 양식과 연결)
+    const byName = new Map();
+    form.columns.forEach((c) => byName.set(norm(c.name), c.id));
+    (fileCols || []).forEach((c) => { if (form.columns.some((f) => f.id === c.id) && !byName.has(norm(c.name))) byName.set(norm(c.name), c.id); });
+    const autoNames = { [norm(AUTO.src)]: 'src', [norm(AUTO.row)]: 'row', [norm(AUTO.status)]: 'status' };
+    let best = null;
+    const limit = Math.min(sheet.rows.length, 30);
+    for (let r = 0; r < limit; r++) {
+      const cells = sheet.rows[r].cells;
+      let exact = 0, fuzzy = 0;
+      cells.forEach((cell) => {
+        if (!cell || typeof cell.v !== 'string') return;
+        const n = norm(cell.v);
+        if (byName.has(n)) exact++;
+        else if (form.columns.some((c) => similar(c.name, cell.v) >= 0.6)) fuzzy++;
+      });
+      const score = exact + fuzzy * 0.5;
+      if (!best || score > best.score) best = { r, score, exact };
+    }
+    const need = Math.max(1, Math.ceil(form.columns.length * 0.5));
+    if (!best || best.score < need) return null;
+    const cells = sheet.rows[best.r].cells;
+    // 표 칸 = 양식 칸 이름이 있는 곳부터 이어진 칸들 (인쇄영역이 있으면 그 안까지만)
+    const pa = sheet.printArea;
+    const cap = pa && pa.r1 - 1 <= best.r && pa.r2 - 1 >= best.r ? pa.c2 - 1 : cells.length - 1;
+    const isHead = (cell) => cell && byName.has(norm(showValue(cell.v)));
+    let c1 = cells.findIndex(isHead);
+    if (c1 < 0) c1 = cells.findIndex((cell) => cell && form.columns.some((c) => similar(c.name, showValue(cell.v)) >= 0.6));
+    let c2 = c1;
+    cells.forEach((cell, c) => { if (c <= cap && isHead(cell)) c2 = Math.max(c2, c); });
+    while (c1 > 0 && cells[c1 - 1]) c1--;
+    while (c2 + 1 <= cap && cells[c2 + 1]) c2++;
+    const map = [];
+    const used = new Set();
+    cells.forEach((cell, c) => {
+      if (!cell || c < c1 || c > c2) return;
+      const text = String(showValue(cell.v));
+      const n = norm(text);
+      if (autoNames[n]) { map.push({ c, auto: autoNames[n], text }); return; }
+      const id = byName.get(n);
+      if (id && !used.has(id)) { used.add(id); map.push({ c, id, text }); return; }
+      let cand = null, sc = 0;
+      for (const col of form.columns) {
+        if (used.has(col.id)) continue;
+        const s = similar(col.name, text);
+        if (s > sc) { sc = s; cand = col; }
+      }
+      map.push({ c, text, cand: cand && sc >= 0.6 ? cand : null });
+    });
+    return { headRow: best.r, map, c1, c2, exact: best.exact };
+  }
+
+  // ---------- 취합 (순수 함수: 같은 입력과 같은 결정이면 같은 결과)
+  function interpret(form, raws, decisions, opts) {
+    decisions = decisions || {};
+    const year = (opts && opts.year) || new Date().getFullYear();
+    const date = (opts && opts.date) || new Date().toISOString().slice(0, 10);
+    const colById = new Map(form.columns.map((c) => [c.id, c]));
+    const questions = [];
+    const KIND = { col: '칸 이름', num: '값', list: '값', split: '여러 값', dup: '같은 줄', sheets: '시트 여러 개', rev: '개정본', same: '같은 내용' };
+    function ask(key, kind, file, def, options, title) {
+      const value = options.some((o) => o.value === decisions[key]) ? decisions[key] : def;
+      questions.push({ key, kind, kindLabel: KIND[kind], file, def, options, title, value });
+      return value;
+    }
+
+    const files = [];   // 파일목록
+    const memos = [], extras = [];
+    const subs = [];    // 제출 단위 (파일 하나 또는 이전 취합본 안의 파일 하나)
+
+    for (const raw of raws) {
+      const fileRec = { name: raw.name, revLabel: '-', modified: raw.modified || 0, read: 0, used: 0, excluded: 0, state: '', notes: [] };
+      files.push(fileRec);
+      if (!raw.ok) { fileRec.state = '제외'; fileRec.notes.push(raw.reason); continue; }
+      const meta = raw.meta;
+      if (meta && meta.form && meta.form.id !== form.id) { fileRec.state = '제외'; fileRec.notes.push(`다른 양식 ("${meta.form.name}")`); continue; }
+      if (!meta) fileRec.notes.push('양식정보 없음: 칸 이름으로 알아봄');
+      else if (meta.form.version !== form.version) fileRec.notes.push(`양식 v${meta.form.version}으로 작성됨 (현재 v${form.version})`);
+      const isPrev = meta && meta.kind === 'result';
+      const fileCols = meta && meta.form ? meta.form.columns : null;
+
+      const found = [];
+      raw.sheets.forEach((sh) => { const h = headerMap(sh, form, fileCols); if (h) found.push({ sh, h }); });
+      if (!found.length) { fileRec.state = '제외'; fileRec.notes.push('양식의 칸 이름을 찾지 못함'); continue; }
+      let use = found;
+      if (found.length > 1 && !isPrev) {
+        const pick = ask(`sheets|${raw.name}`, 'sheets', raw.name, 'all',
+          [{ value: 'all', label: `${found.length}개 시트 모두 넣기` }, { value: 'first', label: `"${found[0].sh.name}" 시트만` }],
+          `같은 틀의 시트가 ${found.length}개 있습니다 (${found.map((f) => f.sh.name).join(', ')}).`);
+        if (pick === 'first') { use = [found[0]]; fileRec.notes.push(`시트 ${found.length - 1}개 제외(판단)`); }
+      }
+
+      const subByName = new Map();
+      const getSub = (name, modified) => {
+        if (!subByName.has(name)) {
+          const s = { name, fileRec, isPrev, modified, rev: parseRevision(name), rows: [], read: 0, excludedRows: [], notes: [] };
+          subByName.set(name, s); subs.push(s);
+        }
+        return subByName.get(name);
+      };
+      if (!isPrev) getSub(raw.name, raw.modified);
+
+      for (const { sh, h } of use) {
+        const multi = use.length > 1;
+        // 칸 맞추기
+        const colOf = {};
+        let autoCol = {};
+        h.map.forEach((m) => {
+          if (m.auto) { autoCol[m.auto] = m.c; return; }
+          if (m.id) { colOf[m.c] = m.id; return; }
+          if (m.cand) {
+            const pick = ask(`col|${raw.name}|${sh.name}|${m.text}`, 'col', raw.name, 'map',
+              [{ value: 'map', label: `"${m.cand.name}" 칸으로 보기` }, { value: 'extra', label: '추가 칸으로 따로 보관' }],
+              `칸 이름 "${m.text}"을(를) 양식의 "${m.cand.name}" 칸으로 볼까요?`);
+            if (pick === 'map' && !Object.values(colOf).includes(m.cand.id)) { colOf[m.c] = m.cand.id; return; }
+          }
+          colOf[m.c] = { extra: m.text };
+        });
+        const missing = form.columns.filter((c) => !Object.values(colOf).includes(c.id)).map((c) => c.name);
+        if (missing.length) fileRec.notes.push(`없는 칸: ${missing.join(', ')}`);
+
+        // 읽는 범위: 인쇄영역 안 + 표가 바로 이어지면 그 줄까지
+        const pa = sh.printArea;
+        const inTable = (c) => c >= h.c1 && c <= h.c2;
+        const rowEmpty = (r) => !sh.rows[r] || sh.rows[r].cells.every((cell, c) => !cell || !inTable(c));
+        let end;
+        if (pa && pa.r2 - 1 > h.headRow) {
+          end = Math.min(pa.r2 - 1, sh.rows.length - 1);
+          if (!rowEmpty(end)) {
+            let r = end + 1;
+            while (r < sh.rows.length && !rowEmpty(r)) r++;
+            if (r - 1 > end) fileRec.notes.push(`인쇄영역 밖으로 이어진 ${r - 1 - end}줄 포함`);
+            end = r - 1;
+          }
+        } else {
+          let r = h.headRow + 1, gap = 0, last = h.headRow;
+          for (; r < sh.rows.length; r++) {
+            if (rowEmpty(r)) { if (++gap >= 3) break; } else { gap = 0; last = r; }
+          }
+          end = last;
+        }
+        // 메모: 표 영역 밖의 모든 글
+        sh.rows.forEach((row, r) => row.cells.forEach((cell, c) => {
+          if (!cell) return;
+          const inside = inTable(c) && r >= h.headRow && r <= end;
+          const own = [form.name, form.notice, meta && meta.form && meta.form.name, meta && meta.form && meta.form.notice].filter(Boolean).map(norm);
+          const titleArea = r < h.headRow && inTable(c) && (own.includes(norm(showValue(cell.v))) || (isPrev && r === 1));
+          if (!inside && !titleArea) memos.push({ file: raw.name, sheet: sh.name, cell: colLetter(c + 1) + (r + 1), text: showValue(cell.v) });
+        }));
+
+        // 줄 읽기
+        const prevVals = {};
+        for (let r = h.headRow + 1; r <= end; r++) {
+          if (rowEmpty(r)) continue;
+          const row = sh.rows[r];
+          const srcName = isPrev && autoCol.src != null && row.cells[autoCol.src] ? String(showValue(row.cells[autoCol.src].v)) : raw.name;
+          const sub = getSub(srcName, isPrev ? (meta.files || {})[srcName] || 0 : raw.modified);
+          const srcRow = isPrev && autoCol.row != null && row.cells[autoCol.row] ? row.cells[autoCol.row].v : r + 1;
+          // 이전 취합본에서 나눈 줄은 원본 한 줄로 센다
+          sub.seen = sub.seen || new Set();
+          if (!sub.seen.has(srcRow)) { sub.seen.add(srcRow); sub.read++; }
+          const label = isPrev ? srcName : raw.name + (multi ? ` [${sh.name}]` : '');
+          const texts = row.cells.filter((cell, c) => cell && inTable(c) && typeof cell.v === 'string').map((cell) => cell.v.trim());
+          if (!isPrev && texts.some((t) => SUM_RE.test(t))) { sub.excludedRows.push({ srcRow, reason: '합계 줄' }); continue; }
+          const statusText = isPrev && autoCol.status != null && row.cells[autoCol.status] ? String(row.cells[autoCol.status].v) : '';
+          const rec = { src: label, srcRow, hidden: row.hidden || statusText.includes('숨긴 줄'), strike: false, cells: {}, notes: {} };
+          row.cells.forEach((cell, c) => {
+            if (!cell || !inTable(c)) return;
+            const target = colOf[c];
+            if (cell.strike) rec.strike = true;
+            if (target == null) return;
+            if (target.extra) { extras.push({ src: label, srcRow, name: target.extra, value: showValue(cell.v) }); return; }
+            rec.cells[target] = cell;
+          });
+          if (statusText.includes('취소선')) rec.strike = true;
+          // 값 정리
+          rec.values = {}; rec.fixed = {}; rec.errors = {}; rec.changed = {}; rec.split = null;
+          for (const col of form.columns) {
+            const cell = rec.cells[col.id];
+            if (cell && cell.note) {
+              const own = cell.note.split('\n').filter((l) => !l.startsWith(AUTO_NOTE)).join('\n').trim();
+              if (own) rec.notes[col.id] = own;
+            }
+            if (cell && cell.merged) rec.notes[col.id] = [rec.notes[col.id], AUTO_NOTE + '합친 셀 값을 채움'].filter(Boolean).join('\n');
+            if (!cell) { rec.values[col.id] = null; continue; }
+            const key = `${raw.name}|${sh.name}|${r + 1}|${col.name}`;
+            const out = normValue(col, cell.v, {
+              prev: prevVals[col.id], year,
+              ask: (kind, def, options, title) => ask(`${kind}|${key}`, kind, raw.name, def, options, `${label} ${srcRow}번째 줄 "${col.name}": ${title}`),
+            });
+            rec.values[col.id] = out.value;
+            if (out.fixed !== undefined && out.fixed !== String(out.value)) rec.fixed[col.id] = out.fixed;
+            if (out.error) rec.errors[col.id] = out.error;
+            if (out.split) rec.split = { col: col.id, vals: out.split };
+          }
+          form.columns.forEach((c) => { if (rec.values[c.id] != null && !rec.errors[c.id]) prevVals[c.id] = rec.values[c.id]; });
+          rec.status = [];
+          if (rec.hidden) rec.status.push('숨긴 줄');
+          if (rec.strike) rec.status.push('취소선');
+          // 같은 파일 안 같은 줄
+          const sig = JSON.stringify(form.columns.map((c) => rec.values[c.id]));
+          const twin = sub.rows.find((x) => x.sig === sig);
+          rec.sig = sig;
+          if (twin) {
+            const pick = ask(`dup|${raw.name}|${label}|${srcRow}`, 'dup', raw.name, 'keep',
+              [{ value: 'keep', label: '둘 다 넣기' }, { value: 'drop', label: '하나만 넣기' }],
+              `${label} ${srcRow}번째 줄이 ${twin.srcRow}번째 줄과 똑같습니다.`);
+            if (pick === 'drop') { sub.excludedRows.push({ srcRow, reason: `${twin.srcRow}번째 줄과 같은 줄` }); continue; }
+          }
+          sub.rows.push(rec);
+        }
+      }
+    }
+
+    // 개정본 정리
+    const groups = new Map();
+    subs.forEach((s) => { if (!groups.has(s.rev.base)) groups.set(s.rev.base, []); groups.get(s.rev.base).push(s); });
+    for (const [base, list] of groups) {
+      list.sort(revCompare);
+      let chosen = list[0];
+      if (list.length > 1) {
+        const pick = ask(`rev|${base}`, 'rev', list.map((s) => s.name).join(', '), list[0].name,
+          list.map((s) => ({ value: s.name, label: `${s.name} (${s.rev.label === '-' ? '원본' : s.rev.label})` })),
+          `같은 파일의 개정본 ${list.length}개 중 반영할 파일`);
+        chosen = list.find((s) => s.name === pick) || list[0];
+      }
+      list.forEach((s) => { s.used = s === chosen; });
+      if (list.length > 1) {
+        const older = list.filter((s) => s !== chosen).sort(revCompare)[0];
+        list.filter((s) => s !== chosen).forEach((s) => s.notes.push(`이전 개정본 ("${chosen.name}" 반영)`));
+        diffRows(form, chosen, older);
+      }
+    }
+    // 내용이 완전히 같은 파일은 하나만
+    const seen = new Map();
+    subs.filter((s) => s.used && s.rows.length).forEach((s) => {
+      const h = s.rows.map((r) => r.sig).join('\n');
+      if (!seen.has(h)) { seen.set(h, s.name); return; }
+      const pick = ask(`same|${s.name}`, 'same', s.name, 'keep',
+        [{ value: 'keep', label: '둘 다 넣기' }, { value: 'drop', label: '하나만 넣기' }],
+        `"${s.name}"의 내용이 "${seen.get(h)}"와 완전히 같습니다. 같은 파일을 두 번 넣었나요?`);
+      if (pick === 'drop') { s.used = false; s.notes.push(`"${seen.get(h)}"와 내용이 같아 제외(판단)`); }
+    });
+
+    // 줄 모으기 (+ 나누기)
+    const rows = [];
+    subs.forEach((s) => {
+      if (!s.used) return;
+      s.rows.forEach((rec) => {
+        if (!rec.split) { rows.push(rec); return; }
+        rec.split.vals.forEach((v, i) => {
+          rows.push({ ...rec, values: { ...rec.values, [rec.split.col]: v }, status: [...rec.status, `나눔 ${i + 1}/${rec.split.vals.length}`] });
+        });
+      });
+    });
+
+    // 규칙 검사
+    for (const rec of rows) {
+      for (const col of form.columns) {
+        const v = rec.values[col.id];
+        if (rec.errors[col.id]) continue;
+        if (v == null || v === '') { if (col.required) rec.errors[col.id] = '꼭 입력해야 하는 칸이 비어 있음'; continue; }
+        if (col.type === 'number' || col.type === 'date') {
+          const lo = col.min === '' || col.min == null ? null : col.type === 'number' ? Number(col.min) : col.min;
+          const hi = col.max === '' || col.max == null ? null : col.type === 'number' ? Number(col.max) : col.max;
+          if ((lo != null && v < lo) || (hi != null && v > hi)) rec.errors[col.id] = `허용 범위 밖 (${col.min || ''} ~ ${col.max || ''})`;
+        }
+        const calc = col.calc;
+        if (!rec.errors[col.id] && calc && calc.a && colById.has(calc.a)) {
+          const A = rec.values[calc.a];
+          if (calc.kind === 'product' && colById.has(calc.b)) {
+            const B = rec.values[calc.b];
+            if (typeof A === 'number' && typeof B === 'number' && Math.abs(v - A * B) > 1e-6 * Math.max(1, Math.abs(v)))
+              rec.errors[col.id] = `${colById.get(calc.a).name} × ${colById.get(calc.b).name} = ${A * B}와 다름`;
+          }
+          if (calc.kind === 'after' && typeof A === 'string' && v < A) rec.errors[col.id] = `${colById.get(calc.a).name}(${A})보다 빠름`;
+        }
+      }
+    }
+    for (const col of form.columns.filter((c) => c.unique)) {
+      const by = new Map();
+      rows.forEach((rec) => { const v = rec.values[col.id]; if (v == null || v === '') return; const k = norm(v); if (!by.has(k)) by.set(k, []); by.get(k).push(rec); });
+      // 한 줄을 나눠 생긴 줄끼리는 겹침이 아니다
+      for (const [, list] of by) if (new Set(list.map((x) => x.src + '|' + x.srcRow)).size > 1)
+        list.forEach((rec) => { if (!rec.errors[col.id]) rec.errors[col.id] = `겹침 금지: "${rec.values[col.id]}"이(가) ${list.length}번 나옴 (${[...new Set(list.map((x) => x.src))].join(', ')})`; });
+    }
+    const errors = [];
+    rows.forEach((rec) => {
+      form.columns.forEach((col) => {
+        if (!rec.errors[col.id]) return;
+        errors.push({ src: rec.src, srcRow: rec.srcRow, col: col.name, value: showValue(rec.cells[col.id] ? rec.cells[col.id].v : rec.values[col.id]), msg: rec.errors[col.id] });
+      });
+      if (form.columns.some((c) => rec.errors[c.id])) rec.status.push('오류');
+    });
+
+    // 검산: 읽은 줄 = 반영 + 제외
+    let readAll = 0, usedAll = 0, exclAll = 0;
+    subs.forEach((s) => {
+      const usedHere = s.used ? new Set(s.rows.map((r) => r.srcRow + '|' + r.src)).size : 0;
+      const excl = s.used ? s.excludedRows.length : s.read;
+      s.fileRec.read += s.read; s.fileRec.used += usedHere; s.fileRec.excluded += excl;
+      s.fileRec.notes.push(...s.notes, ...s.excludedRows.map((e) => `${e.srcRow}번째 줄 제외: ${e.reason}`));
+      if (s.removed) s.fileRec.notes.push(`이전 개정본 대비 빠진 줄 ${s.removed}개`);
+      if (s.rev.label !== '-') s.fileRec.revLabel = s.rev.label;
+      readAll += s.read; usedAll += usedHere; exclAll += excl;
+      if (s.isPrev) s.fileRec.notes.push(`이전 취합본 안: ${s.name} ${s.used ? '반영' : '제외'}`);
+    });
+    files.forEach((f) => {
+      if (f.state) return;
+      const fileSubs = subs.filter((s) => s.fileRec === f);
+      if (fileSubs.every((s) => !s.used)) f.state = '제외';
+      else if (f.read === 0) f.state = '제출 · 해당 없음';
+      else f.state = '반영';
+    });
+    const outDistinct = new Set(rows.map((r) => r.src + '|' + r.srcRow)).size;
+    const sums = form.columns.filter((c) => c.type === 'number').map((c) => {
+      const expect = subs.filter((s) => s.used).reduce((t, s) => t + s.rows.reduce((u, r) => u + (typeof r.values[c.id] === 'number' && !r.split ? r.values[c.id] : 0), 0), 0);
+      const got = rows.reduce((t, r) => t + (typeof r.values[c.id] === 'number' && !r.split ? r.values[c.id] : 0), 0);
+      return { col: c.name, expect, got, ok: Math.abs(expect - got) < 1e-6 };
+    });
+    const check = { read: readAll, used: usedAll, excluded: exclAll, outDistinct, sums, filesUsed: subs.filter((s) => s.used).length };
+    check.ok = readAll === usedAll + exclAll && usedAll === outDistinct && sums.every((x) => x.ok);
+
+    // 수정 요청 문구
+    const bySrc = new Map();
+    errors.forEach((e) => { if (!bySrc.has(e.src)) bySrc.set(e.src, []); bySrc.get(e.src).push(e); });
+    const requests = [...bySrc].map(([src, list]) => ({
+      src,
+      text: `안녕하세요. 보내 주신 「${form.name}」 파일(${src})에서 아래 내용을 확인 부탁드립니다.\n` +
+        list.map((e) => `- ${e.srcRow}번째 줄 "${e.col}": ${e.value ? `"${e.value}" ` : ''}${e.msg}`).join('\n'),
+    }));
+
+    return { date, rows, files, questions, errors, memos, extras, check, requests };
+  }
+
+  function diffRows(form, chosen, older) {
+    if (!older) return;
+    const keyCol = form.columns.find((c) => c.unique);
+    const keyOf = (r, i) => (keyCol ? norm(r.values[keyCol.id]) || '#' + i : '#' + i);
+    const old = new Map(older.rows.map((r, i) => [keyOf(r, i), r]));
+    const hit = new Set();
+    chosen.rows.forEach((r, i) => {
+      const k = keyOf(r, i);
+      const o = old.get(k);
+      if (!o) { r.status.push('이전 대비 추가'); return; }
+      hit.add(k);
+      const diff = form.columns.filter((c) => String(r.values[c.id] ?? '') !== String(o.values[c.id] ?? ''));
+      diff.forEach((c) => (r.changed[c.id] = o.values[c.id] == null ? '(빈칸)' : String(o.values[c.id])));
+      if (diff.length) r.status.push('이전 대비 바뀜: ' + diff.map((c) => c.name).join('·'));
+    });
+    chosen.removed = [...old.keys()].filter((k) => !hit.has(k)).length;
+  }
+
+  // 양식 고르기: 파일에 든 양식정보 중 가장 많은 양식, 같은 양식이면 가장 높은 버전
+  function detectForms(raws) {
+    const by = new Map();
+    raws.forEach((r) => {
+      if (!r.ok || !r.meta || !r.meta.form) return;
+      const f = r.meta.form;
+      const cur = by.get(f.id);
+      if (!cur) by.set(f.id, { form: f, count: 1 });
+      else { cur.count++; if (f.version > cur.form.version) cur.form = f; }
+    });
+    return [...by.values()].sort((a, b) => b.count - a.count);
+  }
+
+  return { newForm, newColumn, signature, checkForm, buildTemplate, buildResult, readFile, interpret, detectForms, parseRevision, normValue, AUTO, HEAD_ROW, FIRST_ROW };
+});
+</script>
+<style>
+:root{
+  --bg:#f7f7f4; --card:#ffffff; --ink:#1d1d1b; --sub:#5d5d58; --line:#deddd6;
+  --accent:#1f6f5c; --accent-soft:#e3f1ec; --warn:#a15c00; --warn-soft:#fff3d6;
+  --bad:#b3261e; --bad-soft:#fde7e5; --info:#2b5bb5; --info-soft:#e6eefb;
+  --cell:#fbfbf9; --mark:#fff2a8; --fixed:#dce8fb; --chg:#ffe0b2;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161715; --card:#1f201e; --ink:#ecebe6; --sub:#a9a8a1; --line:#353631;
+    --accent:#5cc4a6; --accent-soft:#1c3530; --warn:#f0b459; --warn-soft:#3a2d14;
+    --bad:#f28b82; --bad-soft:#3d1f1d; --info:#8ab4f8; --info-soft:#1c2a42;
+    --cell:#252623; --mark:#5a5120; --fixed:#22344f; --chg:#4a3517;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161715; --card:#1f201e; --ink:#ecebe6; --sub:#a9a8a1; --line:#353631;
+  --accent:#5cc4a6; --accent-soft:#1c3530; --warn:#f0b459; --warn-soft:#3a2d14;
+  --bad:#f28b82; --bad-soft:#3d1f1d; --info:#8ab4f8; --info-soft:#1c2a42;
+  --cell:#252623; --mark:#5a5120; --fixed:#22344f; --chg:#4a3517;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:15px;line-height:1.6}
+header{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}
+.tabs{display:flex;gap:4px}
+.tabs button{border:0;background:none;padding:8px 16px;font:inherit;color:var(--sub);cursor:pointer;border-bottom:3px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--accent);font-weight:700;border-bottom-color:var(--accent)}
+main{max-width:1200px;margin:0 auto;padding:20px 16px 80px}
+.layout{display:grid;grid-template-columns:220px 1fr;gap:20px}
+.layout>*{min-width:0}
+@media (max-width:820px){.layout{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;min-width:0}
+h2{font-size:16px;margin:0 0 10px}
+h3{font-size:14px;margin:16px 0 6px}
+.muted{color:var(--sub);font-size:13px}
+button.btn{font:inherit;font-weight:700;border-radius:8px;padding:7px 14px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#fff}
+button.btn.ghost{background:transparent;color:var(--accent)}
+button.btn.small{padding:3px 10px;font-size:13px}
+button.btn:disabled{opacity:.45;cursor:not-allowed}
+button.icon{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+label.field{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--sub)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top;font-size:14px}
+th{font-size:12px;color:var(--sub);font-weight:500;white-space:nowrap}
+.formlist button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 8px;border-radius:6px;font:inherit;color:var(--ink);cursor:pointer}
+.formlist button.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.stack{display:flex;flex-direction:column;gap:6px}
+.problems{color:var(--bad);font-size:13px;margin:8px 0 0;padding-left:18px}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.tag.warn{background:var(--warn-soft);color:var(--warn)} .tag.bad{background:var(--bad-soft);color:var(--bad)} .tag.info{background:var(--info-soft);color:var(--info)}
+.tag.grey{background:var(--cell);color:var(--sub);border:1px solid var(--line)}
+/* 엑셀 미리보기 */
+.xl{border:1px solid var(--line);border-radius:8px;overflow:auto;background:var(--card)}
+.xl table{font-size:12px;width:auto;min-width:100%}
+.xl td,.xl th{border:1px solid var(--line);padding:3px 6px;white-space:nowrap;height:24px}
+.xl th{background:var(--cell);text-align:center;min-width:28px}
+.xl .hd{background:var(--accent-soft);font-weight:700;color:var(--ink)}
+.xl .auto{background:var(--info-soft);font-weight:700}
+.xl .req{color:var(--bad)}
+.xl .pa{outline:2px dashed var(--info);outline-offset:-2px}
+.xl .e{background:var(--mark)} .xl .f{background:var(--fixed)} .xl .c{background:var(--chg)}
+.xl .strike{text-decoration:line-through} .xl .hid td{opacity:.5}
+.drop{border:2px dashed var(--accent);border-radius:12px;padding:28px;text-align:center;color:var(--accent);background:var(--accent-soft);cursor:pointer}
+.drop.over{background:var(--info-soft);border-color:var(--info);color:var(--info)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.stat b{display:block;font-size:22px}
+.q{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:6px 0;display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.q.changed{border-color:var(--accent)}
+.req-text{white-space:pre-wrap;font-size:13px;background:var(--cell);border:1px solid var(--line);border-radius:6px;padding:8px;margin:6px 0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin:6px 0}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px;border:1px solid var(--line)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>엑셀 취합 도우미</h1>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="make">양식생성</button>
+    <button role="tab" aria-selected="false" data-tab="merge">양식취합</button>
+  </div>
+  <span class="muted">파일은 이 컴퓨터 밖으로 나가지 않습니다.</span>
+</header>
+
+<main>
+<!-- 양식생성 -->
+<section id="tab-make">
+  <div class="layout">
+    <aside>
+      <div class="card">
+        <h2>저장된 양식</h2>
+        <div class="formlist" id="formList"></div>
+        <div class="stack" style="margin-top:10px">
+          <button class="btn ghost small" id="newForm">+ 새 양식</button>
+          <button class="btn ghost small" id="copyForm">복제</button>
+          <button class="btn ghost small" id="loadForm">양식 파일로 불러오기</button>
+          <button class="btn ghost small" id="delForm">삭제</button>
+          <input type="file" id="loadFile" accept=".xlsx" hidden>
+        </div>
+        <p class="muted">빈 양식이나 취합본 파일을 올리면 그 양식을 되살립니다.</p>
+      </div>
+    </aside>
+    <div>
+      <div class="card">
+        <div class="row">
+          <label class="field" style="flex:2;min-width:200px">양식 이름<input id="fName"></label>
+          <label class="field" style="flex:3;min-width:220px">안내문 (빈 양식 2행)<input id="fNotice" placeholder="예: 11월 5일까지 회신해 주세요"></label>
+          <label class="field" style="width:120px">입력 줄 수<input id="fRows" type="number" min="1" max="1000"></label>
+          <span class="muted" id="fVersion"></span>
+        </div>
+        <h3>입력받을 칸</h3>
+        <div class="scroll">
+          <table id="colTable">
+            <thead><tr><th>칸 이름</th><th>종류</th><th>꼭 입력</th><th>선택 항목 / 허용 범위</th><th>겹침 금지</th><th>계산 관계</th><th></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost small" id="addCol">+ 칸 추가</button>
+        </div>
+        <ul class="problems" id="problems"></ul>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h2 style="margin:0">엑셀 미리보기</h2>
+          <div class="row" style="align-items:center">
+            <label><input type="radio" name="pv" value="template" checked> 빈 양식</label>
+            <label><input type="radio" name="pv" value="result"> 취합본</label>
+          </div>
+        </div>
+        <p class="muted">파란 점선이 인쇄영역입니다. 응답자는 인쇄영역 밖을 메모 공간으로 써도 됩니다.</p>
+        <div class="xl" id="preview"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="dlTemplate">빈 양식 내려받기</button>
+          <span class="muted" id="saved"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 양식취합 -->
+<section id="tab-merge" hidden>
+  <div class="card">
+    <div class="drop" id="drop" tabindex="0" role="button">회신받은 엑셀 파일들을 여기에 끌어다 놓거나 눌러서 고르세요<br><span class="muted">이전에 만든 취합본도 함께 넣으면 이어서 합칩니다</span></div>
+    <input type="file" id="mergeFiles" multiple hidden>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <label class="field">양식<select id="mForm"></select></label>
+      <button class="btn ghost small" id="clearFiles">파일 모두 빼기</button>
+      <span class="muted" id="mMsg"></span>
+    </div>
+  </div>
+  <div id="mOut" hidden>
+    <div class="stats" id="stats"></div>
+    <div class="card" id="qCard">
+      <h2>확인 필요 <span class="muted" id="qCount"></span></h2>
+      <p class="muted">웹페이지가 스스로 정하기 애매한 것들입니다. 기본값으로 골라 두었으니 다른 선택이 맞으면 바꿔 주세요. 고른 내용은 "판단 기록" 시트에 남습니다.</p>
+      <div id="qList"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h2 style="margin:0">취합본</h2>
+        <button class="btn" id="dlResult">취합본 내려받기</button>
+      </div>
+      <div class="legend"><span><i style="background:var(--mark)"></i>오류</span><span><i style="background:var(--fixed)"></i>자동으로 고침(원래 값은 메모)</span><span><i style="background:var(--chg)"></i>이전 개정본 대비 바뀜</span><span><s>취소선</s> 줄 · 흐린 줄은 숨긴 줄</span></div>
+      <div class="xl" id="mPreview" style="max-height:420px"></div>
+      <p class="muted" id="mPreviewNote"></p>
+    </div>
+    <div class="card"><h2>파일목록</h2><div class="scroll" id="fileTable"></div></div>
+    <div class="card"><h2>오류 <span class="muted" id="eCount"></span></h2><div class="scroll" id="errTable"></div></div>
+    <div class="card"><h2>수정 요청 문구</h2><p class="muted">복사해서 메일에 붙여 넣으세요. 메일은 보내지 않습니다.</p><div id="reqList"></div></div>
+    <div class="card"><h2>메모 · 추가 칸</h2><div class="scroll" id="memoTable"></div></div>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const TYPES = { text: '글자', number: '숫자', date: '날짜', list: '선택목록' };
+const KEY = 'chwihap.forms';
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2200); }
+function download(buf, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+const safeName = (s) => String(s).replace(/[\\/:*?"<>|]/g, '_');
+const today = () => { const d = new Date(); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`; };
+
+// ---------- 저장 (브라우저 저장소, 실패해도 동작)
+let forms = [];
+try { forms = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { forms = []; }
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(forms)); $('#saved').textContent = '자동 저장됨'; } catch (e) { $('#saved').textContent = '이 브라우저에서는 저장이 안 됩니다'; } }
+if (!forms.length) forms.push(Core.newForm());
+let cur = forms[0];
+
+// ---------- 탭
+document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-tab]').forEach((x) => x.setAttribute('aria-selected', x === b));
+  $('#tab-make').hidden = b.dataset.tab !== 'make';
+  $('#tab-merge').hidden = b.dataset.tab !== 'merge';
+  if (b.dataset.tab === 'merge') renderFormSelect();
+}));
+
+// ---------- 양식생성
+function renderFormList() {
+  $('#formList').innerHTML = forms.map((f, i) => `<button data-i="${i}" class="${f === cur ? 'on' : ''}">${esc(f.name)} <span class="muted">v${f.version}</span></button>`).join('');
+}
+$('#formList').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; cur = forms[+b.dataset.i]; renderMake(); });
+$('#newForm').onclick = () => { cur = Core.newForm(); forms.unshift(cur); persist(); renderMake(); };
+$('#copyForm').onclick = () => {
+  const c = JSON.parse(JSON.stringify(cur));
+  Object.assign(c, Core.newForm(), { name: cur.name + ' 복사본', notice: cur.notice, rows: cur.rows, columns: c.columns });
+  delete c.lastSig;
+  forms.unshift(c); cur = c; persist(); renderMake();
+};
+$('#delForm').onclick = () => {
+  if (!confirm(`"${cur.name}" 양식을 이 브라우저에서 지울까요? (내려받은 파일은 그대로입니다)`)) return;
+  forms = forms.filter((f) => f !== cur); if (!forms.length) forms.push(Core.newForm()); cur = forms[0]; persist(); renderMake();
+};
+$('#loadForm').onclick = () => $('#loadFile').click();
+$('#loadFile').onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  const raw = await Core.readFile(await file.arrayBuffer(), file.name, file.lastModified);
+  if (!raw.ok || !raw.meta || !raw.meta.form) { toast('이 파일에서 양식 정보를 찾지 못했습니다.'); return; }
+  const f = raw.meta.form;
+  const i = forms.findIndex((x) => x.id === f.id);
+  if (i >= 0 && forms[i].version > f.version) { cur = forms[i]; toast('이미 더 새 버전이 저장되어 있습니다.'); }
+  else { if (i >= 0) forms[i] = f; else forms.unshift(f); cur = f; toast(`"${f.name}" v${f.version}을 불러왔습니다.`); }
+  persist(); renderMake();
+};
+
+const bindTop = (id, key, num) => $(id).addEventListener('input', (e) => { cur[key] = num ? Math.max(1, Math.min(1000, parseInt(e.target.value, 10) || 1)) : e.target.value; changed(); if (key === 'name') renderFormList(); });
+bindTop('#fName', 'name'); bindTop('#fNotice', 'notice'); bindTop('#fRows', 'rows', true);
+function changed() { persist(); renderPreview(); renderProblems(); }
+
+function rangeCell(c) {
+  if (c.type === 'list') return `<input data-k="options" value="${esc(c.options.join(', '))}" placeholder="쉼표로 구분: 노트북, 모니터" style="min-width:220px">`;
+  if (c.type === 'number') return `<input data-k="min" type="number" value="${esc(c.min)}" placeholder="최소" style="width:90px"> ~ <input data-k="max" type="number" value="${esc(c.max)}" placeholder="최대" style="width:90px">`;
+  if (c.type === 'date') return `<input data-k="min" type="date" value="${esc(c.min)}"> ~ <input data-k="max" type="date" value="${esc(c.max)}">`;
+  return '<span class="muted">-</span>';
+}
+function calcCell(c) {
+  const others = (t) => cur.columns.filter((x) => x !== c && x.type === t);
+  const opt = (list, sel) => '<option value="">없음</option>' + list.map((x) => `<option value="${x.id}" ${x.id === sel ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
+  const calc = c.calc || {};
+  if (c.type === 'number') return `= <select data-k="calcA">${opt(others('number'), calc.a)}</select> × <select data-k="calcB">${opt(others('number'), calc.b)}</select>`;
+  if (c.type === 'date') return `≥ <select data-k="calcA">${opt(others('date'), calc.a)}</select>`;
+  return '<span class="muted">-</span>';
+}
+function renderColumns() {
+  $('#colTable tbody').innerHTML = cur.columns.map((c, i) => `<tr data-i="${i}">
+    <td><input data-k="name" value="${esc(c.name)}" aria-label="칸 이름" style="width:130px"></td>
+    <td><select data-k="type" aria-label="종류">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${k === c.type ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+    <td><input type="checkbox" data-k="required" ${c.required ? 'checked' : ''} aria-label="꼭 입력"></td>
+    <td>${rangeCell(c)}</td>
+    <td><input type="checkbox" data-k="unique" ${c.unique ? 'checked' : ''} aria-label="겹침 금지"></td>
+    <td style="white-space:nowrap">${calcCell(c)}</td>
+    <td style="white-space:nowrap"><button class="icon" data-act="up" aria-label="위로">↑</button> <button class="icon" data-act="down" aria-label="아래로">↓</button> <button class="icon" data-act="del" aria-label="삭제">✕</button></td>
+  </tr>`).join('');
+}
+$('#colTable').addEventListener('input', (e) => {
+  const tr = e.target.closest('tr[data-i]'); if (!tr) return;
+  const c = cur.columns[+tr.dataset.i], k = e.target.dataset.k;
+  if (k === 'name') c.name = e.target.value;
+  else if (k === 'options') c.options = e.target.value.split(/[,，\n]/).map((s) => s.trim()).filter(Boolean);
+  else if (k === 'min' || k === 'max') c[k] = e.target.value;
+  else if (k === 'required' || k === 'unique') c[k] = e.target.checked;
+  else if (k === 'type') { c.type = e.target.value; c.min = c.max = ''; c.calc = null; cur.columns.forEach((x) => { if (x.calc && (x.calc.a === c.id || x.calc.b === c.id)) x.calc = null; }); renderColumns(); }
+  else if (k === 'calcA' || k === 'calcB') {
+    const row = tr.querySelectorAll('select[data-k^=calc]');
+    const a = row[0].value, b = row[1] ? row[1].value : '';
+    c.calc = c.type === 'number' ? (a && b ? { kind: 'product', a, b } : null) : a ? { kind: 'after', a } : null;
+  }
+  if (k === 'name') renderCalcSelects();
+  changed();
+});
+function renderCalcSelects() { document.querySelectorAll('#colTable tr[data-i]').forEach((tr) => { tr.children[5].innerHTML = calcCell(cur.columns[+tr.dataset.i]); }); }
+$('#colTable').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-act]'); if (!b) return;
+  const i = +b.closest('tr').dataset.i, cols = cur.columns;
+  if (b.dataset.act === 'del') { const gone = cols.splice(i, 1)[0]; cols.forEach((x) => { if (x.calc && (x.calc.a === gone.id || x.calc.b === gone.id)) x.calc = null; }); }
+  if (b.dataset.act === 'up' && i > 0) [cols[i - 1], cols[i]] = [cols[i], cols[i - 1]];
+  if (b.dataset.act === 'down' && i < cols.length - 1) [cols[i + 1], cols[i]] = [cols[i], cols[i + 1]];
+  renderColumns(); changed();
+});
+$('#addCol').onclick = () => { cur.columns.push(Core.newColumn('새 칸 ' + (cur.columns.length + 1))); renderColumns(); changed(); };
+
+function renderProblems() {
+  const p = Core.checkForm(cur);
+  $('#problems').innerHTML = p.map((x) => `<li>${esc(x)}</li>`).join('');
+  $('#dlTemplate').disabled = p.length > 0;
+}
+function colLetter(n) { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+function renderPreview() {
+  const mode = document.querySelector('input[name=pv]:checked').value;
+  const cols = cur.columns, res = mode === 'result';
+  const total = cols.length + (res ? 3 : 0);
+  const show = Math.min(cur.rows, 4);
+  let h = '<table><tr><th></th>' + Array.from({ length: total + 1 }, (_, i) => `<th>${colLetter(i + 1)}</th>`).join('') + '</tr>';
+  const line = (n, cells, cls) => `<tr class="${cls || ''}"><th>${n}</th>${cells}</tr>`;
+  const pa = (k) => (k < total ? ' pa' : '');
+  h += line(1, `<td class="pa" colspan="${total}"><b>${esc(cur.name)}</b></td><td></td>`);
+  h += line(2, `<td class="pa" colspan="${total}" style="color:var(--sub)">${res ? '취합 2026-00-00 · 반영 파일 0개 · 오류 0건 · 검산 통과' : esc(cur.notice)}</td><td style="color:var(--sub);font-style:italic">${res ? '' : '메모 가능'}</td>`);
+  h += line(3, cols.map((c) => `<td class="hd pa">${esc(c.name)}${c.required ? ' <span class="req">*</span>' : ''}</td>`).join('') + (res ? ['출처 파일', '원본 줄', '상태'].map((x) => `<td class="auto pa">${x}</td>`).join('') : '') + '<td></td>');
+  for (let r = 0; r < show; r++) h += line(4 + r, Array.from({ length: total }, (_, k) => `<td class="pa">${k < cols.length && cols[k].type === 'list' ? '▾' : ''}</td>`).join('') + '<td></td>');
+  if (cur.rows > show) h += line('…', `<td colspan="${total}" class="pa muted">… ${res ? '모든 파일의 줄' : `입력 줄 ${cur.rows}줄 (${4}~${3 + cur.rows}행)`}</td><td></td>`);
+  h += '</table>';
+  $('#preview').innerHTML = h;
+}
+document.querySelectorAll('input[name=pv]').forEach((r) => r.addEventListener('change', renderPreview));
+
+$('#dlTemplate').onclick = async () => {
+  if (Core.checkForm(cur).length) return;
+  const sig = Core.signature(cur);
+  if (cur.lastSig && cur.lastSig !== sig) cur.version++;
+  cur.lastSig = sig;
+  persist(); renderMake();
+  download(await Core.buildTemplate(cur), `${safeName(cur.name)}_v${cur.version}.xlsx`);
+  toast(`빈 양식 v${cur.version}을 내려받았습니다.`);
+};
+
+function renderMake() {
+  renderFormList();
+  $('#fName').value = cur.name; $('#fNotice').value = cur.notice || ''; $('#fRows').value = cur.rows;
+  $('#fVersion').textContent = `양식 v${cur.version}` + (cur.lastSig && cur.lastSig !== Core.signature(cur) ? ' → 내려받으면 v' + (cur.version + 1) : '');
+  renderColumns(); renderPreview(); renderProblems();
+}
+
+// ---------- 양식취합
+let raws = [];         // 읽어 둔 파일
+let fileKeys = new Set();
+let decisions = {};
+let lastRes = null, lastForm = null;
+
+$('#drop').onclick = () => $('#mergeFiles').click();
+$('#drop').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#mergeFiles').click(); } };
+$('#drop').ondragover = (e) => { e.preventDefault(); $('#drop').classList.add('over'); };
+$('#drop').ondragleave = () => $('#drop').classList.remove('over');
+$('#drop').ondrop = (e) => { e.preventDefault(); $('#drop').classList.remove('over'); addFiles(e.dataTransfer.files); };
+$('#mergeFiles').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
+$('#clearFiles').onclick = () => { raws = []; fileKeys = new Set(); decisions = {}; renderFormSelect(); runMerge(); };
+
+async function addFiles(list) {
+  $('#mMsg').textContent = '읽는 중…';
+  let skipped = 0;
+  for (const f of list) {
+    const k = f.name + '|' + f.size + '|' + f.lastModified;
+    if (fileKeys.has(k)) { skipped++; continue; }
+    fileKeys.add(k);
+    raws.push(await Core.readFile(await f.arrayBuffer(), f.name, f.lastModified));
+  }
+  $('#mMsg').textContent = skipped ? `이미 넣은 파일 ${skipped}개는 건너뛰었습니다.` : '';
+  renderFormSelect(); runMerge();
+}
+function formChoices() {
+  const det = Core.detectForms(raws).map((d) => {
+    const saved = forms.find((f) => f.id === d.form.id && f.version > d.form.version);
+    return { form: saved || d.form, label: `${d.form.name} (파일 ${d.count}개에서 찾음)` };
+  });
+  forms.forEach((f) => { if (!det.some((d) => d.form.id === f.id)) det.push({ form: f, label: `${f.name} (저장된 양식)` }); });
+  return det;
+}
+function renderFormSelect() {
+  const ch = formChoices(), sel = $('#mForm').value;
+  $('#mForm').innerHTML = ch.map((c, i) => `<option value="${i}">${esc(c.label)}</option>`).join('');
+  const keep = ch.findIndex((c) => lastForm && c.form.id === lastForm.id);
+  $('#mForm').value = keep >= 0 ? keep : sel && ch[sel] ? sel : 0;
+}
+$('#mForm').onchange = () => { decisions = {}; runMerge(); };
+
+function runMerge() {
+  const ch = formChoices()[+$('#mForm').value];
+  if (!raws.length || !ch) { $('#mOut').hidden = true; lastRes = null; return; }
+  lastForm = ch.form;
+  lastRes = Core.interpret(lastForm, raws, decisions);
+  $('#mOut').hidden = false;
+  renderResult();
+}
+function renderResult() {
+  const r = lastRes, f = lastForm;
+  const st = (n) => r.files.filter((x) => x.state === n).length;
+  const changedQ = r.questions.filter((q) => q.value !== q.def).length;
+  $('#stats').innerHTML = [
+    ['파일', `${r.files.length}개`, `반영 ${st('반영')} · 해당 없음 ${st('제출 · 해당 없음')} · 제외 ${st('제외')}`],
+    ['취합된 줄', `${r.rows.length}줄`, `읽은 줄 ${r.check.read} = 반영 ${r.check.used} + 제외 ${r.check.excluded}`],
+    ['오류', `${r.errors.length}건`, '노란 칸으로 표시'],
+    ['확인 필요', `${r.questions.length}건`, changedQ ? `${changedQ}건 직접 바꿈` : '기본값으로 선택됨'],
+    ['검산', r.check.ok ? '통과 ✅' : '불일치 ⚠️', r.check.sums.map((s) => `${s.col} 합계 ${s.got}`).join(' · ') || '숫자 칸 없음'],
+  ].map(([a, b, c]) => `<div class="stat"><span class="muted">${a}</span><b>${b}</b><span class="muted">${esc(c)}</span></div>`).join('');
+
+  $('#qCount').textContent = `${r.questions.length}건`;
+  $('#qCard').hidden = !r.questions.length;
+  $('#qList').innerHTML = r.questions.map((q) => `<div class="q ${q.value !== q.def ? 'changed' : ''}"><div><span class="tag warn">${esc(q.kindLabel)}</span> ${esc(q.title)}</div>
+    <select data-q="${esc(q.key)}" aria-label="선택">${q.options.map((o) => `<option value="${esc(o.value)}" ${o.value === q.value ? 'selected' : ''}>${esc(o.label)}${o.value === q.def ? ' (기본)' : ''}</option>`).join('')}</select></div>`).join('');
+
+  // 취합본 미리보기
+  const cols = f.columns, LIMIT = 200;
+  let h = '<table><tr><th></th>' + cols.map((c) => `<th class="hd">${esc(c.name)}${c.required ? ' <span class="req">*</span>' : ''}</th>`).join('') + '<th class="auto">출처 파일</th><th class="auto">원본 줄</th><th class="auto">상태</th></tr>';
+  r.rows.slice(0, LIMIT).forEach((row, i) => {
+    h += `<tr class="${row.hidden ? 'hid' : ''}"><th>${4 + i}</th>` + cols.map((c) => {
+      const cls = row.errors[c.id] ? 'e' : row.changed[c.id] != null ? 'c' : row.fixed[c.id] != null ? 'f' : '';
+      const tip = [row.fixed[c.id] != null ? '원래 값: ' + row.fixed[c.id] : '', row.changed[c.id] != null ? '이전 값: ' + row.changed[c.id] : '', row.errors[c.id] || '', row.notes[c.id] || ''].filter(Boolean).join('\n');
+      return `<td class="${cls} ${row.strike ? 'strike' : ''}" title="${esc(tip)}">${esc(row.values[c.id])}</td>`;
+    }).join('') + `<td>${esc(row.src)}</td><td>${esc(row.srcRow)}</td><td>${esc(row.status.join(', '))}</td></tr>`;
+  });
+  $('#mPreview').innerHTML = h + '</table>';
+  $('#mPreviewNote').textContent = r.rows.length > LIMIT ? `화면에는 처음 ${LIMIT}줄만 보입니다. 내려받은 파일에는 ${r.rows.length}줄 모두 들어 있습니다.` : '칸에 마우스를 올리면 원래 값과 오류 내용이 보입니다.';
+
+  const tagOf = (s) => (s === '반영' ? '' : s === '제외' ? 'bad' : 'info');
+  $('#fileTable').innerHTML = '<table><tr><th>파일</th><th>개정</th><th>읽은 줄</th><th>반영</th><th>제외</th><th>상태</th><th>비고</th></tr>' +
+    r.files.map((x) => `<tr><td>${esc(x.name)}</td><td>${esc(x.revLabel)}</td><td>${x.read}</td><td>${x.used}</td><td>${x.excluded}</td><td><span class="tag ${tagOf(x.state)}">${esc(x.state)}</span></td><td class="muted">${esc(x.notes.join(' / '))}</td></tr>`).join('') + '</table>';
+  $('#eCount').textContent = `${r.errors.length}건`;
+  $('#errTable').innerHTML = r.errors.length ? '<table><tr><th>출처 파일</th><th>원본 줄</th><th>칸</th><th>값</th><th>내용</th></tr>' + r.errors.slice(0, 300).map((e) => `<tr><td>${esc(e.src)}</td><td>${esc(e.srcRow)}</td><td>${esc(e.col)}</td><td>${esc(e.value)}</td><td>${esc(e.msg)}</td></tr>`).join('') + '</table>' : '<p class="muted">오류가 없습니다.</p>';
+  $('#reqList').innerHTML = r.requests.length ? r.requests.map((q, i) => `<div><div class="row" style="justify-content:space-between;align-items:center"><b>${esc(q.src)}</b><button class="btn ghost small" data-copy="${i}">복사</button></div><div class="req-text">${esc(q.text)}</div></div>`).join('') : '<p class="muted">요청할 내용이 없습니다.</p>';
+  const memoRows = r.memos.map((m) => `<tr><td><span class="tag grey">메모</span></td><td>${esc(m.file)}</td><td>${esc(m.sheet)} ${esc(m.cell)}</td><td>${esc(m.text)}</td></tr>`)
+    .concat(r.extras.map((x) => `<tr><td><span class="tag info">추가 칸</span></td><td>${esc(x.src)}</td><td>${esc(x.srcRow)}번째 줄 · ${esc(x.name)}</td><td>${esc(x.value)}</td></tr>`));
+  $('#memoTable').innerHTML = memoRows.length ? '<table><tr><th>종류</th><th>파일</th><th>위치</th><th>내용</th></tr>' + memoRows.join('') + '</table><p class="muted">취합본의 "메모"·"추가 칸" 시트에 그대로 들어갑니다.</p>' : '<p class="muted">인쇄영역 밖 메모나 양식에 없는 칸이 없습니다.</p>';
+}
+$('#qList').addEventListener('change', (e) => { const s = e.target.closest('select[data-q]'); if (!s) return; decisions[s.dataset.q] = s.value; runMerge(); });
+$('#reqList').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-copy]'); if (!b) return;
+  const text = lastRes.requests[+b.dataset.copy].text;
+  try { await navigator.clipboard.writeText(text); }
+  catch (err) { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  toast('복사했습니다.');
+});
+$('#dlResult').onclick = async () => {
+  if (!lastRes) return;
+  download(await Core.buildResult(lastForm, lastRes), `${safeName(lastForm.name)}_취합_${today()}.xlsx`);
+  toast('취합본을 내려받았습니다.');
+};
+
+if (!window.ExcelJS) document.body.insertAdjacentHTML('afterbegin', '<p style="background:var(--bad-soft);color:var(--bad);padding:12px;margin:0">엑셀 처리 부품을 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 새로고침해 주세요.</p>');
+renderMake();
+</script>
+</body>
+</html>

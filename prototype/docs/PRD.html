@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>엑셀 취합 도우미 기획서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f7f4; --card:#ffffff; --ink:#1d1d1b; --sub:#5d5d58; --line:#deddd6;
+  --accent:#1f6f5c; --accent-soft:#e3f1ec; --warn:#a15c00; --warn-soft:#fff3d6;
+  --bad:#b3261e; --bad-soft:#fde7e5; --info:#2b5bb5; --info-soft:#e6eefb;
+  --cell:#fbfbf9; --mark:#fff2a8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161715; --card:#1f201e; --ink:#ecebe6; --sub:#a9a8a1; --line:#353631;
+    --accent:#5cc4a6; --accent-soft:#1c3530; --warn:#f0b459; --warn-soft:#3a2d14;
+    --bad:#f28b82; --bad-soft:#3d1f1d; --info:#8ab4f8; --info-soft:#1c2a42;
+    --cell:#252623; --mark:#5a5120;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161715; --card:#1f201e; --ink:#ecebe6; --sub:#a9a8a1; --line:#353631;
+  --accent:#5cc4a6; --accent-soft:#1c3530; --warn:#f0b459; --warn-soft:#3a2d14;
+  --bad:#f28b82; --bad-soft:#3d1f1d; --info:#8ab4f8; --info-soft:#1c2a42;
+  --cell:#252623; --mark:#5a5120;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;line-height:1.7;font-size:16px}
+main{max-width:960px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:30px;margin:0 0 8px;line-height:1.3}
+h2{font-size:22px;margin:56px 0 12px;padding-top:8px;border-top:2px solid var(--ink)}
+h2 .no{color:var(--accent);margin-right:8px}
+h3{font-size:17px;margin:28px 0 8px}
+p{margin:8px 0}
+.lead{color:var(--sub);font-size:17px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:16px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.info{background:var(--info-soft);color:var(--info)}
+.big{font-size:20px;font-weight:700;margin:4px 0}
+.muted{color:var(--sub);font-size:14px}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+nav.toc a{font-size:14px;color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--card);padding:4px 12px;border-radius:99px}
+nav.toc a:hover{border-color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--sub);font-weight:500}
+.scroll{overflow-x:auto}
+.compare{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch}
+.compare .arrow{display:flex;align-items:center;font-size:28px;color:var(--accent)}
+@media (max-width:720px){.compare{grid-template-columns:1fr}.compare .arrow{justify-content:center;transform:rotate(90deg)}}
+ul.clean{padding-left:20px;margin:8px 0}
+svg text{font-family:"Noto Sans KR",system-ui,sans-serif}
+.svgwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;overflow-x:auto}
+.svgwrap svg{display:block;width:100%;min-width:560px;height:auto}
+
+/* 화면 그림(와이어프레임) */
+.screen{border:2px solid var(--ink);border-radius:10px;background:var(--card);overflow:hidden;font-size:13px}
+.screen .bar{display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--cell)}
+.screen .bar i{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
+.screen .bar b{margin-left:8px;font-weight:500;color:var(--sub)}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tabs span{padding:8px 16px;color:var(--sub)}
+.tabs span.on{color:var(--accent);font-weight:700;border-bottom:3px solid var(--accent)}
+.sbody{display:grid;grid-template-columns:150px 1fr;min-height:260px}
+.side{border-right:1px solid var(--line);padding:12px;background:var(--cell)}
+.side div{padding:4px 8px;border-radius:6px;margin-bottom:4px}
+.side div.on{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.pane{padding:14px}
+.fake-input{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:var(--bg);display:inline-block;min-width:160px}
+.btn{display:inline-block;padding:6px 14px;border-radius:6px;background:var(--accent);color:#fff;font-weight:700}
+.btn.ghost{background:transparent;color:var(--accent);border:1px dashed var(--accent)}
+.screen table{font-size:12px}
+.screen th,.screen td{padding:5px 6px}
+.drop{border:2px dashed var(--accent);border-radius:10px;padding:18px;text-align:center;color:var(--accent);background:var(--accent-soft)}
+.pin{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--bad);color:#fff;font-size:12px;font-weight:700;margin-right:4px;flex:none}
+.pinlist li{margin:6px 0;list-style:none;display:flex;gap:6px;align-items:flex-start}
+.pinlist{padding:0}
+@media (max-width:720px){.sbody{grid-template-columns:1fr}.side{border-right:0;border-bottom:1px solid var(--line)}}
+
+/* 엑셀 그림 */
+.xl{border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--card);font-size:12px}
+.xl table{border-collapse:collapse;width:100%}
+.xl td,.xl th{border:1px solid var(--line);padding:5px 6px;height:26px;white-space:nowrap}
+.xl th{background:var(--cell);color:var(--sub);font-weight:500;text-align:center;width:28px}
+.xl .hd{background:var(--accent-soft);font-weight:700;color:var(--ink)}
+.xl .req{color:var(--bad)}
+.xl .lock::after{content:" 🔒";font-size:10px}
+.xl .dd::after{content:" ▾";color:var(--sub)}
+.xl .mark{background:var(--mark)}
+.xl .sheets{display:flex;gap:2px;padding:6px 8px;background:var(--cell);border-top:1px solid var(--line)}
+.xl .sheets span{padding:2px 10px;border:1px solid var(--line);border-radius:4px 4px 0 0;background:var(--card)}
+.xl .sheets span.on{font-weight:700;border-bottom-color:var(--card)}
+.xl .sheets span.hid{opacity:.5;border-style:dashed}
+
+.decide{border-left:4px solid var(--warn)}
+.decide .opts{display:grid;gap:8px;margin-top:10px}
+.opt{border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.opt.rec{border-color:var(--accent);background:var(--accent-soft)}
+.opt b{display:block}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps li{counter-increment:s;position:relative;padding:12px 12px 12px 56px;margin:10px 0;background:var(--card);border:1px solid var(--line);border-radius:10px}
+.steps li::before{content:counter(s);position:absolute;left:14px;top:12px;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;text-align:center;line-height:28px;font-weight:700}
+.principle{border-top:4px solid var(--accent)}
+.principle .icon{font-size:28px}
+.conv{display:grid;grid-template-columns:1fr 40px 1fr 1.4fr;gap:8px;align-items:center;margin:6px 0}
+.conv .in,.conv .out{font-family:Consolas,monospace;font-size:14px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--cell)}
+.conv .in{color:var(--bad)}
+.conv .out{color:var(--accent);font-weight:700;background:var(--accent-soft);border-color:transparent}
+.conv .arr{text-align:center;color:var(--sub)}
+.conv .why{font-size:13px;color:var(--sub)}
+.conv.head div{font-size:12px;color:var(--sub);border:0;background:none;padding:0 10px}
+@media (max-width:720px){.conv{grid-template-columns:1fr 24px 1fr}.conv .why{grid-column:1/-1;margin-bottom:8px}}
+.q{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.qb{display:flex;gap:6px}
+.b{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;font-size:12px;border:1px solid var(--accent);color:var(--accent)}
+.b.on{background:var(--accent);color:#fff}
+:root{--grey:#9a9992}
+.xl .out{background:repeating-linear-gradient(135deg,var(--cell),var(--cell) 6px,var(--card) 6px,var(--card) 12px);color:var(--sub);font-style:italic}
+.xl .hidr td{opacity:.5}
+.xl .strk{text-decoration:line-through;color:var(--bad)}
+.xl .st{font-size:11px;font-weight:700;color:var(--warn)}
+.newb{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:var(--bad);border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
+.rules td:first-child{font-weight:700;white-space:nowrap}
+.grid2>*,.grid3>*{min-width:0}
+.xl .sheets{flex-wrap:wrap}.xl .sheets span{white-space:nowrap}
+</style>
+</head>
+<body>
+<main>
+
+<span class="tag">기획서 (PRD) · 확정판 2</span> <span class="tag warn">바뀐 점: 인쇄영역 · 숨긴 줄/취소선 표시 · 칸 검사 규칙 · 변화 표시</span>
+<h1>엑셀 취합 도우미</h1>
+<p class="lead">양식을 만들어 나눠 주고, 돌아온 엑셀 파일 여러 개를 넣으면 <b>합쳐진 엑셀 한 개</b>가 나오는 웹페이지입니다.</p>
+
+<nav class="toc">
+  <a href="#s1">1. 왜 만드나</a><a href="#sf">2. 기능 구성</a><a href="#s2">3. 전체 흐름</a><a href="#s3">4. 화면 구성</a>
+  <a href="#s4">5. 엑셀 파일 모양</a><a href="#s5">6. 합치는 원리(사람처럼)</a><a href="#s6">7. 만드는 방법</a>
+  <a href="#s7">8. 하지 않는 것</a><a href="#s8">9. 결정한 것</a><a href="#s9">10. 만드는 순서</a><a href="#s10">용어 풀이</a>
+</nav>
+
+<!-- 1 -->
+<h2 id="s1"><span class="no">1</span>왜 만드나요?</h2>
+<div class="compare">
+  <div class="card">
+    <span class="tag bad">지금</span>
+    <ul class="clean">
+      <li>엑셀을 메일로 보내고, 돌아온 파일을 하나씩 열어 <b>복사·붙여넣기</b></li>
+      <li>사람마다 칸을 지우거나 순서를 바꿔서 보냄</li>
+      <li>숫자 칸에 "약 10개" 같은 글자가 들어옴</li>
+      <li>같은 파일을 고쳐서 또 보내면 어느 게 최신인지 헷갈림</li>
+      <li>취합한 뒤 다시 보고서 모양으로 정리해야 함</li>
+    </ul>
+  </div>
+  <div class="arrow">→</div>
+  <div class="card">
+    <span class="tag">바뀐 뒤</span>
+    <ul class="clean">
+      <li>파일을 한꺼번에 끌어다 놓으면 <b>자동으로 합쳐짐</b></li>
+      <li>제목 줄이 잠겨 있어서 칸 구조를 바꿀 수 없음</li>
+      <li>숫자 칸엔 숫자만, 선택 칸엔 목록만 입력 가능</li>
+      <li>같은 파일의 개정본이 여러 개면 <b>가장 최신 개정본만</b> 반영</li>
+      <li>취합본이 <b>양식과 같은 모양</b>이라 바로 이어서 씀</li>
+    </ul>
+  </div>
+</div>
+
+<div class="grid3">
+  <div class="card"><div class="muted">설치</div><div class="big">필요 없음</div><div class="muted">파일 하나를 더블클릭하면 열림</div></div>
+  <div class="card"><div class="muted">데이터 보안</div><div class="big">내 PC 밖으로 안 나감</div><div class="muted">인터넷 서버에 파일을 올리지 않음</div></div>
+  <div class="card"><div class="muted">응답자가 할 일</div><div class="big">지금과 똑같음</div><div class="muted">엑셀에 입력해서 메일로 회신</div></div>
+</div>
+
+<div class="card" style="border:2px solid var(--accent)">
+  <span class="tag">핵심 원칙 · 이번 수정</span>
+  <p class="big">나눠 준 양식 = 돌아온 취합본. 같은 틀을 끝까지 씁니다.</p>
+  <p>양식 파일과 취합본이 <b>제목 위치, 칸 순서, 칸 이름, 색, 드롭다운까지 똑같습니다</b>. 차이는 하나뿐입니다. 응답자 한 명분의 줄이 여러 명분으로 늘어나고, 오른쪽 끝에 "누가 냈는지" 칸이 붙습니다.</p>
+  <ul class="clean">
+    <li><b>정리할 필요 없음</b>: 취합본을 받자마자 그대로 보고하거나 다음 작업에 씁니다. 칸 순서를 다시 맞출 일이 없습니다.</li>
+    <li><b>기존 수식·보고서가 그대로 동작</b>: "B열이 수량" 같은 위치가 양식과 취합본에서 똑같습니다.</li>
+    <li><b>늦게 온 회신도 이어서</b>: 취합본을 다시 넣고 새 회신 파일을 함께 넣으면 그 위에 이어 붙습니다. 처음부터 다시 할 필요가 없습니다.</li>
+    <li><b>다음 차수에 다시 쓰기</b>: 취합본 안에도 양식 정보가 들어 있어서, 취합본만 올려도 같은 양식을 되살릴 수 있습니다.</li>
+  </ul>
+</div>
+
+<!-- F -->
+<h2 id="sf"><span class="no">2</span>기능 구성: 큰 기능 두 개</h2>
+<p>웹페이지는 위쪽 탭 두 개, <b>양식생성</b>과 <b>양식취합</b>으로 나뉩니다. 두 기능을 가르는 경계는 <b>메일 발송</b>입니다.</p>
+<div class="svgwrap">
+<svg viewBox="0 0 760 440" role="img" aria-label="양식생성과 양식취합 두 기능과 공통 기반의 구성도">
+  <defs>
+    <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--sub)"/>
+    </marker>
+  </defs>
+  <rect x="10" y="10" width="300" height="310" rx="12" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+  <rect x="450" y="10" width="300" height="310" rx="12" fill="var(--info-soft)" stroke="var(--info)" stroke-width="2"/>
+  <g text-anchor="middle" fill="var(--ink)" font-size="14">
+    <text x="160" y="40" font-size="17" font-weight="700" fill="var(--accent)">기능 1 · 양식생성</text>
+    <text x="160" y="60" font-size="12" fill="var(--sub)">보내기 전</text>
+    <text x="600" y="40" font-size="17" font-weight="700" fill="var(--info)">기능 2 · 양식취합</text>
+    <text x="600" y="60" font-size="12" fill="var(--sub)">받은 뒤</text>
+
+    <rect x="30" y="76" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="160" y="97" font-weight="700">1-1 칸 정하기</text><text x="160" y="115" font-size="12" fill="var(--sub)">종류 · 꼭 입력 · 범위 · 겹침 금지 · 줄 수</text>
+    <rect x="30" y="134" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="160" y="155" font-weight="700">1-2 엑셀 미리보기</text><text x="160" y="173" font-size="12" fill="var(--sub)">빈 양식 / 취합본 번갈아 보기</text>
+    <rect x="30" y="192" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="160" y="213" font-weight="700">1-3 빈 양식 파일 내려받기</text><text x="160" y="231" font-size="12" fill="var(--sub)">잠금 · 드롭다운 · 인쇄영역</text>
+    <rect x="30" y="250" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="160" y="271" font-weight="700">1-4 양식 저장 · 불러오기</text><text x="160" y="289" font-size="12" fill="var(--sub)">빈 양식 · 취합본에서 되살리기</text>
+
+    <rect x="470" y="76" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="600" y="97" font-weight="700">2-1 파일 넣기</text><text x="600" y="115" font-size="12" fill="var(--sub)">.xlsx 회신 파일 + 이전 취합본</text>
+    <rect x="470" y="134" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="600" y="155" font-weight="700">2-2 알아보고 정리하기</text><text x="600" y="173" font-size="12" fill="var(--sub)">칸 맞추기 · 값 정리 · 검사 · 확인 필요</text>
+    <rect x="470" y="192" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="600" y="213" font-weight="700">2-3 개정본 정리 · 검산</text><text x="600" y="231" font-size="12" fill="var(--sub)">최신 개정본만 · 이어 붙이기 · 줄 수 확인</text>
+    <rect x="470" y="250" width="260" height="50" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text x="600" y="271" font-weight="700">2-4 취합본 내려받기</text><text x="600" y="289" font-size="12" fill="var(--sub)">같은 틀 · 수정 요청 문구</text>
+
+    <text x="380" y="118" font-size="12" font-weight="700">빈 양식 파일</text>
+    <text x="380" y="160" font-size="12" fill="var(--sub)">📧 응답자 입력</text>
+    <text x="380" y="176" font-size="12" fill="var(--sub)">회신 파일</text>
+    <text x="380" y="252" font-size="12" font-weight="700" fill="var(--accent)">취합본으로</text>
+    <text x="380" y="268" font-size="12" font-weight="700" fill="var(--accent)">양식 되살리기</text>
+
+    <rect x="10" y="350" width="740" height="80" rx="12" fill="var(--card)" stroke="var(--ink)" stroke-dasharray="5 4"/>
+    <text x="380" y="378" font-weight="700">공통 기반: 두 기능이 함께 쓰는 것</text>
+    <text x="380" y="402" font-size="13" fill="var(--sub)">양식 정보(숨김 시트에 저장) · 같은 틀 규칙(제목·칸·색·드롭다운) · 엑셀 읽기/쓰기 부품</text>
+    <text x="380" y="420" font-size="12" fill="var(--sub)">한 번만 만들어서 양쪽이 같이 씀 → 빈 양식과 취합본이 어긋나지 않음</text>
+  </g>
+  <g stroke="var(--sub)" stroke-width="2" fill="none">
+    <path d="M310 130 H448" marker-end="url(#ar3)"/>
+    <path d="M160 320 V348"/><path d="M600 320 V348"/>
+  </g>
+  <path d="M450 230 H312" stroke="var(--accent)" stroke-width="2" fill="none" stroke-dasharray="6 5" marker-end="url(#ar3)"/>
+</svg>
+</div>
+
+<div class="card" style="border-left:4px solid var(--accent)">
+  <span class="tag">판단 결과</span>
+  <p class="big">두 기능으로 나누는 것이 적절합니다.</p>
+  <ul class="clean">
+    <li><b>업무 순서와 맞습니다.</b> "보내기 전"과 "받은 뒤" 사이에 응답자가 입력하는 시간이 있어서, 실제 일도 이 지점에서 끊깁니다. 화면도 여기서 나누는 게 자연스럽습니다.</li>
+    <li><b>남는 기능이 없습니다.</b> 지금까지 정한 기능이 모두 둘 중 하나에 들어갑니다. "관리"나 "설정" 같은 세 번째 탭은 필요 없습니다.</li>
+  </ul>
+  <p style="margin-top:12px"><b>대신 두 가지 조건을 지키며 만듭니다.</b></p>
+  <div class="grid2">
+    <div class="opt"><b>조건 1. 두 기능은 파일로만 이어집니다</b>양식취합은 양식생성 화면에서 무엇을 했는지 몰라도 됩니다. 회신 파일 안에 양식 정보가 들어 있어서, 파일만 넣으면 어떤 양식인지 스스로 알아냅니다. 그래서 <b>다른 PC나 며칠 뒤에도</b> 회신 파일만 있으면 바로 취합할 수 있습니다.</div>
+    <div class="opt"><b>조건 2. "같은 틀" 규칙은 한 번만 만듭니다</b>빈 양식과 취합본을 각자 따로 만들면 언젠가 모양이 어긋납니다. 엑셀 모양을 만드는 부분을 두 기능이 <b>함께 쓰게</b> 해서, 두 파일이 항상 같은 틀이 되게 합니다.</div>
+  </div>
+</div>
+
+<!-- 2 -->
+<h2 id="s2"><span class="no">3</span>전체 흐름: 누가, 언제, 무엇을</h2>
+<p>세로 줄 세 개는 각각 <b>나(관리자)</b>, <b>웹페이지</b>, <b>응답자</b>가 하는 일입니다. 위에서 아래로 따라가세요.</p>
+<div class="svgwrap">
+<svg viewBox="0 0 760 700" role="img" aria-label="관리자, 웹페이지, 응답자 사이의 작업 흐름도">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--sub)"/>
+    </marker>
+  </defs>
+  <!-- lanes -->
+  <rect x="10" y="10" width="240" height="680" rx="10" fill="var(--cell)" stroke="var(--line)"/>
+  <rect x="260" y="10" width="240" height="680" rx="10" fill="var(--accent-soft)" stroke="var(--line)"/>
+  <rect x="510" y="10" width="240" height="680" rx="10" fill="var(--cell)" stroke="var(--line)"/>
+  <text x="130" y="40" text-anchor="middle" font-size="16" font-weight="700" fill="var(--ink)">👤 나 (관리자)</text>
+  <text x="380" y="40" text-anchor="middle" font-size="16" font-weight="700" fill="var(--accent)">🖥 취합 웹페이지</text>
+  <rect x="268" y="48" width="224" height="178" rx="8" fill="none" stroke="var(--accent)" stroke-dasharray="4 4"/>
+  <text x="484" y="63" text-anchor="end" font-size="11" font-weight="700" fill="var(--accent)">기능 1 · 양식생성</text>
+  <rect x="268" y="404" width="224" height="274" rx="8" fill="none" stroke="var(--info)" stroke-dasharray="4 4"/>
+  <text x="484" y="419" text-anchor="end" font-size="11" font-weight="700" fill="var(--info)">기능 2 · 양식취합</text>
+  <text x="630" y="40" text-anchor="middle" font-size="16" font-weight="700" fill="var(--ink)">👥 응답자들</text>
+
+  <g font-size="14" fill="var(--ink)" text-anchor="middle">
+    <!-- boxes -->
+    <rect x="40" y="70" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--ink)"/>
+    <text x="130" y="94">받을 항목 정하기</text><text x="130" y="113" font-size="12" fill="var(--sub)">이름, 수량, 부서…</text>
+
+    <rect x="290" y="70" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="380" y="94" font-weight="700">① 양식 만들기</text><text x="380" y="113" font-size="12" fill="var(--sub)">칸 이름·종류 입력</text>
+
+    <rect x="290" y="160" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="380" y="184" font-weight="700">② 빈 양식 파일 생성</text><text x="380" y="203" font-size="12" fill="var(--sub)">양식.xlsx 내려받기</text>
+
+    <rect x="40" y="250" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--ink)"/>
+    <text x="130" y="274">메일로 발송</text><text x="130" y="293" font-size="12" fill="var(--sub)">평소 쓰던 메일 그대로</text>
+
+    <rect x="540" y="250" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--ink)"/>
+    <text x="630" y="274">엑셀에 값 입력</text><text x="630" y="293" font-size="12" fill="var(--sub)">드롭다운·숫자만 입력</text>
+
+    <rect x="540" y="340" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--ink)"/>
+    <text x="630" y="364">메일로 회신</text><text x="630" y="383" font-size="12" fill="var(--sub)">파일 첨부</text>
+
+    <rect x="40" y="430" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--ink)"/>
+    <text x="130" y="454">첨부파일 모아 저장</text><text x="130" y="473" font-size="12" fill="var(--sub)">폴더 하나에</text>
+
+    <rect x="290" y="430" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="380" y="454" font-weight="700">③ 파일 한꺼번에 넣기</text><text x="380" y="473" font-size="12" fill="var(--sub)">끌어다 놓기</text>
+
+    <rect x="290" y="520" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="380" y="544" font-weight="700">④ 자동 검사·정리</text><text x="380" y="563" font-size="12" fill="var(--sub)">오류 표시, 중복 정리</text>
+
+    <rect x="290" y="610" width="180" height="54" rx="8" fill="var(--accent)" stroke="var(--accent)"/>
+    <text x="380" y="634" font-weight="700" fill="#fff">⑤ 취합본.xlsx 완성</text><text x="380" y="653" font-size="12" fill="#fff">내려받기</text>
+
+    <rect x="40" y="610" width="180" height="54" rx="8" fill="var(--card)" stroke="var(--ink)"/>
+    <text x="130" y="634">결과 확인·활용</text><text x="130" y="653" font-size="12" fill="var(--sub)">보고, 분석 등</text>
+  </g>
+
+  <g stroke="var(--sub)" stroke-width="2" fill="none" marker-end="url(#ar)">
+    <path d="M220 97 H288"/>
+    <path d="M380 124 V158"/>
+    <path d="M290 187 H180 V248"/>
+    <path d="M220 277 H538"/>
+    <path d="M630 304 V338"/>
+    <path d="M540 367 H130 V428"/>
+    <path d="M220 457 H288"/>
+    <path d="M380 484 V518"/>
+    <path d="M380 574 V608"/>
+    <path d="M290 637 H222"/>
+  </g>
+  <path d="M100 610 V505 H320 V488" stroke="var(--accent)" stroke-width="2" fill="none" stroke-dasharray="6 5" marker-end="url(#ar)"/>
+  <text x="120" y="525" font-size="12" font-weight="700" fill="var(--accent)">늦게 온 회신: 취합본과 함께 다시 넣기</text>
+</svg>
+</div>
+<p class="muted">초록색 칸(①~⑤)이 웹페이지가 하는 일입니다. 나머지는 지금 하시는 일과 똑같습니다. <b style="color:var(--accent)">점선</b>은 취합이 끝난 뒤 회신이 더 오면 이어서 합치는 길입니다.</p>
+
+<!-- 3 -->
+<h2 id="s3"><span class="no">4</span>화면 구성</h2>
+<p>위쪽 탭 두 개가 2번에서 본 두 기능입니다.</p>
+
+<h3>기능 1 · 양식생성 화면</h3>
+<div class="screen">
+  <div class="bar"><i></i><i></i><i></i><b>엑셀 취합 도우미</b></div>
+  <div class="tabs"><span class="on">양식생성</span><span>양식취합</span></div>
+  <div class="sbody">
+    <div class="side">
+      <div class="muted" style="padding:0 0 6px"><span class="pin">1</span>저장된 양식</div>
+      <div class="on">2026 비품 신청</div>
+      <div>교육 수요 조사</div>
+      <div>연락처 현행화</div>
+      <div style="margin-top:10px"><span class="btn ghost">+ 새 양식</span></div>
+      <div><span class="btn ghost">양식 파일로 불러오기</span></div>
+    </div>
+    <div class="pane">
+      <div><span class="pin">2</span>양식 이름 <span class="fake-input">2026 비품 신청</span> &nbsp; 입력 줄 수 <span class="fake-input" style="min-width:50px">20</span>줄<span class="newb">새</span></div>
+      <div style="margin-top:12px"><span class="pin">3</span>입력받을 칸</div>
+      <div class="scroll">
+      <table>
+        <tr><th>칸 이름</th><th>종류</th><th>꼭 입력</th><th>선택 항목 / 허용 범위<span class="newb">새</span></th><th>겹침 금지<span class="newb">새</span></th><th></th></tr>
+        <tr><td>자산번호</td><td>글자 ▾</td><td>☑</td><td>-</td><td>☑</td><td>↑↓ ✕</td></tr>
+        <tr><td>품목</td><td>선택목록 ▾</td><td>☑</td><td>노트북, 모니터, 의자</td><td>☐</td><td>↑↓ ✕</td></tr>
+        <tr><td>수량</td><td>숫자 ▾</td><td>☑</td><td>1 ~ 100</td><td>☐</td><td>↑↓ ✕</td></tr>
+        <tr><td>필요일</td><td>날짜 ▾</td><td>☐</td><td>오늘 이후</td><td>☐</td><td>↑↓ ✕</td></tr>
+        <tr><td>비고</td><td>글자 ▾</td><td>☐</td><td>-</td><td>☐</td><td>↑↓ ✕</td></tr>
+      </table>
+      </div>
+      <div style="margin:8px 0"><span class="btn ghost">+ 칸 추가</span></div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span class="pin">4</span><span class="btn">빈 양식 파일 내려받기</span><span class="btn ghost">저장</span>
+      </div>
+      <div style="margin-top:14px"><span class="pin">5</span>엑셀 미리보기 &nbsp;<span class="tag">빈 양식</span> <span class="tag info">취합본</span></div>
+      <div class="xl" style="margin-top:6px;border-width:1px">
+        <table>
+          <tr><td colspan="4"><b>2026 비품 신청</b></td></tr>
+          <tr><td class="hd">품목<span class="req">*</span></td><td class="hd">수량<span class="req">*</span></td><td class="hd">필요일</td><td class="hd">비고</td></tr>
+          <tr><td class="dd"></td><td></td><td></td><td></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<ul class="pinlist">
+  <li><span class="pin">1</span><span><b>저장된 양식 목록</b>: 한 번 만든 양식은 여기 남아서 다음에 다시 씁니다. 다른 PC에서는 예전에 내려받은 양식 파일을 올리면 그대로 되살아납니다.</span></li>
+  <li><span class="pin">2</span><span><b>양식 이름 · 입력 줄 수</b>: 양식 이름은 내려받는 파일 이름에 쓰입니다. 입력 줄 수는 응답자 한 명이 몇 줄 정도 쓸지 미리 정하는 값입니다. 그 줄 수만큼 드롭다운과 입력 제한이 걸린 빈 줄을 만들고, 그 범위를 <b>인쇄영역</b>으로 잡습니다.</span></li>
+  <li><span class="pin">3</span><span><b>입력받을 칸</b>: 칸마다 종류를 고릅니다. 글자, 숫자, 날짜, 선택목록 중 하나입니다. "꼭 입력"에 체크하면 빈칸일 때 오류로 잡습니다. <b>허용 범위</b>(숫자·날짜의 최소~최대)와 <b>겹침 금지</b>(자산번호·사번처럼 전체에서 하나뿐이어야 하는 칸)도 여기서 정합니다. 필요한 양식에서만 <b>계산 관계</b>(금액 = 수량 × 단가, 시작일 ≤ 종료일)를 추가할 수 있습니다.</span></li>
+  <li><span class="pin">4</span><span><b>빈 양식 파일 내려받기</b>: 응답자에게 보낼 엑셀 파일이 만들어집니다.</span></li>
+  <li><span class="pin">5</span><span><b>엑셀 미리보기</b>: 칸을 고치면 바로 바뀝니다. 응답자가 받을 <b>빈 양식</b>과 나중에 받을 <b>취합본</b>을 버튼 하나로 번갈아 볼 수 있어서, 양식을 만드는 순간 결과물 모양까지 확인됩니다.</span></li>
+</ul>
+
+<h3>기능 2 · 양식취합 화면</h3>
+<div class="screen">
+  <div class="bar"><i></i><i></i><i></i><b>엑셀 취합 도우미</b></div>
+  <div class="tabs"><span>양식생성</span><span class="on">양식취합</span></div>
+  <div class="pane">
+    <div>양식: <b>2026 비품 신청</b> <span class="muted">(넣은 파일에서 자동 인식)</span></div>
+    <div class="drop" style="margin:10px 0"><span class="pin">1</span>회신받은 엑셀 파일들을 여기에 끌어다 놓으세요<br><span style="font-size:12px">이전에 만든 취합본도 함께 넣으면 이어서 합칩니다</span></div>
+    <div><span class="pin">2</span><b>파일 13개</b> · 반영 11 · 제외 1 · 이전 개정본 1</div>
+    <div class="scroll">
+    <table>
+      <tr><th>파일</th><th>개정</th><th>줄 수</th><th>상태</th></tr>
+      <tr><td>2026 비품 신청_취합_20261010.xlsx</td><td>파일 8개분</td><td>25</td><td><span class="tag info">이전 취합본 · 이어 붙이기</span></td></tr>
+      <tr><td>비품신청_영업팀.xlsx</td><td>-</td><td>3</td><td><span class="tag">정상</span></td></tr>
+      <tr><td>비품신청_인사팀.xlsx</td><td>-</td><td>5</td><td><span class="tag warn">오류 2건</span></td></tr>
+      <tr><td>비품신청_개발팀_v2.xlsx</td><td>v2</td><td>2</td><td><span class="tag">정상 · 최신 개정본</span></td></tr>
+      <tr><td>비품신청_개발팀.xlsx</td><td>v1</td><td>2</td><td><span class="tag info">이전 개정본 · 반영 안 함</span> <u>바꾸기</u></td></tr>
+      <tr><td>작년양식.xlsx</td><td>-</td><td>-</td><td><span class="tag bad">제외 · 다른 양식</span></td></tr>
+    </table>
+    </div>
+    <div style="margin-top:10px"><span class="pin">3</span><b>오류 목록</b></div>
+    <div class="muted" style="padding-left:24px">비품신청_인사팀 · 4번째 줄 · 수량: "약 10개"는 숫자가 아님<br>비품신청_인사팀 · 6번째 줄 · 품목: 꼭 입력해야 하는 칸이 비어 있음</div>
+    <div style="margin-top:10px"><span class="tag warn">확인 필요 3건</span> <span class="muted">"수 량" 칸 이름, 개정본 여부, "약 10" 값</span></div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pin">4</span><span class="btn">취합본 내려받기</span><span class="btn ghost">수정 요청 문구 복사</span><span class="muted">✅ 검산 통과 · 87줄 = 반영 79 + 제외 8</span></div>
+  </div>
+</div>
+<ul class="pinlist">
+  <li><span class="pin">1</span><span><b>파일 넣는 곳</b>: 여러 파일을 한 번에 끌어다 놓습니다. 양식을 미리 고를 필요 없이 파일을 보고 알아서 인식합니다. <b>이전 취합본</b>을 같이 넣으면 그 내용을 그대로 두고 새 회신만 더합니다. 이미 받은 파일의 개정본이 오면 그 파일 몫의 줄만 새 내용으로 바뀝니다.</span></li>
+  <li><span class="pin">2</span><span><b>파일별 상태</b>: 정상인지, 오류가 있는지, 빠졌는지, 이전 개정본인지 한눈에 보여 줍니다. "바꾸기"를 눌러 반영할 파일을 직접 고를 수도 있습니다.</span></li>
+  <li><span class="pin">3</span><span><b>오류 목록</b>: 어느 파일 몇 번째 줄이 왜 틀렸는지 알려 줍니다. 응답자에게 다시 요청할 때 그대로 쓰면 됩니다.</span></li>
+  <li><span class="pin">4</span><span><b>취합본 내려받기</b>: "확인 필요"에 모두 답하면 내려받을 수 있습니다. 옆에 <b>검산 결과</b>가 보이고, 파일별 <b>수정 요청 문구</b>를 복사해 메일에 붙여 넣을 수 있습니다.</span></li>
+</ul>
+
+<!-- 4 -->
+<h2 id="s4"><span class="no">5</span>엑셀 파일은 이렇게 생깁니다: 양식과 취합본은 같은 틀</h2>
+<p>왼쪽은 응답자에게 보내는 빈 양식, 오른쪽은 웹페이지가 만들어 주는 취합본입니다. <b>1~3행과 A~D열이 똑같은 자리</b>에 있습니다. 취합본에는 아래로 줄이 늘어나고, 오른쪽에 <span style="background:var(--info-soft);padding:0 4px">파란 칸</span> 세 개(출처 파일, 원본 줄, 상태)가 붙을 뿐입니다.</p>
+<div class="grid2">
+  <div>
+    <h3>응답자에게 보내는 빈 양식</h3>
+    <div class="xl scroll">
+      <table>
+        <tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+        <tr><th>1</th><td colspan="4"><b>2026 비품 신청</b></td><td class="out" rowspan="7">인쇄영역 밖<br>자유 메모</td></tr>
+        <tr><th>2</th><td colspan="4" style="color:var(--sub)">안내: 11월 5일까지 회신해 주세요</td></tr>
+        <tr><th>3</th><td class="hd lock">품목<span class="req">*</span></td><td class="hd lock">수량<span class="req">*</span></td><td class="hd lock">필요일</td><td class="hd lock">비고</td></tr>
+        <tr><th>4</th><td class="dd">노트북</td><td>2</td><td>2026-11-01</td><td></td></tr>
+        <tr><th>5</th><td class="dd">의자</td><td>1</td><td></td><td></td></tr>
+        <tr><th>…</th><td class="dd"></td><td></td><td></td><td></td></tr>
+        <tr><th>23</th><td class="dd"></td><td></td><td></td><td></td></tr>
+        <tr><th>24</th><td class="out" colspan="5">인쇄영역 밖 (입력 줄 수 20줄 다음부터)</td></tr>
+      </table>
+      <div class="sheets"><span class="on">2026 비품 신청</span><span class="hid">양식정보 (숨김)</span></div>
+    </div>
+    <ul class="clean muted">
+      <li>🔒 제목 줄은 잠겨 있어서 고칠 수 없습니다.</li>
+      <li><span style="color:var(--bad)">*</span> 표시는 꼭 입력해야 하는 칸입니다. ▾ 칸은 드롭다운에서만 고릅니다.</li>
+      <li>2행은 관리자가 쓰는 <b>안내문</b> 자리입니다. 응답자는 3행 아래 표만 채웁니다.</li>
+      <li><b>인쇄영역</b>은 제목부터 입력 줄 끝(예: 20줄)까지 자동으로 잡힙니다. 무늬 칸처럼 인쇄영역 밖은 응답자가 메모장처럼 자유롭게 써도 됩니다.</li>
+      <li>누가 냈는지 구분이 필요하면 "부서", "업체명" 같은 칸을 양식에 <b>직접</b> 넣으면 됩니다. 취합할 때마다 대상이 달라서 고정된 제출자 칸은 두지 않습니다.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>웹페이지가 만들어 주는 취합본</h3>
+    <div class="xl scroll">
+      <table>
+        <tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>G</th></tr>
+        <tr><th>1</th><td colspan="7"><b>2026 비품 신청</b></td></tr>
+        <tr><th>2</th><td style="color:var(--sub)">취합</td><td colspan="6">2026-10-12 · 파일 20개 · 오류 2건 · 검산 ✅</td></tr>
+        <tr><th>3</th><td class="hd">품목<span class="req">*</span></td><td class="hd">수량<span class="req">*</span></td><td class="hd">필요일</td><td class="hd">비고</td><td class="hd" style="background:var(--info-soft)">출처 파일</td><td class="hd" style="background:var(--info-soft)">원본 줄</td><td class="hd" style="background:var(--info-soft)">상태</td></tr>
+        <tr><th>4</th><td class="dd">노트북</td><td>2</td><td>2026-11-01</td><td></td><td>…_영업팀</td><td>4</td><td></td></tr>
+        <tr class="hidr"><th>5</th><td class="dd">의자</td><td>3</td><td>2026-11-10</td><td></td><td>…_영업팀</td><td>6</td><td class="st">숨긴 줄</td></tr>
+        <tr><th>6</th><td class="dd strk">모니터</td><td class="strk">1</td><td class="strk">2026-11-15</td><td></td><td>…_인사팀</td><td>4</td><td class="st">취소선</td></tr>
+        <tr><th>7</th><td class="dd">모니터</td><td class="mark">약 10개</td><td></td><td></td><td>…_인사팀</td><td>5</td><td class="st">오류</td></tr>
+        <tr><th>8</th><td class="dd">마우스</td><td>2</td><td>2026-11-01</td><td></td><td>…_개발팀_v2</td><td>7</td><td class="st">v1 대비 추가</td></tr>
+      </table>
+      <div class="sheets"><span class="on">2026 비품 신청</span><span>오류</span><span>파일목록</span><span>메모</span><span>판단 기록</span><span class="hid">양식정보 (숨김)</span></div>
+    </div>
+    <ul class="clean muted">
+      <li>오른쪽 끝에 <b>출처 파일</b>, <b>원본 줄</b>(원본의 몇 번째 줄인지), <b>상태</b>(숨긴 줄·취소선·오류·바뀜 등)를 자동으로 적습니다.</li>
+      <li>숨긴 줄과 취소선 줄도 <b>빼지 않고 넣은 뒤 표시</b>합니다. 취소선 모양도 그대로 옮깁니다.</li>
+      <li><span style="background:var(--mark);padding:0 4px">노란 칸</span>은 오류가 있는 칸입니다. 드롭다운은 그대로 남아 있어서 바로 고칠 수 있습니다.</li>
+      <li>취합본은 내가 고칠 수 있도록 <b>잠그지 않습니다</b>.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>같은 점과 다른 점</h3>
+<div class="scroll">
+<table>
+  <tr><th>항목</th><th>빈 양식</th><th>취합본</th></tr>
+  <tr><td>1행 제목</td><td colspan="2" style="text-align:center">같음 (양식 이름)</td></tr>
+  <tr><td>3행 칸 이름·순서·색·너비</td><td colspan="2" style="text-align:center">같음</td></tr>
+  <tr><td>드롭다운·숫자/날짜 제한</td><td colspan="2" style="text-align:center">같음</td></tr>
+  <tr><td>시트 이름</td><td colspan="2" style="text-align:center">같음 (양식 이름)</td></tr>
+  <tr><td>숨김 양식정보 시트</td><td colspan="2" style="text-align:center">같음 → 어느 파일이든 다시 넣으면 같은 양식으로 알아봄</td></tr>
+  <tr><td>2행</td><td>안내문</td><td>취합 날짜·파일 수·오류 수·검산 결과</td></tr>
+  <tr><td>오른쪽 끝 칸</td><td>없음</td><td>출처 파일 · 원본 줄 · 상태 (파란 칸)</td></tr>
+  <tr><td>인쇄영역</td><td>제목 ~ 입력 줄 끝</td><td>제목 ~ 마지막 줄</td></tr>
+  <tr><td>잠금</td><td>제목 줄 잠금</td><td>잠그지 않음</td></tr>
+  <tr><td>추가 시트</td><td>없음</td><td>오류, 파일목록, 메모, 판단 기록</td></tr>
+</table>
+</div>
+<div class="card">
+  <b>왜 "출처 파일" 칸을 맨 앞이 아니라 오른쪽 끝에 붙이나요?</b>
+  <p>맨 앞에 붙이면 양식의 칸이 한 칸씩 밀립니다. 그러면 "B열 = 수량"이 "D열 = 수량"으로 바뀌어서, 양식을 기준으로 만든 수식이나 보고서가 맞지 않게 됩니다. 오른쪽 끝에 붙이면 <b>원래 칸 위치가 그대로</b> 유지됩니다.</p>
+</div>
+
+<!-- 5 -->
+<h2 id="s5"><span class="no">6</span>합치는 원리: 사람처럼 꼼꼼하게</h2>
+<p>사람은 취합하면서 눈으로 보고 알아서 맞추는 일을 많이 합니다. 양식에서 조금 벗어난 파일도 사람만큼 다룰 수 있도록 아래 세 가지 원칙을 지킵니다.</p>
+<div class="grid3">
+  <div class="card principle"><div class="icon">🧮</div><p class="big">한 줄도 잃어버리지 않는다</p><p class="muted">읽은 줄 수가 <b>반영한 줄 + 뺀 줄</b>과 같은지 매번 검산합니다. 뺀 줄은 이유와 함께 남깁니다.</p></div>
+  <div class="card principle"><div class="icon">✍️</div><p class="big">고치되, 원래 값은 남긴다</p><p class="muted"><b>확실한 것만</b> 자동으로 고칩니다. 원래 값은 셀 메모로 남기고, 고친 칸은 파란색으로 표시합니다.</p></div>
+  <div class="card principle"><div class="icon">🙋</div><p class="big">애매하면 사람에게 묻는다</p><p class="muted">"수 량"이 "수량"인지, "비품신청_개발팀_수정"이 "비품신청_개발팀"의 개정본인지는 <b>짐작하지 않고</b> 한곳에 모아 묻습니다.</p></div>
+</div>
+
+<h3>회신 파일 하나가 거치는 순서</h3>
+<p><b style="color:var(--accent)">초록색</b>은 사람처럼 취합하기 위해 더한 단계, 회색은 기본 단계입니다. 오른쪽 끝 표시는 2번 기능 구성의 번호입니다.</p>
+<div class="svgwrap">
+<svg viewBox="0 0 760 690" role="img" aria-label="회신 파일 처리 순서도">
+  <defs>
+    <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--sub)"/>
+    </marker>
+  </defs>
+  <g font-size="14" fill="var(--ink)">
+    <rect x="20" y="20" width="270" height="44" rx="8" fill="var(--card)" stroke="var(--grey)"/>
+    <text x="36" y="47" font-weight="700">1 파일 열기</text>
+    <text x="310" y="40" font-size="13">.xlsx만 받음</text>
+    <text x="310" y="58" font-size="12" fill="var(--sub)">다른 형식·암호·깨진 파일은 "다시 저장해서 보내 주세요" 안내</text>
+
+    <rect x="20" y="80" width="270" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="36" y="107" font-weight="700">2 양식 알아보기</text>
+    <text x="310" y="100" font-size="13">숨김 양식정보 확인, 없으면 칸 이름으로 알아봄</text>
+    <text x="310" y="118" font-size="12" fill="var(--sub)">새 파일에 복사해서 보낸 경우 대비</text>
+
+    <rect x="20" y="140" width="270" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="36" y="167" font-weight="700">3 읽는 범위 정하기</text>
+    <text x="310" y="160" font-size="13">인쇄영역 안 = 데이터, 밖 = 메모</text>
+    <text x="310" y="178" font-size="12" fill="var(--sub)">제목 줄이 밀려도 찾음 · 같은 틀 시트가 여럿이면 모두 읽음</text>
+
+    <rect x="20" y="200" width="270" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="36" y="227" font-weight="700">4 칸 맞추기</text>
+    <text x="310" y="220" font-size="13">순서가 아니라 칸 이름으로 맞춤</text>
+    <text x="310" y="238" font-size="12" fill="var(--sub)">양식에 없는 칸은 버리지 않고 "추가 칸" 시트에 보관</text>
+
+    <rect x="20" y="260" width="270" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="36" y="287" font-weight="700">5 옮길 줄 고르기</text>
+    <text x="310" y="280" font-size="13">빈 줄 · 예시 줄 · 합계 줄 · 메모 줄 빼기</text>
+    <text x="310" y="298" font-size="12" fill="var(--sub)">숨긴 줄·취소선은 넣고 "상태" 칸에 표시</text>
+
+    <rect x="20" y="320" width="270" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="36" y="347" font-weight="700">6 값 정리하기</text>
+    <text x="310" y="340" font-size="13">"1,000개"→1000 · "2026.11.1"→2026-11-01</text>
+    <text x="310" y="358" font-size="12" fill="var(--sub)">합친 셀·"〃" 채우기 · 원래 값은 메모로</text>
+
+    <rect x="20" y="380" width="270" height="44" rx="8" fill="var(--card)" stroke="var(--grey)"/>
+    <text x="36" y="407" font-weight="700">7 규칙 검사</text>
+    <text x="310" y="400" font-size="13">꼭 입력 · 종류 · 허용 범위 · 겹침 금지 · 계산 관계</text>
+    <text x="310" y="418" font-size="12" fill="var(--sub)">틀린 칸은 노란색 + 오류 목록</text>
+
+    <rect x="20" y="440" width="270" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="36" y="467" font-weight="700">8 사람에게 묻기</text>
+    <text x="310" y="460" font-size="13">애매한 것만 "확인 필요"에 모아 예/아니오</text>
+    <text x="310" y="478" font-size="12" fill="var(--sub)">한 번 답하면 같은 경우는 다시 안 물음</text>
+
+    <rect x="20" y="500" width="270" height="44" rx="8" fill="var(--card)" stroke="var(--grey)"/>
+    <text x="36" y="527" font-weight="700">9 개정본 정리</text>
+    <text x="310" y="520" font-size="13">개정번호(v2, rev3…)로 최신만 반영 + 이어 붙이기</text>
+    <text x="310" y="538" font-size="12" fill="var(--sub)">이전 개정본·지난 취합본과 비교해 바뀐 줄 표시</text>
+
+    <rect x="20" y="560" width="270" height="44" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+    <text x="36" y="587" font-weight="700">10 검산</text>
+    <text x="310" y="580" font-size="13">읽은 줄 = 반영 + 제외 · 숫자 칸 합계 확인</text>
+    <text x="310" y="598" font-size="12" fill="var(--sub)">안 맞으면 내려받기 전에 경고</text>
+
+    <rect x="20" y="620" width="270" height="50" rx="25" fill="var(--accent)"/>
+    <text x="155" y="651" font-weight="700" fill="#fff" text-anchor="middle">11 취합본 + 수정 요청 문구</text>
+    <text x="310" y="640" font-size="13">고친 칸 파란색 · 오류 칸 노란색</text>
+    <text x="310" y="658" font-size="12" fill="var(--sub)">오류 있는 파일별 요청 문구를 [복사]로 메일에 붙여 넣기</text>
+  </g>
+  <g stroke="var(--sub)" stroke-width="2" marker-end="url(#a5)">
+    <line x1="155" y1="64" x2="155" y2="78"/><line x1="155" y1="124" x2="155" y2="138"/>
+    <line x1="155" y1="184" x2="155" y2="198"/><line x1="155" y1="244" x2="155" y2="258"/>
+    <line x1="155" y1="304" x2="155" y2="318"/><line x1="155" y1="364" x2="155" y2="378"/>
+    <line x1="155" y1="424" x2="155" y2="438"/><line x1="155" y1="484" x2="155" y2="498"/>
+    <line x1="155" y1="544" x2="155" y2="558"/><line x1="155" y1="604" x2="155" y2="618"/>
+  </g>
+  <g font-size="11" font-weight="700" fill="var(--info)" text-anchor="end">
+    <line x1="752" y1="22" x2="752" y2="62" stroke="var(--info)" stroke-width="3"/><text x="745" y="35">2-1</text>
+    <line x1="752" y1="82" x2="752" y2="482" stroke="var(--info)" stroke-width="3"/><text x="745" y="95">2-2</text>
+    <line x1="752" y1="502" x2="752" y2="602" stroke="var(--info)" stroke-width="3"/><text x="745" y="515">2-3</text>
+    <line x1="752" y1="622" x2="752" y2="668" stroke="var(--info)" stroke-width="3"/><text x="745" y="635">2-4</text>
+  </g>
+</svg>
+</div>
+
+<h3>읽는 범위: 인쇄영역 기준</h3>
+<p>응답자들은 <b>인쇄영역 밖을 메모장처럼</b> 씁니다. 그래서 인쇄영역 안만 데이터로 읽고, 밖에 적힌 글은 버리지 않고 "메모" 시트로 옮깁니다.</p>
+<div class="svgwrap">
+<svg viewBox="0 0 760 300" role="img" aria-label="인쇄영역 안과 밖 처리 그림">
+  <defs><marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--sub)"/></marker></defs>
+  <rect x="20" y="20" width="400" height="260" rx="6" fill="var(--cell)" stroke="var(--line)"/>
+  <rect x="34" y="34" width="250" height="190" fill="var(--card)" stroke="var(--info)" stroke-width="2" stroke-dasharray="7 4"/>
+  <g font-size="12" fill="var(--ink)">
+    <text x="44" y="56" font-weight="700">2026 비품 신청</text>
+    <rect x="44" y="76" width="230" height="22" fill="var(--accent-soft)"/><text x="52" y="92" font-weight="700">품목 · 수량 · 필요일 · 비고</text>
+    <text x="52" y="118">노트북 · 2 · 11-01</text><text x="52" y="142">의자 · 1 ·</text>
+    <text x="52" y="166" fill="var(--sub)">…</text><text x="52" y="210" fill="var(--sub)">(입력 줄 20줄)</text>
+    <text x="210" y="216" font-size="11" font-weight="700" fill="var(--info)">인쇄영역</text>
+    <text x="298" y="70" fill="var(--warn)">※ 의자는 급함</text>
+    <text x="298" y="92" fill="var(--warn)">확인: 김 과장</text>
+    <text x="44" y="256" fill="var(--warn)">합계 3대 (참고용)</text>
+    <text x="234" y="256" fill="var(--bad)">마우스 · 1 · 11-20</text>
+  </g>
+  <g font-size="13" fill="var(--ink)">
+    <rect x="480" y="30" width="260" height="58" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="494" y="54" font-weight="700">인쇄영역 안 → 데이터</text><text x="494" y="76" font-size="12" fill="var(--sub)">취합본에 합침</text>
+    <rect x="480" y="112" width="260" height="58" rx="8" fill="var(--warn-soft)" stroke="var(--warn)"/>
+    <text x="494" y="136" font-weight="700">밖의 메모 → "메모" 시트</text><text x="494" y="158" font-size="12" fill="var(--sub)">파일·셀 위치와 함께 보관</text>
+    <rect x="480" y="194" width="260" height="70" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/>
+    <text x="494" y="218" font-weight="700">표가 영역 밖으로 이어짐</text><text x="494" y="240" font-size="12" fill="var(--sub)">마지막 줄까지 차 있고 바로 이어지면</text><text x="494" y="256" font-size="12" fill="var(--sub)">묻지 않고 바로 넣음</text>
+  </g>
+  <g stroke="var(--sub)" stroke-width="2" fill="none" marker-end="url(#a7)">
+    <path d="M284 120 H478"/><path d="M400 80 L478 136"/><path d="M360 252 L478 230"/>
+  </g>
+</svg>
+</div>
+<p class="muted">인쇄영역이 없는 파일은 지금처럼 제목 줄과 칸 모양을 보고 표를 찾습니다. 응답자가 인쇄영역을 지우거나 넓혀도, 표 바로 아래로 이어지는 줄은 묻지 않고 바로 넣습니다. 파일 이름 끝의 "(2)"는 같은 이름 첨부를 저장할 때 붙는 표시라 개정으로 보지 않습니다.</p>
+
+<h3>모양 속 숨은 뜻 처리 규칙</h3>
+<div class="scroll">
+<table class="rules">
+  <tr><th>이런 모양이면</th><th>사람이 이해하는 뜻</th><th>웹페이지 처리</th></tr>
+  <tr><td>숨긴 줄 · 필터로 가린 줄</td><td>지금은 안 보고 싶은 줄</td><td>넣고 상태 칸에 <span class="tag warn">숨긴 줄</span> 표시, 취합본에서는 흐리게</td></tr>
+  <tr><td>취소선</td><td>지운 것 같은 줄</td><td>넣고 상태 칸에 <span class="tag warn">취소선</span> 표시, 취소선 모양도 그대로</td></tr>
+  <tr><td>합친 셀</td><td>여러 줄이 같은 값</td><td>합쳐진 모든 줄에 같은 값 채우기 <span class="tag">자동</span></td></tr>
+  <tr><td>"〃", "상동", "위와 같음"</td><td>윗줄과 같은 값</td><td>윗줄 값으로 채우고 원래 값은 메모 <span class="tag">자동</span></td></tr>
+  <tr><td>한 칸에 여러 값 (쉼표)</td><td>여러 개를 한 번에 적음</td><td>"두 줄로 나눌까요?" <span class="tag warn">확인 필요</span></td></tr>
+  <tr><td>셀에 단 메모(코멘트)</td><td>응답자의 부연 설명</td><td>취합본의 같은 칸에 그대로 옮김</td></tr>
+  <tr><td>같은 틀 시트가 여러 개</td><td>나눠서 입력함</td><td>모두 읽고 출처에 시트 이름까지 기록 <span class="tag warn">확인 필요</span></td></tr>
+  <tr><td>입력 줄이 하나도 없음</td><td>"해당 없음"으로 회신</td><td>파일목록에 <span class="tag info">제출 · 해당 없음</span>으로 따로 표시</td></tr>
+  <tr><td>수식 칸</td><td>계산된 값</td><td>결과 값만 가져옴, 깨진 수식은 오류</td></tr>
+</table>
+</div>
+
+<h3>내용 검사: 양식을 만들 때 정한 규칙으로</h3>
+<div class="scroll">
+<table class="rules">
+  <tr><th>검사</th><th>설정 위치</th><th>잡아내는 것</th></tr>
+  <tr><td>겹침 금지</td><td>칸 설정 ☑</td><td>자산번호 A-102가 영업팀·개발팀 파일에 모두 있음 → 두 줄 모두 <span class="tag bad">오류</span></td></tr>
+  <tr><td>허용 범위</td><td>칸 설정 (최소 ~ 최대)</td><td>수량 -1, 필요일이 작년 → <span class="tag bad">오류</span></td></tr>
+  <tr><td>계산 관계</td><td>칸 설정 (필요한 양식만)</td><td>금액 ≠ 수량 × 단가, 종료일 &lt; 시작일 → <span class="tag bad">오류</span></td></tr>
+  <tr><td>같은 줄 두 번</td><td>항상</td><td>한 파일 안에서 모든 칸이 같은 줄 → <span class="tag warn">확인 필요</span></td></tr>
+</table>
+</div>
+
+<h3>최신 개정본 고르는 방법</h3>
+<p>제출자를 따로 구별하지 않으므로, <b>파일 이름</b>으로 같은 파일의 개정본끼리 묶고 그중 최신을 고릅니다.</p>
+<div class="svgwrap">
+<svg viewBox="0 0 760 300" role="img" aria-label="개정본 묶기와 최신 판단 그림">
+  <defs><marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--sub)"/></marker></defs>
+  <g font-size="13" fill="var(--ink)">
+    <text x="20" y="28" font-weight="700">① 들어온 파일</text>
+    <rect x="20" y="40" width="220" height="32" rx="6" fill="var(--cell)" stroke="var(--line)"/><text x="32" y="61">비품신청_개발팀.xlsx</text>
+    <rect x="20" y="80" width="220" height="32" rx="6" fill="var(--cell)" stroke="var(--line)"/><text x="32" y="101">비품신청_개발팀_v2.xlsx</text>
+    <rect x="20" y="120" width="220" height="32" rx="6" fill="var(--cell)" stroke="var(--line)"/><text x="32" y="141">비품신청_개발팀_v3(최종).xlsx</text>
+    <rect x="20" y="180" width="220" height="32" rx="6" fill="var(--cell)" stroke="var(--line)"/><text x="32" y="201">비품신청_인사팀.xlsx</text>
+    <rect x="20" y="220" width="220" height="32" rx="6" fill="var(--cell)" stroke="var(--line)"/><text x="32" y="241">비품신청_인사팀_수정.xlsx</text>
+
+    <text x="290" y="28" font-weight="700">② 개정 표시를 떼고 묶기</text>
+    <rect x="290" y="60" width="190" height="72" rx="8" fill="var(--info-soft)" stroke="var(--info)"/>
+    <text x="385" y="90" text-anchor="middle" font-weight="700">비품신청_개발팀</text><text x="385" y="112" text-anchor="middle" font-size="12" fill="var(--sub)">v1 · v2 · v3</text>
+    <rect x="290" y="186" width="190" height="60" rx="8" fill="var(--info-soft)" stroke="var(--info)"/>
+    <text x="385" y="212" text-anchor="middle" font-weight="700">비품신청_인사팀</text><text x="385" y="232" text-anchor="middle" font-size="12" fill="var(--sub)">원본 · 수정</text>
+
+    <text x="530" y="28" font-weight="700">③ 최신만 반영</text>
+    <rect x="530" y="76" width="210" height="40" rx="8" fill="var(--accent)"/><text x="635" y="101" text-anchor="middle" fill="#fff" font-weight="700">v3(최종) 반영</text>
+    <rect x="530" y="196" width="210" height="40" rx="8" fill="var(--accent)"/><text x="635" y="221" text-anchor="middle" fill="#fff" font-weight="700">수정 반영</text>
+    <text x="20" y="285" font-size="12" fill="var(--sub)">개정 표시 예: v2 · ver2 · rev3 · r3 · _2차 · 수정 · 수정본 · 최종 → 번호가 클수록, 번호가 없으면 "최종 &gt; 수정 &gt; 원본" 순서</text>
+  </g>
+  <g stroke="var(--sub)" stroke-width="2" fill="none" marker-end="url(#a6)">
+    <path d="M240 56 L288 86"/><path d="M240 96 H288"/><path d="M240 136 L288 110"/>
+    <path d="M240 196 L288 210"/><path d="M240 236 L288 224"/>
+    <path d="M480 96 H528"/><path d="M480 216 H528"/>
+  </g>
+</svg>
+</div>
+<div class="grid2">
+  <div class="card"><span class="tag">1순위</span><p class="big">파일 이름의 개정번호</p><p class="muted">v2, rev3, 2차, (수정), (최종) 같은 표시를 읽습니다.</p></div>
+  <div class="card"><span class="tag info">2순위</span><p class="big">파일 안에 기록된 저장 날짜</p><p class="muted">개정 표시가 없거나 같으면, 엑셀 파일 안에 기록된 <b>마지막 저장 시각</b>을 봅니다. 메일에서 저장해도 바뀌지 않는 값입니다.</p></div>
+</div>
+<p class="muted">"생성일자"는 우리 양식에서 복사된 파일이라면 모두 같은 날짜(양식을 만든 날)로 찍혀 있어서 구별이 안 됩니다. 그래서 같은 파일 속 정보 중 <b>마지막 저장 시각</b>을 씁니다. 그래도 판단이 애매하면 "확인 필요"에서 묻습니다.</p>
+
+<h3>무엇이 바뀌었나: 변화 표시</h3>
+<div class="grid2">
+  <div>
+    <div class="xl scroll">
+      <table>
+        <tr><th></th><th>품목</th><th>수량</th><th>상태</th></tr>
+        <tr><th>4</th><td>노트북</td><td class="mark">2 → 3</td><td class="st">v1 대비 바뀜</td></tr>
+        <tr><th>5</th><td>의자</td><td>1</td><td></td></tr>
+        <tr><th>7</th><td style="background:var(--accent-soft)">마우스</td><td style="background:var(--accent-soft)">2</td><td class="st">v1 대비 추가</td></tr>
+      </table>
+    </div>
+    <p class="muted">v1에 있던 "모니터"는 파일목록 시트에 <b>v2에서 빠짐</b>으로 기록</p>
+  </div>
+  <div class="card" style="margin:0">
+    <ul class="clean" style="font-size:14px">
+      <li><b>개정본 비교</b>: 같은 묶음의 이전 개정본과 비교해서 바뀐 칸은 "이전 → 지금", 새 줄은 "추가"로 표시합니다. 빠진 줄은 파일목록에 남깁니다.</li>
+      <li><b>지난 취합본 대비</b>: 이전 취합본에 이어서 합칠 때도 같은 방식으로 이번에 달라진 줄을 표시합니다.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>값 정리 예시: 확실한 것만 자동, 애매하면 묻기</h3>
+<div class="card">
+  <div class="conv head"><div>들어온 값</div><div></div><div>정리된 값</div><div>처리</div></div>
+  <div class="conv"><div class="in">1,000개</div><div class="arr">→</div><div class="out">1000</div><div class="why">쉼표·단위 빼기 <span class="tag">자동</span></div></div>
+  <div class="conv"><div class="in">2026.11.1</div><div class="arr">→</div><div class="out">2026-11-01</div><div class="why">날짜 모양 통일 <span class="tag">자동</span></div></div>
+  <div class="conv"><div class="in">노트북␣</div><div class="arr">→</div><div class="out">노트북</div><div class="why">앞뒤 공백·줄바꿈 제거 <span class="tag">자동</span></div></div>
+  <div class="conv"><div class="in">약 10</div><div class="arr">→</div><div class="out">10 ?</div><div class="why">뜻이 달라질 수 있음 <span class="tag warn">확인 필요</span></div></div>
+  <div class="conv"><div class="in">notebook</div><div class="arr">→</div><div class="out">노트북 ?</div><div class="why">목록에 없는 값, 비슷한 항목 제안 <span class="tag warn">확인 필요</span></div></div>
+  <div class="conv"><div class="in">#N/A</div><div class="arr">→</div><div class="out">(빈칸)</div><div class="why">엑셀 수식 오류값 <span class="tag bad">오류 표시</span></div></div>
+</div>
+
+<h3>"확인 필요" 화면</h3>
+<p>양식취합 화면에서 웹페이지가 스스로 정하기 애매한 것만 모아 보여 줍니다. 모두 답해야 취합본을 내려받을 수 있습니다.</p>
+<div class="screen">
+  <div class="bar"><i></i><i></i><i></i><b>양식취합 › 확인 필요 (3)</b></div>
+  <div style="padding:14px">
+    <div class="q"><div><span class="tag warn">칸 이름</span> 비품신청_인사팀 파일의 <b>"수 량"</b>을 <b>"수량"</b> 칸으로 볼까요?</div><div class="qb"><span class="b on">예</span><span class="b">아니오</span></div></div>
+    <div class="q"><div><span class="tag warn">개정본</span> <b>"비품신청_개발팀_수정"</b>은 <b>"비품신청_개발팀"</b>의 새 버전인가요?</div><div class="qb"><span class="b">예</span><span class="b">아니오</span></div></div>
+    <div class="q"><div><span class="tag warn">값</span> 비품신청_개발팀_v2 4번째 줄 수량 <b>"약 10"</b>을 <b>10</b>으로 넣을까요?</div><div class="qb"><span class="b">10으로</span><span class="b">오류로 두기</span></div></div>
+    <p class="muted" style="margin:10px 0 0">☑ 같은 경우는 다음부터 묻지 않기 (이 양식에 기억)</p>
+  </div>
+</div>
+<div class="card">
+  <b>오류가 있어도 빼지 않습니다.</b> 합치기는 하되 노란색으로 표시해서, 나중에 고치거나 응답자에게 다시 물어볼 수 있게 합니다. 이 방식은 9번 "결정할 것"에서 바꿀 수 있습니다.
+</div>
+
+<!-- 6 -->
+<h2 id="s6"><span class="no">7</span>어떤 방법으로 만드나요?</h2>
+<div class="grid2">
+  <div class="card">
+    <span class="tag">선택한 방법</span>
+    <p class="big">내 컴퓨터 안에서만 도는 웹페이지 1장</p>
+    <p>계산기 앱처럼 <b>내 PC 안에서만</b> 계산합니다. 엑셀 파일은 인터넷 어디에도 올라가지 않습니다.</p>
+    <ul class="clean">
+      <li>파일: <code>index.html</code> 하나</li>
+      <li>실행: 더블클릭하면 크롬이나 엣지에서 열림</li>
+      <li>공유: 공유폴더나 메일로 파일 하나만 넘기면 끝</li>
+    </ul>
+  </div>
+  <div class="card">
+    <span class="tag info">고르지 않은 방법</span>
+    <p class="big">회사 서버에 올리는 웹사이트</p>
+    <p>구글 설문지처럼 링크로 입력받는 방식입니다. 미제출자 확인 같은 기능은 쉬워지지만, 아래 비용이 듭니다.</p>
+    <ul class="clean">
+      <li>서버를 빌리거나 사내 서버 승인이 필요함</li>
+      <li>로그인, 보안 점검, 유지 관리가 필요함</li>
+      <li>응답자의 작업 방식이 바뀜</li>
+    </ul>
+  </div>
+</div>
+
+<h3>문제별 해결 방법</h3>
+<div class="scroll">
+<table>
+  <tr><th>문제</th><th>해결 방법</th></tr>
+  <tr><td>칸을 지우거나 순서를 바꿔서 보냄</td><td>양식 파일의 <b>제목 줄을 잠금</b>. 입력 칸만 편집할 수 있음</td></tr>
+  <tr><td>숫자 칸에 글자를 넣음</td><td>엑셀의 <b>입력 제한 기능</b>(데이터 유효성 검사)을 미리 걸어 둠. 그래도 들어오면 취합할 때 노란색으로 표시</td></tr>
+  <tr><td>엉뚱한 파일(작년 양식 등)이 섞임</td><td>양식 파일 안 <b>숨김 시트에 양식 번호</b>를 적어 두고 확인</td></tr>
+  <tr><td>같은 파일을 고쳐서 여러 번 냄</td><td>파일 이름의 <b>개정번호</b>로 묶어서 최신만 반영, 번호가 없으면 파일 안 저장 시각</td></tr>
+  <tr><td>어느 파일에서 온 줄인지 모름</td><td>취합본에 <b>출처 파일</b> 칸을 자동으로 붙임</td></tr>
+  <tr><td>매번 양식을 새로 만듦</td><td>양식을 <b>저장</b>해 두고, 다른 PC에서는 양식 파일이나 취합본으로 되살림</td></tr>
+  <tr><td>취합본을 받으면 다시 정리해야 함</td><td>양식과 취합본을 <b>같은 틀</b>로 만듦. 칸 위치가 같아서 바로 이어서 씀</td></tr>
+  <tr><td>칸 순서를 바꾸거나 새 파일에 복사해서 보냄</td><td>숨김 정보가 없어도 <b>칸 이름으로 알아보고 맞춤</b></td></tr>
+  <tr><td>"1,000개", "2026.11.1"처럼 제각각 입력</td><td><b>확실한 것만 자동 정리</b>, 애매하면 "확인 필요"로 물음. 원래 값은 메모로 남김</td></tr>
+  <tr><td>예시 줄·합계 줄까지 같이 옮겨짐</td><td>예시·합계·메모 줄을 알아보고 <b>이유를 남기고 뺌</b></td></tr>
+  <tr><td>다 옮겼는지 불안함</td><td>읽은 줄 = 반영 + 제외 <b>검산</b>, 숫자 칸 합계 확인</td></tr>
+  <tr><td>인쇄영역 밖 메모가 데이터에 섞임</td><td><b>인쇄영역 안만</b> 데이터로 읽고, 밖은 "메모" 시트에 보관</td></tr>
+  <tr><td>숨긴 줄·취소선을 놓침</td><td>빼지 않고 넣은 뒤 <b>상태 칸에 표시</b></td></tr>
+  <tr><td>자산번호 같은 값이 여러 파일에 겹침</td><td>양식에서 <b>겹침 금지</b>로 정하면 전체에서 검사</td></tr>
+  <tr><td>수정본에서 무엇이 바뀌었는지 모름</td><td>이전 개정본과 비교해 <b>바뀜·추가·빠짐</b> 표시</td></tr>
+  <tr><td>늦게 온 회신 때문에 처음부터 다시 취합</td><td>이전 취합본과 새 파일을 <b>함께 넣으면 이어 붙임</b></td></tr>
+</table>
+</div>
+
+<!-- 7 -->
+<h2 id="s7"><span class="no">8</span>이번에 하지 않는 것</h2>
+<p>처음 버전은 작고 확실하게 만듭니다. 아래 기능은 꼭 필요해지면 그때 추가합니다.</p>
+<div class="grid2">
+  <div class="card"><b>메일 자동 발송</b><p class="muted">발송은 지금처럼 메일 프로그램으로 합니다.</p></div>
+  <div class="card"><b>미제출자 확인</b><p class="muted">필요 없다고 결정했습니다.</p></div>
+  <div class="card"><b>웹에서 직접 입력</b><p class="muted">서버가 필요해서 이번 범위에서 뺍니다.</p></div>
+  <div class="card"><b>보고서형 양식</b><p class="muted">정해진 칸에 하나씩 쓰는 양식은 빼고, <b>표 형태</b>만 지원합니다.</p></div>
+  <div class="card"><b>제출자 구별</b><p class="muted">취합할 때마다 대상이 달라서 고정된 제출자 칸을 두지 않습니다. 필요하면 "부서" 같은 칸을 양식에 직접 넣습니다.</p></div>
+  <div class="card"><b>기존 엑셀 양식 가져오기</b><p class="muted">새 양식으로 취합 기능을 먼저 다듬은 뒤, <b>다음 단계</b>에서 만듭니다. 아래 "만드는 순서" 4번을 보세요.</p></div>
+  <div class="card"><b>옛날 엑셀(.xls)·CSV</b><p class="muted">.xlsx만 받고, 다른 형식은 "다시 저장해서 보내 주세요"라고 안내합니다.</p></div>
+  <div class="card"><b>튀는 값 알림 · 단위 착각 · 화면에서 바로 고치기</b><p class="muted">써 보고 자주 필요하면 그때 추가합니다. 고치기는 취합본 엑셀에서 하면 됩니다.</p></div>
+  <div class="card"><b>요약·집계 시트, 정렬</b><p class="muted">취합본으로 바로 이어서 하는 작업이 없어서 넣지 않습니다.</p></div>
+  <div class="card"><b>실제 샘플에 맞춘 처리</b><p class="muted">지금은 전체 기능을 일반 규칙으로 정의합니다. 샘플은 나중에 받아서 <b>시험 자료</b>로 씁니다.</p></div>
+</div>
+
+<!-- 8 -->
+<h2 id="s8"><span class="no">9</span>결정한 것</h2>
+<p>모든 결정이 끝났습니다. 이 내용대로 만듭니다.</p>
+<div class="card">
+  <span class="tag">결정 완료</span>
+  <ul class="clean">
+    <li>양식 모양: <b>표 형태</b>(여러 줄 입력)</li>
+    <li>회신 방식: <b>엑셀 파일을 메일로</b></li>
+    <li>사용 환경: <b>인터넷 연결됨</b></li>
+    <li>추가 기능: <b>양식 저장·재사용</b>, <b>중복 제출 정리</b></li>
+    <li>양식과 취합본: <b>같은 틀</b>로 통일하고, 이전 취합본에 이어서 합치기 지원</li>
+    <li>기능 구성: <b>양식생성</b>, <b>양식취합</b> 두 가지</li>
+    <li>자동 정리 범위: <b>확실한 것만 자동</b>, 애매하면 묻기</li>
+    <li>미제출자 확인: <b>넣지 않음</b></li>
+    <li>한 파일은 한 응답으로 취급 (대리 제출 없음)</li>
+    <li>기존 엑셀 양식 가져오기: <b>나중에</b> (취합 기능을 먼저 다듬은 뒤)</li>
+    <li>제출자 구별: <b>하지 않음</b> (필요하면 양식에 칸을 직접 추가)</li>
+    <li>최신 판단: <b>파일 이름의 개정번호</b>, 없으면 <b>파일 안 저장 시각</b></li>
+    <li>오류 있는 줄: <b>합치고 노란색 표시</b></li>
+    <li>응답자 프로그램: <b>MS 엑셀 기준</b></li>
+    <li>숨긴 줄·취소선: <b>넣고 표시</b></li>
+    <li>읽는 범위: <b>인쇄영역 안</b>만 데이터, 밖은 메모로 보관</li>
+    <li>겹침 금지·허용 범위: <b>양식생성에서 칸마다 설정</b></li>
+    <li>계산 관계: 양식에 따라 <b>선택해서 설정</b></li>
+    <li>인쇄영역 밖으로 이어진 표: <b>묻지 않고 바로 넣기</b></li>
+    <li>규모: 한 번에 <b>파일 20개 정도</b>, 줄 수는 양식생성에서 <b>입력 줄 수</b>로 정함</li>
+    <li>요약·집계: <b>넣지 않음</b> (취합 후 이어서 하는 일 없음)</li>
+    <li>받는 파일 형식: <b>.xlsx만</b></li>
+  </ul>
+</div>
+
+
+<!-- 9 -->
+<h2 id="s9"><span class="no">10</span>만드는 순서</h2>
+<p>단계마다 직접 써 보시고 의견을 주시면 다음 단계로 넘어갑니다.</p>
+<ol class="steps">
+  <li><b>공통 기반 + 기능 1 양식생성</b><br><span class="muted">칸 정하기(종류·꼭 입력·허용 범위·겹침 금지), 입력 줄 수, 미리보기, 빈 양식 내려받기(잠금·드롭다운·인쇄영역)</span></li>
+  <li><b>기능 2 양식취합: 사람처럼 합치기</b><br><span class="muted">인쇄영역 기준 읽기, 칸 맞추기, 숨긴 줄·취소선·합친 셀 처리, 값 정리, 규칙 검사(범위·겹침 포함), 빈 회신 표시, 원본 줄 번호, 검산, 취합본 내려받기</span></li>
+  <li><b>판단 돕기 + 업무 이어가기</b><br><span class="muted">확인 필요 화면, 판단 기록 시트, 개정본 정리·비교, 이어 붙이기·지난 대비 변화, 메모 시트, "〃"·여러 값·여러 시트 처리, 계산 관계, 수정 요청 문구, 양식 저장·불러오기</span></li>
+  <li style="border-style:dashed"><b>다음 단계: 기존 양식을 배포용 양식으로</b> (양식생성 고도화)<br><span class="muted">지금 쓰고 계신 엑셀 양식을 올리면 칸을 읽어서 배포용 양식으로 바꿔 주는 기능입니다. 실제 회신 샘플로 전체를 시험한 뒤 만듭니다.</span></li>
+</ol>
+
+<!-- 용어 -->
+<h2 id="s10"><span class="no">✎</span>용어 풀이</h2>
+<div class="scroll">
+<table>
+  <tr><th style="width:30%">들어 보셨을 말</th><th>쉬운 뜻</th></tr>
+  <tr><td>PRD</td><td>"무엇을, 왜, 어떻게 만들지" 적은 기획서</td></tr>
+  <tr><td>템플릿</td><td>응답자에게 보내는 <b>빈 양식 파일</b></td></tr>
+  <tr><td>서버</td><td>인터넷 어딘가에서 24시간 켜져 있는 컴퓨터. 이번에는 <b>쓰지 않습니다</b></td></tr>
+  <tr><td>HTML 파일</td><td>크롬이나 엣지로 여는 웹페이지 파일. 지금 보고 계신 이 문서도 HTML 파일입니다</td></tr>
+  <tr><td>데이터 유효성 검사</td><td>엑셀의 <b>입력 제한</b> 기능. "이 칸엔 숫자만", "이 칸은 목록에서만"</td></tr>
+  <tr><td>시트 보호</td><td>엑셀의 <b>잠금</b> 기능. 정해 둔 칸 말고는 고칠 수 없게 함</td></tr>
+  <tr><td>숨김 시트</td><td>엑셀 아래 시트 탭에 안 보이게 숨겨 둔 시트. 양식 번호를 적어 두는 메모장</td></tr>
+  <tr><td>검산</td><td>"다 옮겼나?"를 숫자로 확인하는 것. 읽은 줄 수와 반영한 줄 + 뺀 줄 수가 같은지 봅니다</td></tr>
+  <tr><td>개정번호</td><td>파일 이름에 붙이는 고친 횟수 표시. 예: _v2, _rev3, _2차, (수정), (최종)</td></tr>
+  <tr><td>인쇄영역</td><td>엑셀에서 "여기까지만 인쇄"로 정해 둔 범위. 이 웹페이지는 그 안만 데이터로 읽습니다</td></tr>
+  <tr><td>겹침 금지</td><td>전체 취합본에서 같은 값이 두 번 나오면 안 되는 칸. 예: 자산번호, 사번</td></tr>
+  <tr><td>버전</td><td>양식 칸 구성을 바꿀 때마다 올라가는 번호. 옛날 양식 파일을 가려낼 때 씁니다</td></tr>
+  <tr><td>라이브러리 (ExcelJS)</td><td>남이 이미 만들어 둔 <b>엑셀 읽기·쓰기 부품</b>. 직접 만들지 않고 가져다 씁니다</td></tr>
+  <tr><td>브라우저 저장소</td><td>크롬이나 엣지 안에 있는 작은 저장 공간. 만든 양식을 기억해 두는 곳입니다. 같은 PC, 같은 브라우저에서만 보입니다</td></tr>
+</table>
+</div>
+
+</main>
+</body>
+</html>

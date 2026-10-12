@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>취합 고도화 제안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f7f4; --card:#ffffff; --ink:#1d1d1b; --sub:#5d5d58; --line:#deddd6;
+  --accent:#1f6f5c; --accent-soft:#e3f1ec; --warn:#a15c00; --warn-soft:#fff3d6;
+  --bad:#b3261e; --bad-soft:#fde7e5; --info:#2b5bb5; --info-soft:#e6eefb;
+  --cell:#fbfbf9; --mark:#fff2a8; --grey:#9a9992;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161715; --card:#1f201e; --ink:#ecebe6; --sub:#a9a8a1; --line:#353631;
+    --accent:#5cc4a6; --accent-soft:#1c3530; --warn:#f0b459; --warn-soft:#3a2d14;
+    --bad:#f28b82; --bad-soft:#3d1f1d; --info:#8ab4f8; --info-soft:#1c2a42;
+    --cell:#252623; --mark:#5a5120; --grey:#6f6e68;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161715; --card:#1f201e; --ink:#ecebe6; --sub:#a9a8a1; --line:#353631;
+  --accent:#5cc4a6; --accent-soft:#1c3530; --warn:#f0b459; --warn-soft:#3a2d14;
+  --bad:#f28b82; --bad-soft:#3d1f1d; --info:#8ab4f8; --info-soft:#1c2a42;
+  --cell:#252623; --mark:#5a5120; --grey:#6f6e68;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;line-height:1.7;font-size:16px}
+main{max-width:960px;margin:0 auto;padding:40px 16px 80px}
+h1{font-size:30px;margin:0 0 8px;line-height:1.3}
+h2{font-size:22px;margin:56px 0 12px;padding-top:8px;border-top:2px solid var(--ink)}
+h2 .no{color:var(--accent);margin-right:8px}
+h3{font-size:17px;margin:28px 0 8px}
+p{margin:8px 0}
+.lead{color:var(--sub);font-size:17px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin:16px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.info{background:var(--info-soft);color:var(--info)}
+.tag.grey{background:var(--cell);color:var(--sub);border:1px solid var(--line)}
+.big{font-size:20px;font-weight:700;margin:4px 0;line-height:1.4}
+.muted{color:var(--sub);font-size:14px}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+nav.toc a{font-size:14px;color:var(--ink);text-decoration:none;border:1px solid var(--line);background:var(--card);padding:4px 12px;border-radius:99px}
+nav.toc a:hover{border-color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{border-bottom:1px solid var(--line);padding:10px 8px;text-align:left;vertical-align:top}
+th{font-size:13px;color:var(--sub);font-weight:500}
+.scroll{overflow-x:auto}
+ul.clean{padding-left:20px;margin:8px 0}
+svg text{font-family:"Noto Sans KR",system-ui,sans-serif}
+.svgwrap{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;overflow-x:auto}
+.svgwrap svg{display:block;width:100%;min-width:600px;height:auto}
+.principle{border-top:4px solid var(--accent)}
+.principle .icon{font-size:28px}
+
+/* 커버리지 */
+.cov{display:grid;grid-template-columns:150px 1fr;gap:10px 16px;align-items:center}
+.cov .name{font-weight:700}
+.cov .name small{display:block;font-weight:400;color:var(--sub);font-size:12px}
+.bar{display:flex;height:28px;border-radius:6px;overflow:hidden;border:1px solid var(--line);background:var(--cell)}
+.bar span{display:flex;align-items:center;padding:0 8px;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden}
+.bar .have{background:var(--accent);color:#fff}
+.bar .gap{background:var(--warn-soft);color:var(--warn)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--sub);margin:8px 0 16px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+@media (max-width:720px){.cov{grid-template-columns:1fr}.cov .name{margin-top:8px}}
+
+/* 변환 예시 */
+.conv{display:grid;grid-template-columns:1fr 40px 1fr 1.4fr;gap:8px;align-items:center;margin:6px 0}
+.conv .in,.conv .out{font-family:Consolas,monospace;font-size:14px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--cell)}
+.conv .in{color:var(--bad)}
+.conv .out{color:var(--accent);font-weight:700;background:var(--accent-soft);border-color:transparent}
+.conv .arr{text-align:center;color:var(--sub)}
+.conv .why{font-size:13px;color:var(--sub)}
+.conv.head div{font-size:12px;color:var(--sub);border:0;background:none;padding:0 10px}
+@media (max-width:720px){.conv{grid-template-columns:1fr 24px 1fr}.conv .why{grid-column:1/-1;margin-bottom:8px}}
+
+/* 엑셀 모형 */
+.xl{border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--card);font-size:12px}
+.xl table{border-collapse:collapse;width:100%}
+.xl td,.xl th{border:1px solid var(--line);padding:5px 6px;height:26px;white-space:nowrap}
+.xl th{background:var(--cell);color:var(--sub);font-weight:500;text-align:center;width:28px}
+.xl .hd{background:var(--accent-soft);font-weight:700}
+.xl .strike{text-decoration:line-through;color:var(--grey)}
+.xl .flag{background:var(--warn-soft)}
+.xl .badc{background:var(--bad-soft)}
+.note{font-size:11px;color:var(--warn);font-weight:700}
+
+/* 화면 모형 */
+.screen{border:2px solid var(--ink);border-radius:10px;background:var(--card);overflow:hidden;font-size:13px}
+.screen .bar2{display:flex;gap:6px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--cell)}
+.screen .bar2 i{width:10px;height:10px;border-radius:50%;background:var(--line);display:inline-block}
+.screen .bar2 b{margin-left:8px;font-weight:500;color:var(--sub)}
+.q{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.q .btns{display:flex;gap:6px}
+.b{display:inline-block;padding:4px 12px;border-radius:6px;font-weight:700;font-size:12px;border:1px solid var(--accent);color:var(--accent)}
+.b.on{background:var(--accent);color:#fff}
+
+.tier{border-left:6px solid var(--accent)}
+.tier.t2{border-left-color:var(--info)}
+.tier.t3{border-left-color:var(--grey)}
+.tier ol{margin:8px 0;padding-left:22px}
+.tier li{margin:6px 0}
+.decide{border-left:4px solid var(--warn)}
+.opt{border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:8px}
+.opt.rec{border-color:var(--accent);background:var(--accent-soft)}
+.opt b{display:block}
+</style>
+<style>
+.zone{border-radius:12px;padding:18px;border:2px solid var(--line);background:var(--card)}
+.zone h4{margin:0 0 4px;font-size:17px}
+.zone ul{margin:6px 0 0;padding-left:18px;font-size:14px}
+.zone.z1{border-color:var(--accent)} .zone.z1 h4{color:var(--accent)}
+.zone.z2{border-color:var(--info)} .zone.z2 h4{color:var(--info)}
+.zone.z3{border-color:var(--warn)} .zone.z3 h4{color:var(--warn)}
+.zone.z4{border-color:var(--bad)} .zone.z4 h4{color:var(--bad)}
+.pin{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--bad);color:#fff;font-size:11px;font-weight:700;flex:none;vertical-align:middle}
+.pinlist{list-style:none;padding:0;margin:0}
+.pinlist li{display:flex;gap:8px;align-items:flex-start;margin:8px 0;font-size:14px}
+.xl .merge{background:var(--cell);vertical-align:middle}
+.xl .hidrow th,.xl .hidrow td{opacity:.45;border-top:2px dashed var(--bad)}
+.xl .strk{text-decoration:line-through;color:var(--bad)}
+.xl .add{background:var(--accent-soft)}
+.xl .chg{background:var(--mark)}
+.xl .del{background:var(--bad-soft);text-decoration:line-through}
+.prop{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:13px;align-items:center}
+.prop .k{color:var(--sub)}
+.fake{border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:var(--bg);display:inline-block}
+.newb{display:inline-block;font-size:10px;font-weight:700;color:#fff;background:var(--bad);border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px}
+.ask{border-left:4px solid var(--info)}
+.ask .why{font-size:13px;color:var(--sub)}
+</style>
+</head>
+<body>
+<main>
+
+
+<span class="tag">PRD 고도화 제안 2차</span>
+<h1>사람 눈으로 한 번 더 보기</h1>
+<p class="lead">지난 보완(칸 맞추기, 값 정리, 개정본, 검산)으로 "양식에서 조금 벗어난 파일"은 다룰 수 있게 됐습니다. 이번에는 꼼꼼한 담당자가 <b>원본 파일을 열어 놓고 하나씩 대조하면서</b> 잡아내는 것들을 정리했습니다.</p>
+
+<div class="card" style="border:2px solid var(--accent)">
+  <span class="tag">답변 반영 · PRD에 들어감</span>
+  <p style="margin-top:8px">전체 기능을 일반 규칙으로 정의 · 요약·집계 시트는 넣지 않음 · 겹침 금지는 양식생성에서 · 계산 관계는 선택 설정 · 숨긴 줄·취소선은 <b>넣고 표시</b> · <b>인쇄영역 밖 = 메모</b> · 파일 20개 정도, 줄 수는 양식에서 지정</p>
+</div>
+
+<nav class="toc">
+  <a href="#q1">1. 네 가지 영역</a><a href="#q2">2. 파일 속 숨은 뜻</a><a href="#q3">3. 내용이 말이 되나</a>
+  <a href="#q4">4. 무엇이 바뀌었나</a><a href="#q5">5. 결과 정리</a><a href="#q6">6. 우선순위</a><a href="#q7">7. 확인할 사항</a>
+</nav>
+
+<!-- 1 -->
+<h2 id="q1"><span class="no">1</span>사람이 더 보는 네 가지 영역</h2>
+<div class="grid2">
+  <div class="zone z1">
+    <h4>🔍 파일 속 숨은 뜻</h4>
+    <p class="muted">모양은 달라도 사람은 뜻을 압니다</p>
+    <ul><li>합친 셀, "〃·상동" 표시</li><li>숨긴 줄, 취소선</li><li>표 밖에 적은 메모, 셀 메모</li><li>시트를 여러 개로 나눠 입력</li><li>내용 없이 돌아온 회신</li></ul>
+  </div>
+  <div class="zone z2">
+    <h4>🧠 내용이 말이 되나</h4>
+    <p class="muted">형식은 맞아도 내용이 이상한 것</p>
+    <ul><li>겹치면 안 되는 값이 겹침 (자산번호 등)</li><li>같은 줄을 두 번 적음</li><li>시작일이 종료일보다 늦음, 금액 ≠ 수량×단가</li><li>범위를 벗어난 값, 단위 착각(원/천원)</li></ul>
+  </div>
+  <div class="zone z3">
+    <h4>🔁 무엇이 바뀌었나</h4>
+    <p class="muted">수정본을 받으면 사람은 비교합니다</p>
+    <ul><li>v1 → v2에서 바뀐 줄 표시</li><li>지난 취합본 대비 추가·변경·삭제</li><li>옛날 양식 버전으로 낸 파일 흡수</li></ul>
+  </div>
+  <div class="zone z4">
+    <h4>📋 결과 정리</h4>
+    <p class="muted">취합 직후 사람이 꼭 하는 일</p>
+    <ul><li>원본 몇 번째 줄인지 바로 찾기</li><li>품목별 합계 같은 요약표</li><li>내가 내린 판단 기록 남기기</li><li>보기 좋은 순서로 정렬</li></ul>
+  </div>
+</div>
+
+<!-- 2 -->
+<h2 id="q2"><span class="no">2</span>파일 속 숨은 뜻 알아보기</h2>
+<p>이런 회신 파일이 들어왔다고 해 보겠습니다. 지금 기획대로라면 빨간 번호 부분이 <b>잘못 합쳐지거나 조용히 사라집니다</b>.</p>
+<div class="grid2">
+  <div>
+    <div class="xl scroll">
+      <table>
+        <tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th></th><th>F</th></tr>
+        <tr><th>1</th><td colspan="4"><b>2026 비품 신청</b></td><td></td><td></td></tr>
+        <tr><th>3</th><td class="hd">품목</td><td class="hd">수량</td><td class="hd">필요일</td><td class="hd">비고</td><td></td><td></td></tr>
+        <tr><th>4</th><td class="merge" rowspan="2">노트북 <span class="pin">1</span></td><td>2</td><td>11-01</td><td></td><td></td><td></td></tr>
+        <tr><th>5</th><td>1</td><td>〃 <span class="pin">2</span></td><td></td><td></td><td></td></tr>
+        <tr class="hidrow"><th>6</th><td>의자</td><td>3</td><td>11-10</td><td>숨긴 줄 <span class="pin">3</span></td><td></td><td></td></tr>
+        <tr><th>7</th><td class="strk">모니터</td><td class="strk">1</td><td class="strk">11-15</td><td>취소선 <span class="pin">4</span></td><td></td><td></td></tr>
+        <tr><th>8</th><td>마우스, 키보드 <span class="pin">5</span></td><td>2</td><td>11-01</td><td></td><td></td><td style="color:var(--warn)">※ 의자는 급함 <span class="pin">6</span></td></tr>
+        <tr><th>9</th><td>노트북</td><td>1</td><td>11-01</td><td></td><td></td><td></td></tr>
+      </table>
+      <div class="sheets"><span class="on">2026 비품 신청</span><span>2026 비품 신청 (2) <span class="pin">7</span></span></div>
+    </div>
+  </div>
+  <div class="card" style="margin:0">
+    <ul class="pinlist">
+      <li><span class="pin">1</span><span><b>합친 셀</b>: 첫 줄에만 값이 있는 것으로 읽힙니다. → 합쳐진 범위의 모든 줄에 "노트북"을 채웁니다. <span class="tag">자동</span></span></li>
+      <li><span class="pin">2</span><span><b>"〃", "상동", "위와 같음"</b> → 바로 윗줄 값으로 채웁니다. <span class="tag">자동</span> 원래 값은 메모로 남깁니다.</span></li>
+      <li><span class="pin">3</span><span><b>숨긴 줄·필터로 가린 줄</b>: 사람도 놓치기 쉽습니다. → 읽어서 반영하되 <span class="tag warn">확인 필요</span> "숨겨진 줄이 1개 있습니다. 넣을까요?"</span></li>
+      <li><span class="pin">4</span><span><b>취소선</b>: "지운다"는 뜻일 가능성이 큽니다. → 기본은 빼고 <span class="tag warn">확인 필요</span></span></li>
+      <li><span class="pin">5</span><span><b>한 칸에 여러 값</b>: 선택목록 칸에 쉼표로 여러 개. → "두 줄로 나눌까요?" <span class="tag warn">확인 필요</span></span></li>
+      <li><span class="pin">6</span><span><b>표 밖에 적은 메모</b>: 입력 영역 밖 글자. → 버리지 않고 "메모" 시트에 옮기고 화면에 알림. 셀에 단 <b>메모(코멘트)</b>도 취합본에 그대로 옮깁니다.</span></li>
+      <li><span class="pin">7</span><span><b>시트를 복사해서 나눠 입력</b>: 같은 틀의 시트가 여러 개. → 모두 읽고 출처에 시트 이름까지 적습니다. <span class="tag warn">확인 필요</span></span></li>
+    </ul>
+  </div>
+</div>
+<div class="grid2">
+  <div class="card">
+    <span class="tag info">빈 회신</span>
+    <p class="big">내용 없이 돌아온 파일</p>
+    <p class="muted">사람은 "이 팀은 신청할 게 없구나"라고 이해합니다. 지금은 0줄이라 파일목록에서 묻힙니다. → 상태를 <b>"제출함 · 해당 없음"</b>으로 따로 표시합니다. 원하면 양식에 "해당 없음" 체크칸을 넣을 수 있습니다.</p>
+  </div>
+  <div class="card">
+    <span class="tag info">수식 칸</span>
+    <p class="big">수식으로 계산된 값</p>
+    <p class="muted">결과 값만 가져옵니다. 다른 파일을 참조하던 수식이 깨져 있으면(<code>#REF!</code>) 오류로 표시하고, 원래 수식은 메모로 남깁니다.</p>
+  </div>
+</div>
+
+<!-- 3 -->
+<h2 id="q3"><span class="no">3</span>내용이 말이 되나: 양식에 "검사 규칙" 더하기</h2>
+<p>사람은 "자산번호가 두 번 나왔네", "끝나는 날이 시작보다 빠르네"를 알아챕니다. 이런 검사는 양식을 만들 때 <b>칸 설정에 몇 가지를 더하면</b> 웹페이지가 대신할 수 있습니다.</p>
+<div class="grid2">
+  <div class="screen">
+    <div class="bar2"><i></i><i></i><i></i><b>양식생성 › 칸 설정: "금액"</b></div>
+    <div style="padding:14px">
+      <div class="prop">
+        <span class="k">칸 이름</span><span class="fake">금액</span>
+        <span class="k">종류</span><span class="fake">숫자 ▾</span>
+        <span class="k">꼭 입력</span><span>☑</span>
+        <span class="k">허용 범위<span class="newb">새</span></span><span><span class="fake">0</span> ~ <span class="fake">5,000,000</span></span>
+        <span class="k">겹치면 안 됨<span class="newb">새</span></span><span>☐ <span class="muted">(자산번호·사번 같은 칸에 체크)</span></span>
+        <span class="k">계산 확인<span class="newb">새</span></span><span><span class="fake">수량 × 단가</span> 와 같아야 함</span>
+        <span class="k">날짜 순서<span class="newb">새</span></span><span class="muted">(날짜 칸에서) "종료일"보다 빠르거나 같아야 함</span>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin:0">
+    <p><b>취합할 때 잡아내는 것</b></p>
+    <ul class="clean" style="font-size:14px">
+      <li><b>겹치면 안 되는 값</b>: 자산번호 A-102가 영업팀과 개발팀 파일에 둘 다 있음 → <span class="tag bad">오류</span> 두 줄 모두 표시</li>
+      <li><b>같은 줄 두 번</b>: 한 파일 안에서 모든 칸이 똑같은 줄 → <span class="tag warn">확인 필요</span> 실수로 복사했을 수 있음</li>
+      <li><b>계산 불일치</b>: 금액 ≠ 수량 × 단가 → <span class="tag bad">오류</span></li>
+      <li><b>날짜 순서</b>: 종료일이 시작일보다 빠름 → <span class="tag bad">오류</span></li>
+      <li><b>범위 밖</b>: 수량 -1, 금액 50억 → <span class="tag bad">오류</span></li>
+      <li><b>단위 착각</b>: 다른 파일들은 수백만 원대인데 한 파일만 수천 → "천 원 단위로 적었나요?" <span class="tag info">확인 권장</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- 4 -->
+<h2 id="q4"><span class="no">4</span>무엇이 바뀌었나: 비교해서 보여 주기</h2>
+<p>수정본을 받으면 사람은 "뭐가 바뀌었지?" 하고 옛 파일과 나란히 놓고 봅니다. 웹페이지가 이 비교를 대신합니다.</p>
+<div class="grid2">
+  <div>
+    <p class="muted">개발팀 v1 → v2 비교</p>
+    <div class="xl scroll">
+      <table>
+        <tr><th></th><th>품목</th><th>수량</th><th>필요일</th><th>변화</th></tr>
+        <tr><th>4</th><td>노트북</td><td class="chg">2 → 3</td><td>11-01</td><td><span class="tag warn">바뀜</span></td></tr>
+        <tr><th>5</th><td>의자</td><td>1</td><td>11-10</td><td><span class="tag grey">그대로</span></td></tr>
+        <tr class="del"><th>6</th><td>모니터</td><td>1</td><td>11-15</td><td><span class="tag bad">빠짐</span></td></tr>
+        <tr><th>7</th><td class="add">마우스</td><td class="add">2</td><td class="add">11-01</td><td><span class="tag">새로 추가</span></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin:0">
+    <ul class="clean" style="font-size:14px">
+      <li><b>개정본 비교</b>: 같은 묶음의 이전 개정본과 줄 단위로 비교해서 <b>바뀜·추가·빠짐</b>을 화면에 보여 줍니다.</li>
+      <li><b>지난 취합본 대비 변화</b>: 이전 취합본에 이어서 합칠 때, 이번에 달라진 줄을 취합본에 <b>"변화"</b> 칸으로 표시합니다. 보고할 때 "지난번 대비 무엇이 바뀌었는지"를 바로 알 수 있습니다.</li>
+      <li><b>옛날 양식 버전</b>: 양식 v1으로 낸 파일이 v2 양식에 섞이면, 이름이 바뀐 칸을 <b>양식 변경 이력</b>으로 알아보고 맞춥니다(예: "필요일" → "희망일").</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 5 -->
+<h2 id="q5"><span class="no">5</span>결과 정리: 취합 직후 사람이 하는 일</h2>
+<div class="grid2">
+  <div>
+    <p class="muted">취합본에 더해지는 것</p>
+    <div class="xl scroll">
+      <table>
+        <tr><th></th><th>A</th><th>B</th><th>…</th><th>E</th><th>F</th></tr>
+        <tr><th>3</th><td class="hd">품목</td><td class="hd">수량</td><td class="hd">…</td><td class="hd" style="background:var(--info-soft)">출처 파일</td><td class="hd" style="background:var(--info-soft)">원본 줄<span class="newb">새</span></td></tr>
+        <tr><th>4</th><td>노트북</td><td>2</td><td>…</td><td>비품신청_영업팀</td><td>5</td></tr>
+        <tr><th>5</th><td>모니터</td><td>1</td><td>…</td><td>비품신청_인사팀</td><td>4</td></tr>
+      </table>
+      <div class="sheets"><span class="on">2026 비품 신청</span><span>요약<span class="newb">새</span></span><span>판단 기록<span class="newb">새</span></span><span>오류</span><span>파일목록</span></div>
+    </div>
+  </div>
+  <div class="card" style="margin:0">
+    <ul class="clean" style="font-size:14px">
+      <li><b>원본 줄 번호</b>: 출처 파일 옆에 원본의 몇 번째 줄인지 적습니다. 응답자에게 물어볼 때 바로 짚을 수 있습니다.</li>
+      <li><b>요약 시트</b>: 선택목록 칸별 개수, 숫자 칸 합계를 자동으로 만듭니다. 예: 품목별 수량 합계.</li>
+      <li><b>판단 기록 시트</b>: "확인 필요"에서 내린 결정을 모두 남깁니다. 예: "인사팀 '약 10' → 10으로 넣음". 나중에 왜 이렇게 됐는지 설명할 수 있습니다.</li>
+      <li><b>정렬</b>: 파일 순서(기본) 또는 특정 칸 기준으로 정렬해서 내려받습니다.</li>
+    </ul>
+  </div>
+</div>
+<div class="card">
+  <span class="tag">원본과 나란히 보기</span>
+  <p>파일목록에서 파일을 누르면 <b>왼쪽에 원본, 오른쪽에 취합된 결과</b>가 나란히 보입니다. 뺀 줄, 고친 칸, 오류 칸이 같은 색으로 연결돼서, 엑셀 파일을 하나씩 열어 대조하는 일을 대신합니다.</p>
+</div>
+
+<!-- 6 -->
+<h2 id="q6"><span class="no">6</span>우선순위 제안</h2>
+<div class="svgwrap">
+<svg viewBox="0 0 760 470" role="img" aria-label="효과와 작업량 기준 우선순위 지도">
+  <rect x="80" y="20" width="330" height="200" fill="var(--info-soft)" opacity=".6"/>
+  <rect x="410" y="20" width="330" height="200" fill="var(--accent-soft)"/>
+  <rect x="80" y="220" width="330" height="200" fill="var(--cell)"/>
+  <rect x="410" y="220" width="330" height="200" fill="var(--warn-soft)" opacity=".6"/>
+  <g font-size="13" font-weight="700">
+    <text x="730" y="42" text-anchor="end" fill="var(--accent)">① 먼저 하기</text>
+    <text x="90" y="42" fill="var(--info)">② 계획해서 하기</text>
+    <text x="730" y="410" text-anchor="end" fill="var(--warn)">③ 틈날 때</text>
+    <text x="90" y="410" fill="var(--sub)">④ 나중에</text>
+  </g>
+  <line x1="80" y1="420" x2="740" y2="420" stroke="var(--ink)"/>
+  <line x1="80" y1="20" x2="80" y2="420" stroke="var(--ink)"/>
+  <g font-size="12" fill="var(--sub)" text-anchor="middle">
+    <text x="410" y="445">만들기 쉬움 →</text><text x="110" y="445">어려움</text><text x="720" y="445">쉬움</text>
+    <text x="40" y="220" transform="rotate(-90 40 220)">효과 큼 →</text>
+  </g>
+  <g font-size="12" fill="var(--ink)">
+    <circle cx="700" cy="70" r="7" fill="var(--accent)"/><text x="688" y="74" text-anchor="end">원본 줄 번호</text>
+    <circle cx="640" cy="100" r="7" fill="var(--accent)"/><text x="628" y="104" text-anchor="end">합친 셀 채우기</text>
+    <circle cx="690" cy="130" r="7" fill="var(--accent)"/><text x="678" y="134" text-anchor="end">숨긴 줄·취소선 알림</text>
+    <circle cx="590" cy="160" r="7" fill="var(--accent)"/><text x="578" y="164" text-anchor="end">빈 회신 표시</text>
+    <circle cx="660" cy="190" r="7" fill="var(--accent)"/><text x="648" y="194" text-anchor="end">판단 기록 시트</text>
+    <circle cx="500" cy="70" r="7" fill="var(--accent)"/><text x="488" y="74" text-anchor="end">겹치면 안 되는 값</text>
+    <circle cx="470" cy="120" r="7" fill="var(--accent)"/><text x="458" y="124" text-anchor="end">허용 범위</text>
+
+    <circle cx="350" cy="60" r="7" fill="var(--info)"/><text x="338" y="64" text-anchor="end">개정본 비교(바뀐 줄)</text>
+    <circle cx="300" cy="100" r="7" fill="var(--info)"/><text x="288" y="104" text-anchor="end">지난 취합본 대비 변화</text>
+    <circle cx="360" cy="140" r="7" fill="var(--info)"/><text x="348" y="144" text-anchor="end">요약 시트</text>
+    <circle cx="230" cy="180" r="7" fill="var(--info)"/><text x="218" y="184" text-anchor="end">원본과 나란히 보기</text>
+
+    <circle cx="700" cy="250" r="7" fill="var(--warn)"/><text x="688" y="254" text-anchor="end">"〃·상동" 채우기</text>
+    <circle cx="640" cy="280" r="7" fill="var(--warn)"/><text x="628" y="284" text-anchor="end">같은 줄 두 번</text>
+    <circle cx="580" cy="310" r="7" fill="var(--warn)"/><text x="568" y="314" text-anchor="end">표 밖 메모·셀 메모</text>
+    <circle cx="690" cy="340" r="7" fill="var(--warn)"/><text x="678" y="344" text-anchor="end">정렬</text>
+    <circle cx="520" cy="370" r="7" fill="var(--warn)"/><text x="508" y="374" text-anchor="end">시트 여러 개</text>
+
+    <circle cx="350" cy="260" r="7" fill="var(--grey)"/><text x="338" y="264" text-anchor="end">계산 확인·날짜 순서</text>
+    <circle cx="280" cy="300" r="7" fill="var(--grey)"/><text x="268" y="304" text-anchor="end">한 칸 여러 값 나누기</text>
+    <circle cx="210" cy="340" r="7" fill="var(--grey)"/><text x="198" y="344" text-anchor="end">단위 착각</text>
+    <circle cx="300" cy="380" r="7" fill="var(--grey)"/><text x="288" y="384" text-anchor="end">옛날 양식 버전 흡수</text>
+  </g>
+</svg>
+</div>
+<div class="grid3">
+  <div class="card tier"><span class="tag">지금 PRD에 추가 권장</span>
+    <ol><li>원본 줄 번호</li><li>합친 셀 채우기</li><li>숨긴 줄·취소선 알림</li><li>빈 회신 표시</li><li>판단 기록 시트</li><li>겹치면 안 되는 값 · 허용 범위</li></ol>
+    <p class="muted">대부분 작은 작업이고, 빠지면 "조용히 틀리는" 문제를 막습니다.</p></div>
+  <div class="card tier t2"><span class="tag info">다음 단계</span>
+    <ol><li>개정본 비교</li><li>지난 취합본 대비 변화</li><li>요약 시트</li><li>원본과 나란히 보기</li></ol>
+    <p class="muted">사람이 대조하던 시간을 크게 줄여 줍니다.</p></div>
+  <div class="card tier t3"><span class="tag grey">써 보고 필요하면</span>
+    <ol><li>"〃·상동", 같은 줄 두 번</li><li>표 밖 메모, 시트 여러 개, 정렬</li><li>계산 확인·날짜 순서</li><li>한 칸 여러 값, 단위 착각</li><li>옛날 양식 버전 흡수</li></ol>
+    <p class="muted">실제 회신에서 자주 보이면 올립니다.</p></div>
+</div>
+
+<!-- 7 -->
+<h2 id="q7"><span class="no">7</span>확인할 사항</h2>
+<p>아래 답에 따라 어떤 기능이 필요한지가 달라집니다.</p>
+<div class="grid2">
+  <div class="card ask"><span class="tag info">질문 1 · 가장 중요</span><p class="big">실제 회신 파일 샘플을 받을 수 있을까요?</p><p class="why">개인정보를 지운 회신 파일 5~10개면 충분합니다. 실제로 자주 나오는 실수를 보고 우선순위를 정하고, 그대로 시험 자료로 씁니다.</p></div>
+  <div class="card ask"><span class="tag info">질문 2</span><p class="big">취합한 다음 보통 무엇을 하시나요?</p><p class="why">합계·건수 집계, 피벗, 보고서 붙여 넣기 등. 답에 따라 "요약 시트"를 어떻게 만들지 정합니다.</p></div>
+  <div class="card ask"><span class="tag info">질문 3</span><p class="big">겹치면 안 되는 값이 있는 양식이 있나요?</p><p class="why">사번, 자산번호, 주문번호 등. 있다면 "겹치면 안 됨" 설정을 먼저 넣습니다.</p></div>
+  <div class="card ask"><span class="tag info">질문 4</span><p class="big">칸끼리 계산 관계가 있는 양식이 있나요?</p><p class="why">금액 = 수량 × 단가, 시작일 ≤ 종료일 같은 것. 있으면 "계산 확인"을 앞당깁니다.</p></div>
+  <div class="card ask"><span class="tag info">질문 5</span><p class="big">응답자들이 줄을 숨기거나 취소선으로 지우는 습관이 있나요?</p><p class="why">취소선은 "뺀다"로 볼지, 그냥 넣고 표시만 할지 정해야 합니다.</p></div>
+  <div class="card ask"><span class="tag info">질문 6</span><p class="big">한 번 취합할 때 규모는 어느 정도인가요?</p><p class="why">파일 몇 개, 줄 몇 개 정도인지. "원본과 나란히 보기" 같은 화면을 얼마나 빠르게 만들어야 하는지 정합니다.</p></div>
+</div>
+<div class="card" style="border:2px solid var(--accent)">
+  <p class="big">다음 단계</p>
+  <p>"지금 PRD에 추가 권장" 6개를 반영해도 될지, 그리고 질문 1~6에 답해 주시면 PRD.html과 PRD.md에 반영하겠습니다.</p>
+</div>
+
+</main>
+</body>
+</html>
