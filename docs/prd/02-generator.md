@@ -1,4 +1,4 @@
-# 02. 생성 파트 — 양식 빌더와 엑셀 생성 (개발자 1)
+# 02. 생성 파트 — 한난MOA 양식 빌더와 엑셀 생성 (개발자 1)
 
 > 함께 읽을 문서: `00-overview.md`, `01-contract.md`
 > 담당 코드: `src/generator/`, `src/contract/layout/`(1단계 작성, 이후 공동 소유) (+ `fixtures/` 생성 스크립트)
