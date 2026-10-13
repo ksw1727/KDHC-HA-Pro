@@ -7,13 +7,14 @@ import { randomKey } from '../state/newSchema';
 import { Button, Dialog } from '../ui/ui';
 import { StructureStory } from '../landing/StructureStory';
 
-const ORDER: Layout[] = ['list', 'matrix', 'header-list', 'fill-in', 'collect'];
+const ORDER: Layout[] = ['list', 'matrix', 'header-list', 'fill-in', 'collect', 'free'];
 const ONE_LINE: Record<Layout, string> = {
   list: '지사마다 여러 줄을 적어요',
   matrix: '칸 제목이 정해진 표에 숫자만 적어요',
   'header-list': '지사 정보는 한 번, 명단은 여러 줄',
   'fill-in': '본사가 만든 표의 빈칸만 채워요',
   collect: '모양이 제각각인 보고서를 시트째 모아요',
+  free: '표를 직접 그리고 입력할 곳을 지정해요',
 };
 
 /** ② 양식 구조. 지워지는 것이 있으면 확인 창 (02-generator.md 2.1 마지막 줄) */

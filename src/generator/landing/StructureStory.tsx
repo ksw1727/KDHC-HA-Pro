@@ -102,6 +102,18 @@ export const STORIES: Record<Layout, Story> = {
       </div></>,
     result: <>맨 앞 <b>목차</b>와 <b>지사별 시트</b>로 모여요. 칸 검사 없이 각자 쓴 모양 그대로 옮겨요.</>,
   },
+  free: {
+    p1: <Tbl rows={[[h('점검자'), rq(), h('점검일'), rq()], [h('구분'), h('소화기'), h('비상등'), null], [h('불량'), rq(), rq(), null]]} />,
+    p2: <div className="flex gap-1">
+      <File name="서울.xlsx"><Tbl rows={[[h('점검자'), t('홍길동', 3)], [h('불량'), t(2, 3)]]} /></File>
+      <File name="부산.xlsx"><Tbl rows={[[h('점검자'), t('정다은', 4)], [h('불량'), t(1, 4)]]} /></File>
+      <File name="대구.xlsx"><Tbl rows={[[h('점검자'), t('윤성호', 5)], [h('불량'), t(3, 5)]]} /></File>
+    </div>,
+    p3: <><Tbl rows={[[h('구분'), h('소화기'), h('비상등')], [h('불량'), sum('Σ 6', 8), sum('Σ 4', 8)]]} />
+      <div className="h-1" />
+      <At n={10}><Tbl rows={[[auh('지사'), auh('점검자')], [au('서울'), au('홍길동')], [au('부산'), au('정다은')]]} /></At></>,
+    result: <>그린 모양 그대로 취합돼요. 숫자 표는 <b>칸끼리 더하고</b>, 입력 칸(점검자 등)은 <b>지사별 시트에 한 줄씩</b> 모여요.</>,
+  },
 };
 
 function useReducedMotion() {
@@ -109,9 +121,9 @@ function useReducedMotion() {
   return r;
 }
 
-/** 3컷 이야기. size='sm'은 작은 미리보기(설명 줄 없음) */
-export function StructureStory({ layout, size = 'md', paused = false }: { layout: Layout; size?: 'sm' | 'md'; paused?: boolean }) {
-  const reduce = useReducedMotion();
+/** 3컷 이야기. size='sm'은 작은 미리보기(설명 줄 없음), still은 움직이지 않고 다 그린 대표 화면 */
+export function StructureStory({ layout, size = 'md', paused = false, still = false }: { layout: Layout; size?: 'sm' | 'md'; paused?: boolean; still?: boolean }) {
+  const reduce = useReducedMotion() || still;
   const [p, setP] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);

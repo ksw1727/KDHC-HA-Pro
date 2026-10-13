@@ -45,6 +45,7 @@ export interface AggregateFill {
     strike?: boolean;                // 취소선
   }[];
   matrixSums?: CellValue[][];        // matrix: 칸별 합 [row][col]
+  matrixSumsBy?: Record<string, CellValue[][]>;   // 자유 제작형처럼 숫자 표가 여러 개일 때: 블록 id → 칸별 합 (없으면 matrixSums)
   grid?: Record<string, { value: CellValue; note?: string }>;   // fill-in 입력칸 겹친 값
   gridSpare?: { values: CellValue[]; auto: CellValue[] }[];       // fill-in 여유 줄에 추가된 행
 }

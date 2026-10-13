@@ -28,7 +28,7 @@ describe('새 양식 (C1)', () => {
   test('기본 취합 방식', () => {
     expect(make('matrix').aggregations).toEqual(['same-frame', 'spread', 'submission-status']);
     expect(make('collect').aggregations).toEqual(['collect-sheets', 'submission-status']);
-    expect(defaultAggregations({ layout: 'list', org: { mode: 'none' } })).toEqual(['same-frame']);
+    expect(defaultAggregations({ layout: 'list', org: { mode: 'none' }, blocks: [] })).toEqual(['same-frame']);
   });
   test('혼합형 기본 블록', () => {
     const s = make('header-list');

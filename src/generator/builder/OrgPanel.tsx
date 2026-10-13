@@ -3,8 +3,12 @@ import type { FormSchema } from '@contract/schema';
 import { orgLabel } from '@contract/schema';
 import type { Builder } from '../state/useBuilder';
 import { Button, Seg, TextArea, TextInput } from '../ui/ui';
+import { OrgTree } from '../org/OrgTree';
+import { recommendLabel } from '../org/kdhcOrg';
 
-const LABELS = ['지사', '부서', '기관'] as const;
+/** 제출처 고르는 방식: 한난(조직 트리, 부르는 말 지사·부서) · 기관(직접 입력) · 직접(부르는 말도 직접). 계약을 바꾸지 않으려고 부르는 말로 판단한다 */
+type Source = 'kdhc' | 'inst' | 'custom';
+export const orgSource = (label: string): Source => (label === '지사' || label === '부서' ? 'kdhc' : label === '기관' ? 'inst' : 'custom');
 
 /** 줄바꿈·탭으로 나뉜 목록 → 이름 배열 (중복·빈 줄 제거) */
 export function parseOrgList(text: string): string[] {
@@ -29,7 +33,8 @@ async function readFirstColumn(file: File): Promise<string[]> {
 export function OrgPanel({ b }: { b: Builder }) {
   const s = b.schema;
   const label = orgLabel(s);
-  const custom = !LABELS.includes(label as (typeof LABELS)[number]);
+  const source = orgSource(s.org.label ?? '지사');
+  const orgs = s.org.orgs ?? [];
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState('');
   const set = (patch: Partial<FormSchema['org']>) => b.act({ type: 'org/set', patch });
@@ -40,14 +45,22 @@ export function OrgPanel({ b }: { b: Builder }) {
     <>
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-sub">제출처를 부르는 말</span>
-        <Seg size="sm" label="제출처를 부르는 말" value={custom ? 'custom' : label} options={[['지사', '지사'], ['부서', '부서'], ['기관', '기관'], ['custom', '직접']]}
-          onChange={(v) => set({ label: v === 'custom' ? (custom ? label : '팀') : v })} />
-        {custom && <TextInput className="w-20" aria-label="부르는 말 직접 입력" value={label} onChange={(e) => set({ label: e.target.value })} />}
+        <Seg size="sm" label="제출처를 부르는 말" value={source} options={[['kdhc', '한난'], ['inst', '기관'], ['custom', '직접']]}
+          onChange={(v) => v !== source && set({ label: v === 'kdhc' ? recommendLabel(orgs) : v === 'inst' ? '기관' : '팀' })} />
+        {source === 'kdhc' && <Seg size="sm" label="한난 부르는 말" value={label} options={[['지사', '지사'], ['부서', '부서']]} onChange={(v) => set({ label: v })} />}
+        {source === 'custom' && <TextInput className="w-20" aria-label="부르는 말 직접 입력" value={label} onChange={(e) => set({ label: e.target.value })} />}
       </div>
       <Seg label="식별 방식" value={s.org.mode} options={modes} onChange={(mode) => set({ mode })} />
       {s.org.mode === 'none' && <p className="m-0 text-xs text-muted">파일 하나를 응답 하나로 취합합니다. 필요하면 "{label}" 같은 칸을 직접 추가하세요.</p>}
       {s.org.mode === 'input' && <p className="m-0 text-xs text-muted">작성자가 {label}명을 직접 적어요. 아래에 참고 목록을 넣으면 {label}명 칸이 드롭다운이 돼요.</p>}
-      {showList && (
+      {showList && source === 'kdhc' && (
+        <>
+          <OrgTree value={orgs}
+            onChange={(ids) => set({ orgs: ids, ...(label === recommendLabel(orgs) ? { label: recommendLabel(ids) } : {}) })} />
+          <b>{orgs.length}곳</b>
+        </>
+      )}
+      {showList && source !== 'kdhc' && (
         <>
           <TextArea className="min-h-28" key={s.org.orgs?.join('|')} defaultValue={(s.org.orgs ?? []).join('\n')}
             placeholder={`${label} 이름을 줄마다 하나씩, 또는 엑셀 열을 복사해 붙여넣으세요`}
