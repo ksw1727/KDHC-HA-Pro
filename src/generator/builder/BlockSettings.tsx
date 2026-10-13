@@ -38,13 +38,16 @@ export function MatrixEditor({ b, block }: { b: Builder; block: MatrixBlock }) {
   return (
     <div className="flex flex-col gap-2.5">
       <div className="grid grid-cols-2 gap-2">
-        <F label="행 제목 (줄마다 하나)">
+        <F label="행 제목 (줄마다 하나)" hint={<>한 줄에 하나씩 적어요.<br />예: 1학년 ⏎ 2학년 ⏎ 3학년</>}>
           <TextArea className="min-h-24" value={block.rowLabels.join('\n')} onChange={(e) => set({ rowLabels: lines(e.target.value) })} onBlur={(e) => set({ rowLabels: clean(e.target.value) })} />
         </F>
-        <F label="열 제목 (줄마다 하나)">
+        <F label="열 제목 (줄마다 하나)" hint={<>한 줄에 하나씩 적어요.<br />예: 남 ⏎ 여</>}>
           <TextArea className="min-h-24" value={block.colLabels.join('\n')} onChange={(e) => set({ colLabels: lines(e.target.value) })} onBlur={(e) => set({ colLabels: clean(e.target.value) })} />
         </F>
       </div>
+      <p className="m-0 rounded-btn bg-panel px-2.5 py-1.5 text-xs leading-relaxed text-sub">
+        행 제목은 표 왼쪽에 세로로, 열 제목은 표 위쪽에 가로로 들어가요. 엑셀에서 제목들을 한 열로 복사해 붙여넣어도 줄마다 나뉘어 들어가요. 빈 줄은 저장할 때 지워져요.
+      </p>
       <div className="flex items-center gap-2">
         <span className="text-sub">합계 행</span><Toggle label="합계 행" checked={block.totalRow} onChange={(v) => set({ totalRow: v })} />
         <span className="ml-4 text-sub">합계 열(계)</span><Toggle label="합계 열" checked={block.totalCol} onChange={(v) => set({ totalCol: v })} />

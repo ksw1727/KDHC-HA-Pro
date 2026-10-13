@@ -371,9 +371,11 @@ class Layouter {
       this.put({ address: 'A2', value: info || undefined, role: 'guide', wrap: true });
       this.merge(1, 2, last);
     }
+    // 제작한 양식: 글자가 있는 칸 = 제목·안내 칸(label), 빈칸 = 테두리 있는 작성 자리(fixed)
     (schema.collect?.starter ?? []).forEach((cells, i) => {
       cells.forEach((v, c) => {
-        if (v !== null && v !== '') this.put({ address: addr(1 + c, 4 + i), value: v, role: 'fixed' });
+        const filled = v !== null && v !== '';
+        this.put({ address: addr(1 + c, 4 + i), value: filled ? v : undefined, role: filled ? 'label' : 'fixed' });
       });
     });
     return {

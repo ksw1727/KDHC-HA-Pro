@@ -18,7 +18,7 @@ export function MetaPanel({ b }: { b: Builder }) {
           <TextInput type="date" value={s.deadline ?? ''} onChange={(e) => set({ deadline: e.target.value || undefined })} />
         </Field>
         <Field label="문의처">
-          <TextInput value={s.contact ?? ''} placeholder="인사팀 02-000-0000" onChange={(e) => set({ contact: e.target.value || undefined })} />
+          <TextInput value={s.contact ?? ''} placeholder="인사부" onChange={(e) => set({ contact: e.target.value || undefined })} />
         </Field>
       </div>
     </>

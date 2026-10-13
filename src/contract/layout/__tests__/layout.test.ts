@@ -161,13 +161,14 @@ describe('시트 모으기형 (B7)', () => {
     expect(m.printArea).toBe('');
     expect(m.cellMap).toEqual({ printArea: '', blocks: {} });
   });
-  test('기본 틀은 4행부터', () => {
+  test('제작한 양식은 4행부터: 글자 칸은 제목 칸, 빈칸은 작성 자리', () => {
     const s = clone(SAMPLE.collect);
     s.collect = { scope: 'report', starter: [['점검 항목', '결과'], ['소화기', null]] };
     const m = tpl(s);
-    expect(at(m, 'A4')?.value).toBe('점검 항목');
+    expect(at(m, 'A4')).toMatchObject({ value: '점검 항목', role: 'label' });
     expect(at(m, 'A5')?.value).toBe('소화기');
-    expect(at(m, 'B5')).toBeUndefined();
+    expect(at(m, 'B5')).toMatchObject({ role: 'fixed' });
+    expect(at(m, 'B5')?.value).toBeUndefined();
   });
   test('none: 2행은 안내만', () => {
     const s = clone(SAMPLE.collect);

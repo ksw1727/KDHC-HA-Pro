@@ -28,3 +28,17 @@ test('[엑셀 내보내기]를 누르면 검사 창: 제목·지사 목록이 �
   expect(within(dialog).getByText('제목을 입력해 주세요.')).toBeTruthy();
   expect(within(dialog).getByText(/지사 목록이 비어 있어요/)).toBeTruthy();
 });
+
+test('시트 모으기형: 제작한 양식으로 보내기 → 표 그리기, 미리보기 4행부터 반영', () => {
+  render(<BuilderPage />);
+  fireEvent.click(screen.getByRole('button', { name: /양식 구조/ }));
+  fireEvent.click(screen.getByRole('radio', { name: /시트 모으기형/ }));
+  fireEvent.click(screen.getByRole('button', { name: /시트 모으기형으로 바꾸기/ }));
+  fireEvent.click(screen.getByRole('button', { name: /시트 시작 모양/ }));
+  fireEvent.click(screen.getByRole('radio', { name: '제작한 양식으로 보내기' }));
+  fireEvent.change(screen.getByLabelText('2행 1열'), { target: { value: '소화기' } });
+  const grid = screen.getByRole('grid', { name: '엑셀 미리보기' });
+  expect(within(grid).getByText('항목')).toBeTruthy();
+  expect(within(grid).getByText('소화기')).toBeTruthy();
+  expect(screen.queryByText(/붙여넣으세요/)).toBeNull();
+});

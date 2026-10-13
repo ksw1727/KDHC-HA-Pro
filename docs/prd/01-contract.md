@@ -99,7 +99,7 @@ export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect';
 /** 시트 모으기형 설정. layout = 'collect'일 때만 쓴다. */
 export interface CollectSpec {
   scope: 'report' | 'all';          // 취합 때 모을 시트. 'report'(기본) = 보고서 시트만, 'all' = 파일 안의 보이는 시트 전부
-  starter?: (string | number | null)[][];   // 시트 시작 모양: 4행부터 넣을 기본 틀(엑셀에서 붙여넣은 표). 없으면 빈 시트
+  starter?: (string | number | null)[][];   // 시트 시작 모양: 4행부터 넣을 제작한 양식(빌더에서 그린 표). 없으면 빈 시트. 글자 칸 = 제목 칸, null = 작성 자리
 }
 
 export interface FormSchema {
