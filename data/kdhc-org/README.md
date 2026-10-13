@@ -25,7 +25,7 @@
 └─ 지사·사업소 19곳 > 부 > 과   (bonbu: 관할 본부)
 ```
 
-- 본사 571명 / 지사 1,524명 (외부·파견 부서명 5개 제외).
+- 외부·파견 부서명 5개는 제외. 인원수는 저장하지 않는다(제출처 고르기에 필요 없음).
 - 지사 19곳 = 지사 15 + 사업소 4(고양·분당·김해·수원). 수원사업소만 건설본부 관할, 나머지는 안전기술본부.
 - 지사의 `과`(운영1~4과, 운영지원과)는 교대조 단위라 양식 제출처로는 잘 쓰지 않는다. 기본은 접어 둔다.
 
@@ -47,8 +47,6 @@ interface OrgNode {
   category: 'hq' | 'branch';
   selectable: boolean; // false = 구분·묶음(실제 조직 아님). 체크박스 없이 펼치기만
   level: number;       // 0 = 본사/지사 루트
-  headcount: number;   // 직속 인원
-  total: number;       // 하위 포함 인원 (화면에 '113명'처럼 표시용)
   leaf: boolean;
   bonbu?: string;      // 지사만. 관할 본부
   children: OrgNode[];
@@ -66,7 +64,7 @@ interface OrgNode {
    - **지사 전체** → 지사 루트의 자식 19곳
    - **본사 처·실 전체** → 본사에서 type이 처·실·센터인 노드
    - **선택 해제**
-5. 검색창: `name`·`id` 부분 일치. 맞는 노드와 그 조상만 펼쳐 보인다.
+5. 검색창: `name` 부분 일치(띄어 쓴 전체 이름은 `id` 끝 일치). 맞는 노드와 그 조상만 펼쳐 보인다. [검색된 n곳 모두 선택]으로 맞는 노드를 한꺼번에 고른다.
 6. 트리로 고른 뒤에도 기존 붙여넣기 목록과 합쳐진다(중복 제거). 트리에 없는 이름(외부 기관 등)은 직접 추가할 수 있어야 한다.
 7. 제출처를 부르는 말(`org.label`)은 고른 노드로 추천만 한다: 모두 지사·사업소면 '지사', 그 외 섞이면 '부서'. 사용자가 바꿀 수 있다.
 
@@ -75,11 +73,11 @@ interface OrgNode {
 ```jsonc
 // tree[1] = 지사 루트, children[3] = 강남지사
 { "id": "강남지사", "name": "강남지사", "type": "지사", "category": "branch",
-  "selectable": true, "level": 1, "headcount": 1, "total": 135, "leaf": false,
+  "selectable": true, "level": 1, "leaf": false,
   "bonbu": "안전기술본부",
   "children": [
     { "id": "강남지사 고객지원부", "name": "고객지원부", "type": "부", "level": 2,
-      "headcount": 15, "total": 15, "leaf": true, "children": [] }
+      "leaf": true, "children": [] }
     // ...
   ] }
 ```

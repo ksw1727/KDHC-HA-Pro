@@ -148,13 +148,18 @@ def main():
     for root in (hq, br):
         finalize(root, 0)
 
+    def strip(n):
+        out = {k: v for k, v in n.items() if k not in ("headcount", "total", "children")}
+        out["children"] = [strip(c) for c in n["children"]]
+        return out
+
     OUT.mkdir(parents=True, exist_ok=True)
     data = {
         "version": 1,
         "fetchedAt": datetime.date.today().isoformat(),
         "source": "https://www.kdhc.co.kr 조직도(menuNo=200319)·임직원검색(menuNo=200320)",
         "categories": [{"id": "hq", "name": "본사"}, {"id": "branch", "name": "지사"}],
-        "tree": [hq, br],
+        "tree": [strip(hq), strip(br)],   # 인원수는 저장하지 않는다 (제출처 고르기에 필요 없음)
     }
     (OUT / "kdhc-org.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -164,10 +169,9 @@ def main():
         path = path + [n["name"]]
         if n["level"] > 0:
             rows.append(["본사" if n["category"] == "hq" else "지사", n["level"], n["type"], n["name"], n["id"],
-                         " > ".join(path), "Y" if n["selectable"] else "N", n.get("bonbu", ""),
-                         n["headcount"], n["total"]])
+                         " > ".join(path), "Y" if n["selectable"] else "N", n.get("bonbu", "")])
         mark = "" if n["selectable"] else " *"
-        lines.append(f"{prefix}{('└─ ' if last else '├─ ') if n['level'] else ''}{n['name']}{mark} ({n['total']})")
+        lines.append(f"{prefix}{('└─ ' if last else '├─ ') if n['level'] else ''}{n['name']}{mark}")
         child_prefix = prefix + (("   " if last else "│  ") if n["level"] else "")
         for i, c in enumerate(n["children"]):
             walk(c, path, child_prefix, i == len(n["children"]) - 1)
@@ -177,7 +181,7 @@ def main():
 
     with open(OUT / "kdhc-org.csv", "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
-        w.writerow(["구분", "단계", "유형", "이름", "제출처이름(id)", "경로", "선택가능", "관할본부", "직속인원", "하위포함인원"])
+        w.writerow(["구분", "단계", "유형", "이름", "제출처이름(id)", "경로", "선택가능", "관할본부"])
         w.writerows(rows)
     lines.append("* = 선택 불가(묶음)")
     (OUT / "kdhc-org.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")

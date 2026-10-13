@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { BuilderPage } from '../pages/BuilderPage';
-import { allBranches, allHqDivisions, recommendLabel, searchVisible, sortByTree } from '../org/kdhcOrg';
+import { allBranches, allHqDivisions, recommendLabel, searchMatches, searchVisible, sortByTree } from '../org/kdhcOrg';
 import { orgSource } from '../builder/OrgPanel';
 
 beforeEach(() => localStorage.clear());
@@ -27,6 +27,13 @@ describe('한난 조직 데이터', () => {
     expect(v.has('재무처')).toBe(false);
     expect(searchVisible('  ')).toBeNull();
   });
+  test('검색된 곳: 선택 가능한 것만, 트리 순서', () => {
+    const m = searchMatches('운영1부');
+    expect(m).toEqual(['중앙지사 운영1부', '강남지사 운영1부']);   // 하위 과는 딸려오지 않음
+    expect(searchMatches('고객지원부').length).toBeGreaterThan(5);
+    expect(searchMatches('')).toEqual([]);
+    expect(searchMatches('강남지사 운영1부')).toEqual(['강남지사 운영1부']);
+  });
   test('부르는 말로 고르는 방식 판단', () => {
     expect(orgSource('지사')).toBe('kdhc');
     expect(orgSource('부서')).toBe('kdhc');
@@ -51,6 +58,17 @@ describe('⑤ 제출처 트리', () => {
     fireEvent.click(within(screen.getByRole('tree')).getByLabelText('인사부'));
     expect(screen.getByText('20곳')).toBeTruthy();
     expect(screen.getByRole('radio', { name: '부서' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  test('검색된 곳 모두 선택·해제, 인원수는 보이지 않음', () => {
+    openPanel();
+    expect(screen.queryByText(/\d+명$/)).toBeNull();
+    fireEvent.change(screen.getByLabelText('조직 검색'), { target: { value: '운영1부' } });
+    const n = searchMatches('운영1부').length;
+    fireEvent.click(screen.getByRole('button', { name: `검색된 ${n}곳 모두 선택` }));
+    expect(screen.getByText(`${n}곳`)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '검색된 곳 선택 해제' }));
+    expect(screen.getByText('0곳')).toBeTruthy();
   });
 
   test('트리에 없는 곳 직접 추가, 기관으로 바꾸면 입력 목록', () => {

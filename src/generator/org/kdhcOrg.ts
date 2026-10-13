@@ -8,7 +8,6 @@ export interface OrgNode {
   category: 'hq' | 'branch';
   selectable: boolean; // false = 구분·묶음 (체크박스 없음)
   level: number;
-  total: number;       // 하위 포함 인원
   children: OrgNode[];
 }
 
@@ -51,13 +50,22 @@ export function selectedDescendants(node: OrgNode, selected: Set<string>): numbe
   return node.children.reduce((sum, c) => sum + (selected.has(c.id) ? 1 : 0) + selectedDescendants(c, selected), 0);
 }
 
+/** 이름에 검색어가 있으면 맞음. "강남지사 운영1부"처럼 띄어 쓴 전체 이름은 그 조직만 (하위 과까지 딸려오지 않게) */
+const matches = (n: OrgNode, q: string) => n.name.toLowerCase().includes(q) || (q.includes(' ') && n.id.toLowerCase().endsWith(q));
+
+/** 검색에 걸린 선택 가능한 조직 id (트리 순서). [검색된 곳 모두 선택]에 쓴다 */
+export function searchMatches(query: string): string[] {
+  const q = query.trim().toLowerCase();
+  return q ? ALL.filter((n) => n.selectable && matches(n, q)).map((n) => n.id) : [];
+}
+
 /** 검색: name·id 부분 일치하는 노드와 그 조상들의 id. 검색어가 비면 null */
 export function searchVisible(query: string): Set<string> | null {
   const q = query.trim().toLowerCase();
   if (!q) return null;
   const out = new Set<string>();
   for (const n of ALL) {
-    if (!n.name.toLowerCase().includes(q) && !n.id.toLowerCase().includes(q)) continue;
+    if (!matches(n, q)) continue;
     for (let p: OrgNode | undefined = n; p && !out.has(p.id); p = PARENT.get(p.id)) out.add(p.id);
   }
   return out;

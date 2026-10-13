@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, TextInput } from '../ui/ui';
-import { KDHC_FETCHED_AT, KDHC_TREE, type OrgNode, allBranches, allHqDivisions, isKdhcOrg, searchVisible, selectedDescendants, sortByTree } from './kdhcOrg';
+import { KDHC_FETCHED_AT, KDHC_TREE, type OrgNode, allBranches, allHqDivisions, isKdhcOrg, searchMatches, searchVisible, selectedDescendants, sortByTree } from './kdhcOrg';
 
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -11,6 +11,8 @@ export function OrgTree({ value, onChange }: { value: string[]; onChange: (ids: 
   const [query, setQuery] = useState('');
   const [extra, setExtra] = useState('');
   const visible = searchVisible(query);
+  const found = searchMatches(query);
+  const allFound = found.length > 0 && found.every((id) => selected.has(id));
   const extras = value.filter((x) => !isKdhcOrg(x));
 
   const commit = (ids: string[]) => onChange(sortByTree(ids));
@@ -39,7 +41,6 @@ export function OrgTree({ value, onChange }: { value: string[]; onChange: (ids: 
           ) : (
             <span className="truncate font-semibold text-sub">{n.name.replace(/^\((.*)\)$/, '$1')}</span>
           )}
-          <span className="shrink-0 text-[11px] text-muted">{n.total}명</span>
           {below > 0 && <span className="shrink-0 rounded-full bg-pri-bg px-1.5 text-[10px] font-semibold text-pri-ink">하위 {below}개 선택됨</span>}
           {kids.length > 1 && (
             <button type="button" onClick={() => commit(allKids ? value.filter((x) => !kids.includes(x)) : [...value, ...kids])}
@@ -60,7 +61,16 @@ export function OrgTree({ value, onChange }: { value: string[]; onChange: (ids: 
         <Button size="sm" onClick={() => commit([...value, ...allHqDivisions()])}>본사 처·실 전체</Button>
         <Button size="sm" variant="ghost" onClick={() => commit([])} disabled={value.length === 0}>선택 해제</Button>
       </div>
-      <TextInput type="search" aria-label="조직 검색" placeholder="부서·지사 이름 검색 (예: 인사, 강남)" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <TextInput type="search" aria-label="조직 검색" placeholder="부서·지사 이름 검색 (예: 인사, 강남, 운영1부)" value={query} onChange={(e) => setQuery(e.target.value)} />
+      {found.length > 0 && (
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-sub">검색된 곳 <b>{found.length}</b>개</span>
+          <span className="flex-1" />
+          <Button size="sm" variant={allFound ? 'default' : 'pri'} onClick={() => commit(allFound ? value.filter((x) => !found.includes(x)) : [...value, ...found])}>
+            {allFound ? '검색된 곳 선택 해제' : `검색된 ${found.length}곳 모두 선택`}
+          </Button>
+        </div>
+      )}
       <ul role="tree" aria-label="한난 조직" aria-multiselectable="true" className="m-0 max-h-72 list-none overflow-auto rounded-btn border border-line p-1 text-[13px]">
         {KDHC_TREE.filter((r) => !visible || visible.has(r.id)).map(row)}
         {visible?.size === 0 && <li className="p-2 text-xs text-muted">"{query}"에 맞는 조직이 없어요</li>}

@@ -19,9 +19,7 @@
       "type": "구분",
       "category": "hq",
       "selectable": false,
-      "headcount": 0,
       "level": 0,
-      "total": 571,
       "leaf": false,
       "children": [
         {
@@ -30,9 +28,7 @@
           "type": "묶음",
           "category": "hq",
           "selectable": false,
-          "headcount": 0,
           "level": 1,
-          "total": 12,
           "leaf": false,
           "children": [
             {
@@ -41,9 +37,7 @@
               "type": "실",
               "category": "hq",
               "selectable": true,
-              "headcount": 5,
               "level": 2,
-              "total": 5,
               "leaf": true,
               "children": []
             },
@@ -53,9 +47,7 @@
               "type": "부",
               "category": "hq",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             }
@@ -67,9 +59,7 @@
           "type": "묶음",
           "category": "hq",
           "selectable": false,
-          "headcount": 0,
           "level": 1,
-          "total": 21,
           "leaf": false,
           "children": [
             {
@@ -78,9 +68,7 @@
               "type": "실",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 21,
               "leaf": false,
               "children": [
                 {
@@ -89,9 +77,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 11,
                   "level": 3,
-                  "total": 11,
                   "leaf": true,
                   "children": []
                 },
@@ -101,9 +87,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 }
@@ -117,9 +101,7 @@
           "type": "본부",
           "category": "hq",
           "selectable": true,
-          "headcount": 0,
           "level": 1,
-          "total": 282,
           "leaf": false,
           "children": [
             {
@@ -128,9 +110,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 34,
               "leaf": false,
               "children": [
                 {
@@ -139,9 +119,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 14,
                   "level": 3,
-                  "total": 14,
                   "leaf": true,
                   "children": []
                 },
@@ -151,9 +129,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 },
@@ -163,9 +139,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 10,
                   "level": 3,
-                  "total": 10,
                   "leaf": true,
                   "children": []
                 }
@@ -177,9 +151,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 39,
               "leaf": false,
               "children": [
                 {
@@ -188,9 +160,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 12,
                   "level": 3,
-                  "total": 12,
                   "leaf": true,
                   "children": []
                 },
@@ -200,9 +170,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 },
@@ -212,9 +180,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 8,
                   "level": 3,
-                  "total": 8,
                   "leaf": true,
                   "children": []
                 },
@@ -224,9 +190,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 }
@@ -238,9 +202,7 @@
               "type": "실",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 18,
               "leaf": false,
               "children": [
                 {
@@ -249,9 +211,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 },
@@ -261,9 +221,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 10,
                   "level": 3,
-                  "total": 10,
                   "leaf": true,
                   "children": []
                 }
@@ -275,9 +233,7 @@
               "type": "본부",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 191,
               "leaf": false,
               "children": [
                 {
@@ -286,9 +242,7 @@
                   "type": "처",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 73,
                   "level": 3,
-                  "total": 127,
                   "leaf": false,
                   "children": [
                     {
@@ -297,9 +251,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 19,
                       "level": 4,
-                      "total": 19,
                       "leaf": true,
                       "children": []
                     },
@@ -309,9 +261,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 10,
                       "level": 4,
-                      "total": 10,
                       "leaf": true,
                       "children": []
                     },
@@ -321,9 +271,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 13,
                       "level": 4,
-                      "total": 13,
                       "leaf": true,
                       "children": []
                     },
@@ -333,9 +281,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 12,
                       "level": 4,
-                      "total": 12,
                       "leaf": true,
                       "children": []
                     }
@@ -347,9 +293,7 @@
                   "type": "처",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 1,
                   "level": 3,
-                  "total": 28,
                   "leaf": false,
                   "children": [
                     {
@@ -358,9 +302,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 7,
                       "level": 4,
-                      "total": 7,
                       "leaf": true,
                       "children": []
                     },
@@ -370,9 +312,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 8,
                       "level": 4,
-                      "total": 8,
                       "leaf": true,
                       "children": []
                     },
@@ -382,9 +322,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 7,
                       "level": 4,
-                      "total": 7,
                       "leaf": true,
                       "children": []
                     },
@@ -394,9 +332,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 5,
                       "level": 4,
-                      "total": 5,
                       "leaf": true,
                       "children": []
                     }
@@ -408,9 +344,7 @@
                   "type": "처",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 1,
                   "level": 3,
-                  "total": 28,
                   "leaf": false,
                   "children": [
                     {
@@ -419,9 +353,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 7,
                       "level": 4,
-                      "total": 7,
                       "leaf": true,
                       "children": []
                     },
@@ -431,9 +363,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 12,
                       "level": 4,
-                      "total": 12,
                       "leaf": true,
                       "children": []
                     },
@@ -443,9 +373,7 @@
                       "type": "TF",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 8,
                       "level": 4,
-                      "total": 8,
                       "leaf": true,
                       "children": []
                     }
@@ -457,9 +385,7 @@
                   "type": "센터",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 }
@@ -473,9 +399,7 @@
           "type": "본부",
           "category": "hq",
           "selectable": true,
-          "headcount": 0,
           "level": 1,
-          "total": 97,
           "leaf": false,
           "children": [
             {
@@ -484,9 +408,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 36,
               "leaf": false,
               "children": [
                 {
@@ -495,9 +417,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 },
@@ -507,9 +427,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 11,
                   "level": 3,
-                  "total": 11,
                   "leaf": true,
                   "children": []
                 },
@@ -519,9 +437,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 11,
                   "level": 3,
-                  "total": 11,
                   "leaf": true,
                   "children": []
                 },
@@ -531,9 +447,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 }
@@ -545,9 +459,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 32,
               "leaf": false,
               "children": [
                 {
@@ -556,9 +468,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -568,9 +478,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 },
@@ -580,9 +488,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 11,
                   "level": 3,
-                  "total": 11,
                   "leaf": true,
                   "children": []
                 },
@@ -592,9 +498,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 8,
                   "level": 3,
-                  "total": 8,
                   "leaf": true,
                   "children": []
                 }
@@ -606,9 +510,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 29,
               "leaf": false,
               "children": [
                 {
@@ -617,9 +519,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 },
@@ -629,9 +529,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 },
@@ -641,9 +539,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -653,9 +549,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 }
@@ -669,9 +563,7 @@
           "type": "본부",
           "category": "hq",
           "selectable": true,
-          "headcount": 0,
           "level": 1,
-          "total": 145,
           "leaf": false,
           "children": [
             {
@@ -680,9 +572,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 34,
               "leaf": false,
               "children": [
                 {
@@ -691,9 +581,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 13,
                   "level": 3,
-                  "total": 13,
                   "leaf": true,
                   "children": []
                 },
@@ -703,9 +591,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -715,9 +601,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -727,9 +611,7 @@
                   "type": "TF",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 }
@@ -741,9 +623,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 20,
               "leaf": false,
               "children": [
                 {
@@ -752,9 +632,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 },
@@ -764,9 +642,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 },
@@ -776,9 +652,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -790,9 +664,7 @@
               "type": "처",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 41,
               "leaf": false,
               "children": [
                 {
@@ -801,9 +673,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 10,
                   "level": 3,
-                  "total": 10,
                   "leaf": true,
                   "children": []
                 },
@@ -813,9 +683,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 21,
                   "leaf": false,
                   "children": [
                     {
@@ -824,9 +692,7 @@
                       "type": "과",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 3,
                       "level": 4,
-                      "total": 3,
                       "leaf": true,
                       "children": []
                     },
@@ -836,9 +702,7 @@
                       "type": "과",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 3,
                       "level": 4,
-                      "total": 3,
                       "leaf": true,
                       "children": []
                     },
@@ -848,9 +712,7 @@
                       "type": "과",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 3,
                       "level": 4,
-                      "total": 3,
                       "leaf": true,
                       "children": []
                     },
@@ -860,9 +722,7 @@
                       "type": "과",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 3,
                       "level": 4,
-                      "total": 3,
                       "leaf": true,
                       "children": []
                     },
@@ -872,9 +732,7 @@
                       "type": "과",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 3,
                       "level": 4,
-                      "total": 3,
                       "leaf": true,
                       "children": []
                     }
@@ -886,9 +744,7 @@
                   "type": "부",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 9,
                   "level": 3,
-                  "total": 9,
                   "leaf": true,
                   "children": []
                 }
@@ -900,9 +756,7 @@
               "type": "본부",
               "category": "hq",
               "selectable": true,
-              "headcount": 1,
               "level": 2,
-              "total": 50,
               "leaf": false,
               "children": [
                 {
@@ -911,9 +765,7 @@
                   "type": "처",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 0,
                   "level": 3,
-                  "total": 25,
                   "leaf": false,
                   "children": [
                     {
@@ -922,9 +774,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 7,
                       "level": 4,
-                      "total": 7,
                       "leaf": true,
                       "children": []
                     },
@@ -934,9 +784,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 10,
                       "level": 4,
-                      "total": 10,
                       "leaf": true,
                       "children": []
                     },
@@ -946,9 +794,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 8,
                       "level": 4,
-                      "total": 8,
                       "leaf": true,
                       "children": []
                     }
@@ -960,9 +806,7 @@
                   "type": "처",
                   "category": "hq",
                   "selectable": true,
-                  "headcount": 1,
                   "level": 3,
-                  "total": 24,
                   "leaf": false,
                   "children": [
                     {
@@ -971,9 +815,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 8,
                       "level": 4,
-                      "total": 8,
                       "leaf": true,
                       "children": []
                     },
@@ -983,9 +825,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 6,
                       "level": 4,
-                      "total": 6,
                       "leaf": true,
                       "children": []
                     },
@@ -995,9 +835,7 @@
                       "type": "부",
                       "category": "hq",
                       "selectable": true,
-                      "headcount": 9,
                       "level": 4,
-                      "total": 9,
                       "leaf": true,
                       "children": []
                     }
@@ -1013,9 +851,7 @@
           "type": "묶음",
           "category": "hq",
           "selectable": false,
-          "headcount": 0,
           "level": 1,
-          "total": 14,
           "leaf": false,
           "children": [
             {
@@ -1024,9 +860,7 @@
               "type": "팀",
               "category": "hq",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -1036,9 +870,7 @@
               "type": "기타",
               "category": "hq",
               "selectable": true,
-              "headcount": 5,
               "level": 2,
-              "total": 5,
               "leaf": true,
               "children": []
             },
@@ -1048,9 +880,7 @@
               "type": "기타",
               "category": "hq",
               "selectable": true,
-              "headcount": 2,
               "level": 2,
-              "total": 2,
               "leaf": true,
               "children": []
             }
@@ -1064,9 +894,7 @@
       "type": "구분",
       "category": "branch",
       "selectable": false,
-      "headcount": 0,
       "level": 0,
-      "total": 1524,
       "leaf": false,
       "children": [
         {
@@ -1075,10 +903,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 113,
           "leaf": false,
           "children": [
             {
@@ -1087,9 +913,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 11,
               "leaf": true,
               "children": []
             },
@@ -1099,9 +923,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 16,
               "level": 2,
-              "total": 16,
               "leaf": true,
               "children": []
             },
@@ -1111,9 +933,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -1123,9 +943,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 13,
               "level": 2,
-              "total": 38,
               "leaf": false,
               "children": [
                 {
@@ -1134,9 +952,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -1146,9 +962,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -1158,9 +972,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -1170,9 +982,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -1182,9 +992,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -1196,9 +1004,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 4,
               "level": 2,
-              "total": 19,
               "leaf": false,
               "children": [
                 {
@@ -1207,9 +1013,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1219,9 +1023,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1231,9 +1033,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1243,9 +1043,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1255,9 +1053,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 }
@@ -1269,9 +1065,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -1281,9 +1075,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -1293,9 +1085,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 5,
               "level": 2,
-              "total": 5,
               "leaf": true,
               "children": []
             }
@@ -1307,10 +1097,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 99,
           "leaf": false,
           "children": [
             {
@@ -1319,9 +1107,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -1331,9 +1117,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 14,
               "level": 2,
-              "total": 14,
               "leaf": true,
               "children": []
             },
@@ -1343,9 +1127,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 15,
               "level": 2,
-              "total": 15,
               "leaf": true,
               "children": []
             },
@@ -1355,9 +1137,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 46,
               "leaf": false,
               "children": [
                 {
@@ -1366,9 +1146,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1378,9 +1156,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 },
@@ -1390,9 +1166,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1402,9 +1176,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 8,
                   "level": 3,
-                  "total": 8,
                   "leaf": true,
                   "children": []
                 },
@@ -1414,9 +1186,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 }
@@ -1428,9 +1198,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 12,
               "leaf": true,
               "children": []
             },
@@ -1440,9 +1208,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -1454,10 +1220,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 86,
           "leaf": false,
           "children": [
             {
@@ -1466,9 +1230,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 10,
               "leaf": true,
               "children": []
             },
@@ -1478,9 +1240,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 14,
               "level": 2,
-              "total": 14,
               "leaf": true,
               "children": []
             },
@@ -1490,9 +1250,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 12,
               "leaf": true,
               "children": []
             },
@@ -1502,9 +1260,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 15,
               "level": 2,
-              "total": 46,
               "leaf": false,
               "children": [
                 {
@@ -1513,9 +1269,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1525,9 +1279,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 7,
                   "level": 3,
-                  "total": 7,
                   "leaf": true,
                   "children": []
                 },
@@ -1537,9 +1289,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1549,9 +1299,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1561,9 +1309,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 }
@@ -1575,9 +1321,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -1589,10 +1333,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 135,
           "leaf": false,
           "children": [
             {
@@ -1601,9 +1343,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 15,
               "level": 2,
-              "total": 15,
               "leaf": true,
               "children": []
             },
@@ -1613,9 +1353,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 10,
               "leaf": true,
               "children": []
             },
@@ -1625,9 +1363,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 10,
               "leaf": true,
               "children": []
             },
@@ -1637,9 +1373,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 13,
               "level": 2,
-              "total": 41,
               "leaf": false,
               "children": [
                 {
@@ -1648,9 +1382,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -1660,9 +1392,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1672,9 +1402,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1684,9 +1412,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -1696,9 +1422,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -1710,9 +1434,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 5,
               "level": 2,
-              "total": 20,
               "leaf": false,
               "children": [
                 {
@@ -1721,9 +1443,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1733,9 +1453,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1745,9 +1463,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1757,9 +1473,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -1769,9 +1483,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 }
@@ -1783,9 +1495,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 16,
               "level": 2,
-              "total": 16,
               "leaf": true,
               "children": []
             },
@@ -1795,9 +1505,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -1807,9 +1515,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -1819,9 +1525,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 5,
               "level": 2,
-              "total": 5,
               "leaf": true,
               "children": []
             }
@@ -1833,10 +1537,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 83,
           "leaf": false,
           "children": [
             {
@@ -1845,9 +1547,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 12,
               "leaf": true,
               "children": []
             },
@@ -1857,9 +1557,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 15,
               "level": 2,
-              "total": 15,
               "leaf": true,
               "children": []
             },
@@ -1869,9 +1567,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 13,
               "level": 2,
-              "total": 13,
               "leaf": true,
               "children": []
             },
@@ -1881,9 +1577,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 16,
               "level": 2,
-              "total": 36,
               "leaf": false,
               "children": [
                 {
@@ -1892,9 +1586,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -1904,9 +1596,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -1916,9 +1606,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -1928,9 +1616,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -1940,9 +1626,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 }
@@ -1954,9 +1638,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 6,
               "level": 2,
-              "total": 6,
               "leaf": true,
               "children": []
             }
@@ -1968,10 +1650,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 73,
           "leaf": false,
           "children": [
             {
@@ -1980,9 +1660,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -1992,9 +1670,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 10,
               "leaf": true,
               "children": []
             },
@@ -2004,9 +1680,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 11,
               "leaf": true,
               "children": []
             },
@@ -2016,9 +1690,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 41,
               "leaf": false,
               "children": [
                 {
@@ -2027,9 +1699,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2039,9 +1709,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2051,9 +1719,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2063,9 +1729,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2075,9 +1739,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 }
@@ -2089,9 +1751,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -2103,10 +1763,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 86,
           "leaf": false,
           "children": [
             {
@@ -2115,9 +1773,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 10,
               "leaf": true,
               "children": []
             },
@@ -2127,9 +1783,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 10,
               "leaf": true,
               "children": []
             },
@@ -2139,9 +1793,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 13,
               "level": 2,
-              "total": 13,
               "leaf": true,
               "children": []
             },
@@ -2151,9 +1803,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 39,
               "leaf": false,
               "children": [
                 {
@@ -2162,9 +1812,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2174,9 +1822,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2186,9 +1832,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2198,9 +1842,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2210,9 +1852,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 }
@@ -2224,9 +1864,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -2236,9 +1874,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 4,
               "level": 2,
-              "total": 4,
               "leaf": true,
               "children": []
             }
@@ -2250,10 +1886,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 75,
           "leaf": false,
           "children": [
             {
@@ -2262,9 +1896,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -2274,9 +1906,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 13,
               "level": 2,
-              "total": 13,
               "leaf": true,
               "children": []
             },
@@ -2286,9 +1916,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 10,
               "leaf": true,
               "children": []
             },
@@ -2298,9 +1926,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 37,
               "leaf": false,
               "children": [
                 {
@@ -2309,9 +1935,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2321,9 +1945,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2333,9 +1955,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2345,9 +1965,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2357,9 +1975,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -2371,9 +1987,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 5,
               "level": 2,
-              "total": 5,
               "leaf": true,
               "children": []
             }
@@ -2385,10 +1999,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 74,
           "leaf": false,
           "children": [
             {
@@ -2397,9 +2009,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 6,
               "level": 2,
-              "total": 6,
               "leaf": true,
               "children": []
             },
@@ -2409,9 +2019,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 14,
               "level": 2,
-              "total": 14,
               "leaf": true,
               "children": []
             },
@@ -2421,9 +2029,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -2433,9 +2039,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 41,
               "leaf": false,
               "children": [
                 {
@@ -2444,9 +2048,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2456,9 +2058,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2468,9 +2068,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2480,9 +2078,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -2492,9 +2088,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 }
@@ -2506,9 +2100,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -2520,10 +2112,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 96,
           "leaf": false,
           "children": [
             {
@@ -2532,9 +2122,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 12,
               "leaf": true,
               "children": []
             },
@@ -2544,9 +2132,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -2556,9 +2142,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -2568,9 +2152,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 11,
               "leaf": true,
               "children": []
             },
@@ -2580,9 +2162,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 34,
               "leaf": false,
               "children": [
                 {
@@ -2591,9 +2171,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2603,9 +2181,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2615,9 +2191,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2627,9 +2201,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2639,9 +2211,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -2653,9 +2223,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 12,
               "level": 2,
-              "total": 12,
               "leaf": true,
               "children": []
             },
@@ -2665,9 +2233,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -2677,9 +2243,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -2691,10 +2255,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 64,
           "leaf": false,
           "children": [
             {
@@ -2703,9 +2265,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -2715,9 +2275,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 11,
               "leaf": true,
               "children": []
             },
@@ -2727,9 +2285,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 13,
               "level": 2,
-              "total": 30,
               "leaf": false,
               "children": [
                 {
@@ -2738,9 +2294,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -2750,9 +2304,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -2762,9 +2314,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -2774,9 +2324,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -2786,9 +2334,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 }
@@ -2800,9 +2346,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 11,
               "leaf": true,
               "children": []
             },
@@ -2812,9 +2356,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -2826,10 +2368,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 66,
           "leaf": false,
           "children": [
             {
@@ -2838,9 +2378,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -2850,9 +2388,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 11,
               "leaf": true,
               "children": []
             },
@@ -2862,9 +2398,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -2874,9 +2408,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 35,
               "leaf": false,
               "children": [
                 {
@@ -2885,9 +2417,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2897,9 +2427,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2909,9 +2437,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2921,9 +2447,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -2933,9 +2457,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -2947,9 +2469,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -2961,10 +2481,8 @@
           "type": "사업소",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 83,
           "leaf": false,
           "children": [
             {
@@ -2973,9 +2491,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -2985,9 +2501,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 16,
               "level": 2,
-              "total": 16,
               "leaf": true,
               "children": []
             },
@@ -2997,9 +2511,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 15,
               "level": 2,
-              "total": 40,
               "leaf": false,
               "children": [
                 {
@@ -3008,9 +2520,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3020,9 +2530,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3032,9 +2540,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3044,9 +2550,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3056,9 +2560,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -3070,9 +2572,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -3082,9 +2582,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -3094,9 +2592,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -3108,10 +2604,8 @@
           "type": "사업소",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 60,
           "leaf": false,
           "children": [
             {
@@ -3120,9 +2614,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3132,9 +2624,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3144,9 +2634,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 25,
               "leaf": false,
               "children": [
                 {
@@ -3155,9 +2643,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3167,9 +2653,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3179,9 +2663,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3191,9 +2673,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3203,9 +2683,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 }
@@ -3217,9 +2695,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 5,
               "level": 2,
-              "total": 5,
               "leaf": true,
               "children": []
             },
@@ -3229,9 +2705,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -3241,9 +2715,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -3255,10 +2727,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 59,
           "leaf": false,
           "children": [
             {
@@ -3267,9 +2737,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3279,9 +2747,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3291,9 +2757,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 30,
               "leaf": false,
               "children": [
                 {
@@ -3302,9 +2766,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -3314,9 +2776,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -3326,9 +2786,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -3338,9 +2796,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 },
@@ -3350,9 +2806,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 4,
                   "level": 3,
-                  "total": 4,
                   "leaf": true,
                   "children": []
                 }
@@ -3364,9 +2818,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -3376,9 +2828,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -3390,10 +2840,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 93,
           "leaf": false,
           "children": [
             {
@@ -3402,9 +2850,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3414,9 +2860,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 13,
               "level": 2,
-              "total": 13,
               "leaf": true,
               "children": []
             },
@@ -3426,9 +2870,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 14,
               "level": 2,
-              "total": 14,
               "leaf": true,
               "children": []
             },
@@ -3438,9 +2880,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 11,
               "level": 2,
-              "total": 41,
               "leaf": false,
               "children": [
                 {
@@ -3449,9 +2889,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -3461,9 +2899,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -3473,9 +2909,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -3485,9 +2919,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 },
@@ -3497,9 +2929,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 6,
                   "level": 3,
-                  "total": 6,
                   "leaf": true,
                   "children": []
                 }
@@ -3511,9 +2941,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3523,9 +2951,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 6,
               "level": 2,
-              "total": 6,
               "leaf": true,
               "children": []
             }
@@ -3537,10 +2963,8 @@
           "type": "지사",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 45,
           "leaf": false,
           "children": [
             {
@@ -3549,9 +2973,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 6,
               "level": 2,
-              "total": 6,
               "leaf": true,
               "children": []
             },
@@ -3561,9 +2983,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 14,
               "level": 2,
-              "total": 14,
               "leaf": true,
               "children": []
             },
@@ -3573,9 +2993,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 21,
               "leaf": false,
               "children": [
                 {
@@ -3584,9 +3002,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 2,
                   "level": 3,
-                  "total": 2,
                   "leaf": true,
                   "children": []
                 },
@@ -3596,9 +3012,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3608,9 +3022,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3620,9 +3032,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3632,9 +3042,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 }
@@ -3646,9 +3054,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -3660,10 +3066,8 @@
           "type": "사업소",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "안전기술본부",
           "level": 1,
-          "total": 39,
           "leaf": false,
           "children": [
             {
@@ -3672,9 +3076,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 6,
               "level": 2,
-              "total": 6,
               "leaf": true,
               "children": []
             },
@@ -3684,9 +3086,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3696,9 +3096,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 20,
               "leaf": false,
               "children": [
                 {
@@ -3707,9 +3105,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3719,9 +3115,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 },
@@ -3731,9 +3125,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 2,
                   "level": 3,
-                  "total": 2,
                   "leaf": true,
                   "children": []
                 },
@@ -3743,9 +3135,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 2,
                   "level": 3,
-                  "total": 2,
                   "leaf": true,
                   "children": []
                 },
@@ -3755,9 +3145,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 3,
                   "level": 3,
-                  "total": 3,
                   "leaf": true,
                   "children": []
                 }
@@ -3769,9 +3157,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 3,
               "level": 2,
-              "total": 3,
               "leaf": true,
               "children": []
             }
@@ -3783,10 +3169,8 @@
           "type": "사업소",
           "category": "branch",
           "selectable": true,
-          "headcount": 1,
           "bonbu": "건설본부",
           "level": 1,
-          "total": 95,
           "leaf": false,
           "children": [
             {
@@ -3795,9 +3179,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3807,9 +3189,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -3819,9 +3199,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 8,
               "level": 2,
-              "total": 8,
               "leaf": true,
               "children": []
             },
@@ -3831,9 +3209,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 10,
               "level": 2,
-              "total": 35,
               "leaf": false,
               "children": [
                 {
@@ -3842,9 +3218,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3854,9 +3228,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3866,9 +3238,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3878,9 +3248,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 },
@@ -3890,9 +3258,7 @@
                   "type": "과",
                   "category": "branch",
                   "selectable": true,
-                  "headcount": 5,
                   "level": 3,
-                  "total": 5,
                   "leaf": true,
                   "children": []
                 }
@@ -3904,9 +3270,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 9,
               "level": 2,
-              "total": 9,
               "leaf": true,
               "children": []
             },
@@ -3916,9 +3280,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 15,
               "level": 2,
-              "total": 15,
               "leaf": true,
               "children": []
             },
@@ -3928,9 +3290,7 @@
               "type": "부",
               "category": "branch",
               "selectable": true,
-              "headcount": 7,
               "level": 2,
-              "total": 7,
               "leaf": true,
               "children": []
             },
@@ -3940,9 +3300,7 @@
               "type": "관",
               "category": "branch",
               "selectable": true,
-              "headcount": 4,
               "level": 2,
-              "total": 4,
               "leaf": true,
               "children": []
             }
