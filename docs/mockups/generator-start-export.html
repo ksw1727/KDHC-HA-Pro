@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한난MOA 시작·내보내기</title>
+<style>
+:root{--page:#eef1f5;--bg:#fff;--panel:#f6f8fb;--chip:#f1f4f8;--hover:#f6f8fb;
+--ink:#18202b;--sub:#56616e;--muted:#8a95a2;--line:#e2e7ee;--line2:#cbd3dd;
+--pri:#1f5fbf;--pri-ink:#174a96;--pri-bg:#e8f0fc;--pri-line:#b9cff2;
+--req:#fff5d1;--auto:#e5f4ee;--auto-ink:#0f6e56;--warn:#fdf1e3;--warn-ink:#9a4a07;--err:#fdecea;--err-ink:#b42318;--err-line:#f5c2bd;--ok:#e8f5ea;--ok-ink:#2f7a3b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;font-size:15px;line-height:1.6}
+.page{max-width:1300px;margin:0 auto;padding:36px 16px 80px}
+.eyebrow{font-size:13px;color:var(--muted)}
+h1{font-size:28px;margin:4px 0 8px}
+.lead{color:var(--sub);margin:0;max-width:900px}
+.jump{display:flex;gap:6px;flex-wrap:wrap;margin:16px 0 0}
+.jump a{font-size:13px;color:var(--sub);text-decoration:none;background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+.sec{margin-top:42px}
+.sec-h{display:flex;align-items:center;gap:10px}
+.sec-h .no{background:var(--ink);color:#fff;border-radius:6px;font-size:13px;font-weight:700;padding:1px 9px}
+.sec-h h2{font-size:21px;margin:0}
+.desc{color:var(--sub);margin:4px 0 12px}
+.notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px;font-size:14px}
+@media (max-width:860px){.notes{grid-template-columns:1fr}}
+.notes div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.notes b{display:block;font-size:12.5px;color:var(--muted)}
+.scroller{overflow-x:auto;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 10px 28px rgba(16,24,40,.10)}
+.app{min-width:1180px;background:var(--bg);border:1px solid #cfd6df;border-radius:14px;overflow:hidden;font-size:13px;position:relative}
+.chrome{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#e3e6ea;border-bottom:1px solid #cfd4da}
+.chrome .d{width:10px;height:10px;border-radius:50%;background:#c6ccd3}
+.chrome .u{flex:1;margin-left:8px;background:#fff;border-radius:6px;padding:3px 10px;color:#8a939d;font-size:12px}
+.bar{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line);background:#fff}
+.logo{font-weight:800;color:var(--pri);letter-spacing:-.02em;font-size:15px}.logo span{color:var(--ink)}
+.tabs{display:flex;gap:2px;background:#eef2f7;border-radius:8px;padding:3px}
+.tabs span{padding:4px 12px;border-radius:6px;color:var(--sub)}
+.tabs span.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.sp{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:7px;padding:6px 13px;font-size:13px;font-family:inherit;white-space:nowrap;cursor:default}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}
+.btn.sm{padding:3px 9px;font-size:12px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--sub)}
+.btn.danger{color:var(--err-ink)}
+.chip{display:inline-block;font-size:11.5px;border-radius:5px;padding:0 6px;border:1px solid var(--line);color:var(--sub);background:var(--chip);white-space:nowrap}
+.chip.pri{background:var(--pri-bg);border-color:var(--pri-line);color:var(--pri-ink)}
+.chip.ok{background:var(--ok);border-color:#b7dfbd;color:var(--ok-ink)}
+.chip.warn{background:var(--warn);border-color:#f3cfa5;color:var(--warn-ink)}
+.chip.err{background:var(--err);border-color:var(--err-line);color:var(--err-ink)}
+.muted{color:var(--muted)}.sub{color:var(--sub)}
+.ic{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;font-weight:800}
+
+/* start */
+.start{padding:28px 36px 34px;background:linear-gradient(var(--panel),var(--panel)) top/100% 190px no-repeat}
+.hello h3{font-size:22px;margin:0}
+.hello p{margin:2px 0 0;color:var(--sub)}
+.actions{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:14px;margin-top:20px}
+.act{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:flex-start}
+.act.main{border:1.5px solid var(--pri);box-shadow:0 0 0 4px var(--pri-bg)}
+.act .ic{width:44px;height:44px;flex:none;background:var(--pri-bg);color:var(--pri);font-size:22px}
+.act.main .ic{background:var(--pri);color:#fff}
+.act b{font-size:15px;display:block}
+.act p{margin:2px 0 10px;color:var(--sub);font-size:13px}
+.drop{border:1.5px dashed var(--line2);border-radius:9px;padding:8px;text-align:center;color:var(--muted);font-size:12px;background:var(--panel)}
+.recent{margin-top:26px}
+.recent-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.recent-h b{font-size:15px}
+.search{border:1px solid var(--line2);border-radius:7px;padding:5px 10px;width:220px;color:var(--muted);background:#fff}
+.rtable{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.rtable th{font-size:12px;color:var(--muted);text-align:left;font-weight:600;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.rtable td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.rtable tr:last-child td{border-bottom:0}
+.rtable tr.hov td{background:var(--hover)}
+.stype{display:inline-flex;align-items:center;gap:6px}
+.mini{display:inline-grid;grid-template-columns:repeat(3,7px);grid-auto-rows:5px;gap:1px;padding:3px;border:1px solid var(--line2);border-radius:3px;background:#fff}
+.mini i{background:var(--line2)}
+.mini i.h{background:var(--pri-line)}
+.foot-note{margin-top:14px;font-size:12.5px;color:var(--muted)}
+
+.empty{padding:40px 36px;text-align:center}
+.empty .ic{width:64px;height:64px;background:var(--pri-bg);color:var(--pri);font-size:30px;border-radius:16px;margin:0 auto 12px}
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;max-width:820px;margin:22px auto 0;text-align:left}
+.how div{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.how b{display:block}
+.how span{color:var(--sub);font-size:12.5px}
+.how .n{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--pri);color:#fff;font-size:11px;align-items:center;justify-content:center;margin-right:6px;font-weight:700}
+
+/* builder bg */
+.bld{display:grid;grid-template-columns:400px 1fr;min-height:520px}
+.left{background:var(--panel);border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:10px}
+.acc{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.acc .ah{display:flex;align-items:center;gap:8px;font-weight:600}
+.acc .ah .n{width:19px;height:19px;border-radius:50%;background:var(--chip);color:var(--sub);font-size:11px;display:inline-flex;align-items:center;justify-content:center}
+.acc .ah .r{margin-left:auto;font-weight:400;color:var(--muted);font-size:12px}
+.acc.bad{border-color:var(--err-line);box-shadow:0 0 0 3px var(--err)}
+.acc.bad .ah .n{background:var(--err-ink);color:#fff}
+.acc .ab{margin-top:8px}
+.fl{border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.fl .it{display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--line);background:#fff}
+.fl .it:last-child{border-bottom:0}
+.fl .it.bad{background:var(--err);box-shadow:inset 3px 0 0 var(--err-ink)}
+.errtxt{font-size:12px;color:var(--err-ink);margin-top:4px}
+.right{padding:14px 18px}
+.xl{border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed}
+.xl td{border:1px solid #d9dfe7;padding:3px 7px;height:24px}
+.xl .h{background:#eef2f7;font-weight:600}
+.xl .rq{background:var(--req)}
+.xl .t{font-weight:700}
+.xl .g{color:var(--muted)}
+
+/* overlay & modal */
+.overlay{position:absolute;inset:0;background:rgba(16,24,40,.42);display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:#fff;border-radius:14px;width:620px;max-width:100%;box-shadow:0 20px 50px rgba(16,24,40,.3);overflow:hidden}
+.modal .mh{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.modal .mh b{font-size:17px}
+.modal .mb{padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.modal .mf{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid var(--line);background:var(--panel)}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:13.5px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0}
+.ver{display:flex;align-items:center;gap:10px;background:var(--warn);border:1px solid #f3cfa5;border-radius:10px;padding:10px 12px;color:var(--warn-ink);font-size:13px}
+.ver .v{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.ver .pill{background:#fff;border:1px solid #f3cfa5;border-radius:6px;padding:0 7px}
+.fname{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;line-height:1.7}
+.fname .z{color:var(--pri-ink);font-weight:700}
+.inc{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 14px;font-size:13px}
+.inc span::before{content:"✓ ";color:var(--auto-ink);font-weight:700}
+.chk{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.box{width:16px;height:16px;border-radius:4px;background:var(--pri);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center}
+.errlist{border:1px solid var(--err-line);border-radius:10px;overflow:hidden}
+.errlist .er{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--err-line);background:#fff}
+.errlist .er:last-child{border-bottom:0}
+.errlist .where{font-size:12px;color:var(--muted);width:110px;flex:none}
+
+/* done */
+.done{padding:34px 40px;display:grid;grid-template-columns:1.1fr 1fr;gap:28px}
+.done .ic{width:56px;height:56px;background:var(--ok);color:var(--ok-ink);font-size:28px;border-radius:50%}
+.done h3{font-size:22px;margin:12px 0 4px}
+.dl{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:16px;background:var(--panel)}
+.dl .zipic{width:40px;height:46px;border-radius:6px;background:var(--pri);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px}
+.files{margin-top:10px;border:1px solid var(--line);border-radius:10px;max-height:186px;overflow:hidden;position:relative}
+.files div{display:flex;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--line);font-size:12.5px}
+.files .x{width:16px;height:18px;border-radius:3px;background:#1f7a4a;color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.files::after{content:"";position:absolute;left:0;right:0;bottom:0;height:40px;background:linear-gradient(transparent,#fff)}
+.next{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.next h4{margin:0 0 10px;font-size:15px}
+.step{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line2)}
+.step:last-of-type{border-bottom:0}
+.step .n{width:24px;height:24px;border-radius:50%;background:#fff;border:1.5px solid var(--pri);color:var(--pri);font-weight:700;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.step b{display:block}
+.step span{color:var(--sub);font-size:13px}
+.copy{margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--sub);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">한난MOA · 생성 파트 · 공공 블루 · 기준 docs/prd/02-generator.md 2.1 시작 화면, 2.2 입력 검증, 2.6 내보내기</div>
+  <h1>시작 화면과 내보내기 화면</h1>
+  <p class="lead">양식 만들기의 처음(시작 화면)과 끝(내보내기)을 상황별로 그렸습니다. 가운데 빌더 화면은 확정된 시안 1(클래식 2단 + 미리보기 머리글 클릭)을 그대로 씁니다.</p>
+  <div class="jump"><a href="#s1">1. 시작: 최근 양식 있음</a><a href="#s2">2. 시작: 처음 사용</a><a href="#s3">3. 내보내기 전 검사</a><a href="#s4">4. 내보내기 확인</a><a href="#s5">5. 내보내기 완료</a></div>
+
+  <!-- 1 -->
+  <section class="sec" id="s1">
+    <div class="sec-h"><span class="no">1</span><h2>시작 화면: 최근 양식이 있을 때</h2></div>
+    <p class="desc" style="background:#fdf1e3;border:1px solid #f3cfa5;color:#9a4a07;border-radius:8px;padding:8px 12px">⚠ 1~2번 시작 화면은 <b>generator-landing.html</b>(구조 고르기 = 첫 화면)으로 바뀌었습니다. 참고용으로만 남겨 둡니다. 3~5번 내보내기 화면은 그대로 씁니다.</p>
+    <p class="desc">가장 많이 하는 일 3가지를 위에 큰 카드로 두고, 아래에 최근 양식 목록을 둡니다. 지난달 양식을 복제해서 이번 달 양식을 만드는 일이 많을 것으로 보고, [복제]를 목록 행마다 바로 보이게 했습니다.</p>
+    <div class="scroller"><div class="app">
+      <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="sp"></span><span class="muted">파일은 이 컴퓨터 밖으로 나가지 않아요</span></div>
+      <div class="start">
+        <div class="hello"><h3>양식 만들기</h3><p>취합하기 쉬운 엑셀 양식을 만들어 지사·부서에 보내세요.</p></div>
+        <div class="actions">
+          <div class="act main"><span class="ic">＋</span><div><b>새 양식 만들기</b><p>구조를 고르고 항목을 정하면 엑셀 양식이 만들어져요. 어떤 구조가 맞는지 모르면 질문으로 골라 드려요.</p><span class="btn pri">새 양식 만들기 →</span></div></div>
+          <div class="act"><span class="ic">{ }</span><div><b>양식 파일 불러오기</b><p>저장해 둔 양식 파일(.form.json)을 열어 이어서 고쳐요.</p><div class="drop">.form.json 끌어다 놓기 또는 <u>파일 선택</u></div></div></div>
+          <div class="act"><span class="ic">⤺</span><div><b>엑셀에서 양식 되살리기</b><p>한난MOA로 만든 빈 양식이나 취합본 엑셀을 넣으면 양식을 되살려요.</p><div class="drop">.xlsx 끌어다 놓기 또는 <u>파일 선택</u></div></div></div>
+        </div>
+        <div class="recent">
+          <div class="recent-h"><b>최근 양식</b><span class="chip">이 브라우저에 저장됨 · 5개</span><span class="sp"></span><span class="search">⌕ 양식 이름 찾기</span></div>
+          <table class="rtable">
+            <tr><th style="width:38%">양식 이름</th><th>구조</th><th>제출처</th><th>버전</th><th>마지막 수정</th><th style="text-align:right">작업</th></tr>
+            <tr class="hov"><td><b>2026 하반기 교육 참가자 조사</b> <span class="chip warn">내보내기 전</span></td><td><span class="stype"><span class="mini"><i class="h"></i><i class="h"></i><i class="h"></i><i></i><i></i><i></i></span>혼합형</span></td><td>지사 15곳</td><td>v1</td><td>오늘 14:20</td><td style="text-align:right"><span class="btn sm pri">이어서 고치기</span> <span class="btn sm">복제</span> <span class="btn sm ghost">⋯</span></td></tr>
+            <tr><td><b>10월 안전점검 결과 보고</b></td><td><span class="stype"><span class="mini"><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i></span>시트 모으기형</span></td><td>지사 15곳</td><td>v1</td><td>10/13</td><td style="text-align:right"><span class="btn sm">열기</span> <span class="btn sm">복제</span> <span class="btn sm ghost">⋯</span></td></tr>
+            <tr><td><b>2026 학년별 인원 현황</b></td><td><span class="stype"><span class="mini"><i class="h"></i><i class="h"></i><i class="h"></i><i class="h"></i><i></i><i></i></span>표형</span></td><td>부서 8곳</td><td>v3</td><td>10/02</td><td style="text-align:right"><span class="btn sm">열기</span> <span class="btn sm">복제</span> <span class="btn sm ghost">⋯</span></td></tr>
+            <tr><td><b>사업별 예산 배분표</b></td><td><span class="stype"><span class="mini"><i class="h"></i><i></i><i class="h"></i><i></i><i class="h"></i><i></i></span>빈칸채우기형</span></td><td>식별 안 함</td><td>v2</td><td>9/27</td><td style="text-align:right"><span class="btn sm">열기</span> <span class="btn sm">복제</span> <span class="btn sm ghost">⋯</span></td></tr>
+            <tr><td><b>9월 차량 운행 기록</b></td><td><span class="stype"><span class="mini"><i class="h"></i><i class="h"></i><i class="h"></i><i></i><i></i><i></i></span>목록형</span></td><td>지사 15곳</td><td>v1</td><td>9/05</td><td style="text-align:right"><span class="btn sm">열기</span> <span class="btn sm">복제</span> <span class="btn sm ghost">⋯</span></td></tr>
+          </table>
+          <div class="foot-note">⋯ 메뉴: 이름 바꾸기 · 양식 파일로 저장 · 삭제. 최근 양식은 이 브라우저에만 저장돼요. 다른 컴퓨터에서 쓰려면 양식 파일로 저장해 두세요.</div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><b>복제할 때</b>"9월 차량 운행 기록 (복사)"로 새 양식을 만듭니다. 양식 번호는 새로 받고 버전은 v1부터 시작합니다. 지난달 파일과 섞여도 "다른 양식"으로 구분됩니다.</div>
+      <div><b>되살리기 실패 시</b>한난MOA로 만들지 않은 엑셀이면 "한난MOA로 만든 파일이 아니에요"라고 안내합니다. 다른 양식을 들여오는 기능은 로드맵입니다.</div>
+      <div><b>"내보내기 전" 표시</b>만들기만 하고 아직 엑셀로 내보내지 않은 양식에 붙습니다. 만들다 만 양식을 잊지 않게 해줍니다.</div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="sec" id="s2">
+    <div class="sec-h"><span class="no">2</span><h2>시작 화면: 처음 사용할 때</h2></div>
+    <p class="desc">최근 양식이 없으면 빈 목록 대신 "한난MOA로 일하는 순서" 3단계를 보여줘, 처음 온 사람이 무엇을 하는 프로그램인지 바로 알게 합니다.</p>
+    <div class="scroller"><div class="app">
+      <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="sp"></span><span class="muted">파일은 이 컴퓨터 밖으로 나가지 않아요</span></div>
+      <div class="empty">
+        <div class="ic">▦</div>
+        <h3 style="font-size:22px;margin:0">첫 양식을 만들어 보세요</h3>
+        <p class="sub" style="margin:4px 0 16px">취합하기 쉬운 엑셀 양식을 만들고, 돌아온 파일을 한 번에 합쳐 드려요.</p>
+        <span class="btn pri" style="padding:9px 20px;font-size:14px">새 양식 만들기 →</span>
+        <div style="margin-top:10px;font-size:13px" class="muted"><u>양식 파일 불러오기</u> · <u>엑셀에서 양식 되살리기</u></div>
+        <div class="how">
+          <div><span class="n">1</span><b style="display:inline">양식 만들기</b><br><span>구조와 항목을 정하면 입력 규칙이 걸린 엑셀이 만들어져요.</span></div>
+          <div><span class="n">2</span><b style="display:inline">보내고 받기</b><br><span>지금처럼 메신저·메일로 파일을 보내고 돌려받아요.</span></div>
+          <div><span class="n">3</span><b style="display:inline">취합하기</b><br><span>돌아온 파일을 한꺼번에 넣으면 검사하고 합쳐 드려요.</span></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="sec" id="s3">
+    <div class="sec-h"><span class="no">3</span><h2>내보내기 전 검사: 고칠 것이 있을 때</h2></div>
+    <p class="desc">[엑셀 내보내기]를 누르면 먼저 검사합니다. 문제가 있으면 창에 목록을 보여주고, [고치러 가기]를 누르면 빌더의 해당 위치가 빨갛게 표시된 채로 열립니다. 버튼을 막아 두지 않고 누른 뒤에 이유를 알려줍니다.</p>
+    <div class="scroller"><div class="app">
+      <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="sub">2026 하반기 교육 참가자 조사</span><span class="sp"></span><span class="btn">양식 파일 저장</span><span class="btn pri">엑셀 내보내기</span></div>
+      <div class="bld">
+        <div class="left">
+          <div class="acc"><div class="ah"><span class="n">1</span>기본 정보<span class="r">제목 · 기한 10/20</span></div></div>
+          <div class="acc"><div class="ah"><span class="n">2</span>양식 구조<span class="r">혼합형</span></div></div>
+          <div class="acc bad"><div class="ah"><span class="n">3</span>항목·서식<span class="r" style="color:var(--err-ink)">고칠 것 2</span></div>
+            <div class="ab"><div class="fl">
+              <div class="it">담당자 <span class="sp"></span><span class="chip">텍스트</span></div>
+              <div class="it">이름 <span class="sp"></span><span class="chip">텍스트</span></div>
+              <div class="it bad">직급 <span class="sp"></span><span class="chip err">목록 선택</span></div>
+              <div class="it bad">이름 <span class="sp"></span><span class="chip err">텍스트</span></div>
+            </div>
+            <div class="errtxt">● 직급: 선택지를 1개 이상 넣어 주세요</div><div class="errtxt">● 이름: 같은 이름의 항목이 이미 있어요</div></div>
+          </div>
+          <div class="acc"><div class="ah"><span class="n">4</span>취합 방식<span class="r">같은 틀 · 제출 현황</span></div></div>
+          <div class="acc bad"><div class="ah"><span class="n">5</span>지사/기관<span class="r" style="color:var(--err-ink)">고칠 것 1</span></div></div>
+        </div>
+        <div class="right">
+          <table class="xl"><tr><td colspan="4" class="t">2026 하반기 교육 참가자 조사</td></tr><tr><td colspan="4" class="g">10월 20일까지 회신</td></tr><tr><td class="h">번호</td><td class="h">이름 *</td><td class="h">직급 ▾</td><td class="h">이름</td></tr><tr><td class="g">1</td><td class="rq"></td><td></td><td></td></tr></table>
+        </div>
+      </div>
+      <div class="overlay">
+        <div class="modal">
+          <div class="mh"><span class="ic" style="width:32px;height:32px;background:var(--err);color:var(--err-ink);border-radius:50%">!</span><b>내보내기 전에 3가지를 고쳐 주세요</b></div>
+          <div class="mb">
+            <div class="errlist">
+              <div class="er"><span class="where">③ 항목·서식</span><span>직급: 선택지가 비어 있어요. 1개 이상 넣어 주세요.</span><span class="sp"></span><span class="btn sm">고치러 가기</span></div>
+              <div class="er"><span class="where">③ 항목·서식</span><span>"이름" 항목이 목록에 두 번 있어요. 이름을 바꿔 주세요.</span><span class="sp"></span><span class="btn sm">고치러 가기</span></div>
+              <div class="er"><span class="where">⑤ 지사/기관</span><span>지사 목록이 비어 있어요. 목록을 넣거나 "식별 안 함"을 골라 주세요.</span><span class="sp"></span><span class="btn sm">고치러 가기</span></div>
+            </div>
+          </div>
+          <div class="mf"><span class="muted" style="font-size:12.5px">고친 뒤 다시 [엑셀 내보내기]를 눌러 주세요.</span><span class="sp"></span><span class="btn pri">첫 번째부터 고치기</span></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="sec" id="s4">
+    <div class="sec-h"><span class="no">4</span><h2>내보내기 확인 창</h2></div>
+    <p class="desc">검사를 통과하면 무엇이 몇 개 만들어지는지 한 번 더 보여줍니다. 칸 구조를 바꾼 뒤라면 <b>버전이 올라간다는 것과 그 이유</b>를 알려줍니다. 이미 보낸 지난 버전 파일과 섞이지 않게 하기 위해서입니다.</p>
+    <div class="scroller"><div class="app" style="min-height:780px">
+      <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="sub">2026 하반기 교육 참가자 조사</span><span class="sp"></span><span class="btn">양식 파일 저장</span><span class="btn pri">엑셀 내보내기</span></div>
+      <div class="bld" style="min-height:700px"><div class="left"></div><div class="right"></div></div>
+      <div class="overlay">
+        <div class="modal">
+          <div class="mh"><b>엑셀로 내보내기</b><span class="sp"></span><span class="btn ghost sm">✕</span></div>
+          <div class="mb">
+            <dl class="kv">
+              <dt>양식</dt><dd><b>2026 하반기 교육 참가자 조사</b> · 혼합형</dd>
+              <dt>만들 파일</dt><dd><b>지사 15곳 × 1개 = 엑셀 15개</b>를 압축 파일 1개로</dd>
+              <dt>제출 기한</dt><dd>2026-10-20 · 문의 인사팀 02-000-0000</dd>
+            </dl>
+            <div class="ver"><span class="v"><span class="pill">v1</span>→<span class="pill">v2</span></span><span>지난번 내보낸 뒤 <b>칸 구조</b>가 바뀌어 버전 2로 내보내요. (교육비 항목 추가, 직급 선택지 변경) 이미 보낸 v1 파일이 돌아오면 취합할 때 알려 드려요.</span></div>
+            <div><div style="font-size:12.5px;color:var(--muted);margin-bottom:4px">파일 이름</div>
+              <div class="fname"><span class="z">2026 하반기 교육 참가자 조사_v2_배포용.zip</span><br>　├ 2026 하반기 교육 참가자 조사_v2_서울.xlsx<br>　├ 2026 하반기 교육 참가자 조사_v2_부산.xlsx<br>　└ … 13개 더</div></div>
+            <div><div style="font-size:12.5px;color:var(--muted);margin-bottom:4px">파일마다 들어가는 것</div>
+              <div class="inc"><span>입력 규칙 (숫자·날짜·선택 목록)</span><span>제목 줄·지사명 잠금</span><span>작성 안내 메시지</span><span>인쇄 영역</span><span>숨김 시트 (양식·지사 정보)</span><span>틀 고정</span></div></div>
+            <label class="chk"><span class="box">✓</span>양식 파일(.form.json)도 함께 저장하기 <span class="muted" style="font-size:12px">— 다음 차수에 다시 쓰거나, 숨김 정보가 사라진 파일을 살릴 때 필요해요</span></label>
+          </div>
+          <div class="mf"><span class="btn">미리보기로 돌아가기</span><span class="sp"></span><span class="btn pri">내보내기 (15개 · zip)</span></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><b>제목·안내만 바꿨을 때</b>버전이 그대로이므로 노란 버전 안내 대신 "v1 그대로 내보내요. 칸 구조는 바뀌지 않았어요"를 회색으로 보여줍니다.</div>
+      <div><b>지사 목록이 없을 때</b>"만들 파일: 엑셀 1개"로 바뀌고, 압축 없이 <code>…_v2.xlsx</code> 하나를 내려받습니다.</div>
+      <div><b>시트 모으기형일 때</b>"파일마다 들어가는 것"에서 입력 규칙·잠금·인쇄 영역이 빠지고 "자유롭게 고칠 수 있는 시트"로 표시됩니다.</div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="sec" id="s5">
+    <div class="sec-h"><span class="no">5</span><h2>내보내기 완료</h2></div>
+    <p class="desc">다운로드가 끝났다고 알리는 데서 그치지 않고, <b>다음에 할 일</b>을 안내합니다. 지사에 보낼 안내문은 복사해서 바로 메신저에 붙여 넣을 수 있게 했습니다.</p>
+    <div class="scroller"><div class="app">
+      <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="sub">2026 하반기 교육 참가자 조사</span><span class="chip">v2</span><span class="sp"></span><span class="btn">양식으로 돌아가기</span></div>
+      <div class="done">
+        <div>
+          <span class="ic">✓</span>
+          <h3>엑셀 15개를 만들었어요</h3>
+          <p class="sub" style="margin:0">다운로드 폴더에 저장됐어요. 압축을 풀면 지사별 파일이 들어 있어요.</p>
+          <div class="dl"><span class="zipic">ZIP</span><div><b>2026 하반기 교육 참가자 조사_v2_배포용.zip</b><div class="muted" style="font-size:12.5px">엑셀 15개 · 412KB</div></div><span class="sp"></span><span class="btn sm">다시 받기</span></div>
+          <div class="dl" style="margin-top:8px"><span class="zipic" style="background:#56616e">JSON</span><div><b>2026 하반기 교육 참가자 조사.form.json</b><div class="muted" style="font-size:12.5px">양식 파일 · 다음 차수에 다시 쓸 때</div></div><span class="sp"></span><span class="btn sm">다시 받기</span></div>
+          <div class="files">
+            <div><span class="x">X</span>…_v2_서울.xlsx</div><div><span class="x">X</span>…_v2_부산.xlsx</div><div><span class="x">X</span>…_v2_대구.xlsx</div><div><span class="x">X</span>…_v2_인천.xlsx</div><div><span class="x">X</span>…_v2_광주.xlsx</div><div><span class="x">X</span>…_v2_대전.xlsx</div>
+          </div>
+        </div>
+        <div class="next">
+          <h4>이제 이렇게 하세요</h4>
+          <div class="step"><span class="n">1</span><div><b>지사에 파일 보내기</b><span>압축을 풀어 지사마다 자기 이름의 파일을 보내 주세요. 지사 이름이 미리 들어 있어요.</span>
+            <div class="copy">[2026 하반기 교육 참가자 조사] 첨부 파일을 작성해 <b>10월 20일까지</b> 회신 부탁드립니다. 노란 칸은 꼭 채워 주시고, 칸 이름과 순서는 바꾸지 말아 주세요. 문의: 인사팀 02-000-0000 <div style="text-align:right;margin-top:6px"><span class="btn sm">안내문 복사</span></div></div></div></div>
+          <div class="step"><span class="n">2</span><div><b>돌아온 파일 모으기</b><span>파일 이름이 바뀌어도 괜찮아요. 한 폴더에 모아 두세요.</span></div></div>
+          <div class="step"><span class="n">3</span><div><b>취합하기</b><span>모은 파일을 한꺼번에 넣으면 검사하고 합쳐 드려요.</span><div style="margin-top:8px"><span class="btn pri">취합하기로 이동 →</span></div></div></div>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div><b>안내문 복사</b>제목·기한·문의처는 ① 기본 정보에서 가져옵니다. 운영자는 복사해서 메신저·메일에 붙여 넣기만 하면 됩니다. 프로그램이 직접 보내지는 않습니다.</div>
+      <div><b>다시 받기</b>다운로드가 막혔거나 지웠을 때 다시 만들지 않고 바로 받습니다(이 화면을 닫기 전까지).</div>
+      <div><b>취합하기로 이동</b>취합하기 탭을 이 양식이 선택된 상태로 엽니다. 다른 양식 파일이 섞여 들어와도 자동으로 걸러집니다.</div>
+    </div>
+  </section>
+</div>
+</body>
+</html>
