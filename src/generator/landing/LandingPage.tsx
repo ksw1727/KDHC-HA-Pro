@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Layout } from '@contract/schema';
 import { LAYOUT_LABELS, orgLabel } from '@contract/schema';
+import { josa } from '@contract/josa';
 import { StructureStory } from './StructureStory';
 import { duplicateForm, openFormJson, openFormXlsx, shortTime, type OpenResult } from './openForm';
 import { listForms, removeForm, saveForm, type StoredForm } from '../storage/localForms';
@@ -23,7 +24,7 @@ const INFO: Record<Layout, { one: string; ex: string[] }> = {
   free: { one: '표를 직접 그리고 입력할 곳을 지정해요', ex: ['쓰던 서식 그대로', '점검표·확인서'] },
 };
 /** "목록형으로", "시트 모으기형으로" — 모두 '형'으로 끝나 받침이 있다 */
-const withEuro = (l: Layout) => `${LAYOUT_LABELS[l]}으로`;
+const withEuro = (l: Layout) => josa(LAYOUT_LABELS[l], '으로', '로');
 
 function useHeaderSlot() {
   const [el, setEl] = useState<HTMLElement | null>(null);
@@ -207,7 +208,7 @@ function Recent({ forms, total, all, onToggleAll, onOpen, onDuplicate, onRename,
   const now = new Date();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<StoredForm | null>(null);
-  const where = (e: StoredForm) => e.schema.org.mode === 'none' ? '식별 안 함' : `${orgLabel(e.schema)} ${e.schema.org.orgs?.length ?? 0}곳`;
+  const where = (e: StoredForm) => e.schema.org.mode === 'none' ? '식별 안 함' : e.schema.org.mode === 'input' ? `${orgLabel(e.schema)}명 직접 입력` : `${orgLabel(e.schema)} ${e.schema.org.orgs?.length ?? 0}곳`;
   return (
     <section aria-label="최근 양식" className="flex flex-col gap-2 pt-2">
       <div className="flex items-center gap-2">
@@ -250,7 +251,7 @@ function Recent({ forms, total, all, onToggleAll, onOpen, onDuplicate, onRename,
       {deleting && (
         <Dialog tone="err" title="이 양식을 지울까요?" onClose={() => setDeleting(null)}
           footer={<><span className="flex-1" /><Button onClick={() => setDeleting(null)}>취소</Button><Button variant="danger" onClick={() => { onDelete(deleting); setDeleting(null); }}>삭제</Button></>}>
-          <p className="m-0">"{deleting.schema.title || '제목 없는 양식'}"을 이 브라우저에서 지워요. 이미 내보낸 엑셀 파일과 저장해 둔 양식 파일은 그대로 남아요.</p>
+          <p className="m-0">{josa(`"${deleting.schema.title || '제목 없는 양식'}"`, '을', '를')} 이 브라우저에서 지워요. 이미 내보낸 엑셀 파일과 저장해 둔 양식 파일은 그대로 남아요.</p>
         </Dialog>
       )}
     </section>

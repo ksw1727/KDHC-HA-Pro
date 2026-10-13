@@ -8,10 +8,10 @@
  *   곱셈    := 단항 (( '*' | '/' | '×' | '÷' ) 단항)*
  *   단항    := '-' 단항 | 기본
  *   기본    := 숫자 | "글자" | [칸 이름] | 함수(식, …) | ( 식 )
- * 함수: SUM·합계, AVERAGE·평균, MIN·최소, MAX·최대, ROUND·반올림, IF·조건
+ * 함수: SUM·합계, AVERAGE·평균, MIN·최소, MAX·최대, COUNTA·개수(빈칸 아닌 값 수), ROUND·반올림, IF·조건
  */
 
-export type FnName = 'SUM' | 'AVERAGE' | 'MIN' | 'MAX' | 'ROUND' | 'IF';
+export type FnName = 'SUM' | 'AVERAGE' | 'MIN' | 'MAX' | 'COUNTA' | 'ROUND' | 'IF';
 
 export type Node =
   | { t: 'num'; v: number }
@@ -27,11 +27,14 @@ export const FN_ALIASES: Record<string, FnName> = {
   AVERAGE: 'AVERAGE', AVG: 'AVERAGE', 평균: 'AVERAGE',
   MIN: 'MIN', 최소: 'MIN',
   MAX: 'MAX', 최대: 'MAX',
+  COUNTA: 'COUNTA', COUNT: 'COUNTA', 개수: 'COUNTA',
   ROUND: 'ROUND', 반올림: 'ROUND',
   IF: 'IF', 조건: 'IF', 만약: 'IF',
 };
 
-export const FN_KO: Record<FnName, string> = { SUM: '합계', AVERAGE: '평균', MIN: '최소', MAX: '최대', ROUND: '반올림', IF: '조건' };
+export const FN_KO: Record<FnName, string> = { SUM: '합계', AVERAGE: '평균', MIN: '최소', MAX: '최대', COUNTA: '개수', ROUND: '반올림', IF: '조건' };
+/** 여러 값(열 전체 등)을 받는 함수 */
+export const MULTI_FNS: FnName[] = ['SUM', 'AVERAGE', 'MIN', 'MAX', 'COUNTA'];
 
 export class FormulaError extends Error {
   constructor(message: string, public pos: number) {
@@ -178,7 +181,7 @@ export function formulaRefs(node: Node): string[] {
   return out;
 }
 
-/** 여러 값을 받는 함수(합계·평균·최소·최대) 안에서만 쓰인 칸 이름 */
+/** 여러 값을 받는 함수(합계·평균·최소·최대·개수) 안에서만 쓰인 칸 이름 */
 export function refsOnlyInAggregates(node: Node): Set<string> {
   const inAgg = new Set<string>();
   const outside = new Set<string>();
@@ -186,7 +189,7 @@ export function refsOnlyInAggregates(node: Node): Set<string> {
     if (n.t === 'ref') (agg ? inAgg : outside).add(n.name);
     else if (n.t === 'neg') walk(n.a, agg);
     else if (n.t === 'bin' || n.t === 'cmp') { walk(n.a, agg); walk(n.b, agg); }
-    else if (n.t === 'fn') n.args.forEach((a) => walk(a, agg || ['SUM', 'AVERAGE', 'MIN', 'MAX'].includes(n.name)));
+    else if (n.t === 'fn') n.args.forEach((a) => walk(a, agg || MULTI_FNS.includes(n.name)));
   };
   walk(node, false);
   return new Set([...inAgg].filter((x) => !outside.has(x)));
@@ -240,7 +243,7 @@ export function toExcel(node: Node, resolve: RefResolver): string {
       }
       case 'neg': return `-${e(n.a, agg, 4)}`;
       case 'fn': {
-        const inner = ['SUM', 'AVERAGE', 'MIN', 'MAX'].includes(n.name);
+        const inner = MULTI_FNS.includes(n.name);
         return `${n.name}(${n.args.map((a) => e(a, agg || inner)).join(',')})`;
       }
       case 'cmp':
@@ -306,6 +309,8 @@ export function evaluate(node: Node, resolve: ValueResolver): Value {
           const f = 10 ** d;
           return (Math.sign(v) * Math.round(Number((Math.abs(v) * f).toPrecision(15)))) / f;
         }
+        // 개수: 빈칸이 아닌 값(숫자·글자)의 수 (예: 이수 인원 = 개수([이름]))
+        if (n.name === 'COUNTA') return n.args.map((a) => ev(a, true)).flat().filter((v) => v !== null && v !== '').length;
         const xs = nums(n.args.map((a) => ev(a, true)));
         if (n.name === 'SUM') return xs.reduce((s, x) => s + x, 0);
         if (xs.length === 0) return null;

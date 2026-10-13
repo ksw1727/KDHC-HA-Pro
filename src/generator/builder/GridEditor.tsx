@@ -13,6 +13,8 @@ import { scopeFor } from '@contract/formula';
 export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
   const [sel, setSel] = useState<Range | null>(null);
   const [paste, setPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const applyPaste = (t: string) => { put(fromPaste(parsePastedTable(t))); setPaste(false); setPasteText(''); setSel(null); };
   const [spareOpen, setSpareOpen] = useState<string | null>(null);
   const g: GridData = { colLabels: block.colLabels, rows: block.rows, spareRows: block.spareRows, spareColumns: block.spareColumns };
   /** 표를 바꿀 때마다 자동 이름(행 첫 칸 · 열 머리글)을 맞춘다 */
@@ -72,8 +74,21 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
             {g.rows.map((row, r) => (
               <tr key={r}>
                 {row.map((cell, c) => (
-                  <td key={c} onClick={(e) => click(r, c, e.shiftKey)}
-                    className={cx('h-7 min-w-24 cursor-pointer border border-line px-1.5', cell.kind === 'input' && (cell.field.required ? 'bg-req' : 'bg-white'), cell.kind === 'calc' && 'bg-[#f3f7fd]', cell.kind === 'blank' && 'bg-[#fafbfc]', isSel(r, c) && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
+                  <td key={c} onClick={(e) => click(r, c, e.shiftKey)} tabIndex={0}
+                    aria-label={`${r + 1}행 ${c + 1}열 ${cell.kind === 'input' ? `입력칸 ${cell.field.label}` : cell.kind === 'calc' ? `계산 칸 ${cell.field.label}` : cell.kind === 'fixed' ? String(cell.value) : '빈칸'}`}
+                    aria-selected={isSel(r, c) || undefined}
+                    onKeyDown={(e) => {
+                      // Enter·Space = 고르기(Shift = 범위), 방향키 = 옆 칸으로
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); click(r, c, e.shiftKey); return; }
+                      const d = ({ ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] } as Record<string, number[]>)[e.key];
+                      if (!d) return;
+                      e.preventDefault();
+                      const nr = Math.max(0, Math.min(g.rows.length - 1, r + d[0]));
+                      const nc = Math.max(0, Math.min(g.colLabels.length - 1, c + d[1]));
+                      (e.currentTarget.closest('tbody')?.rows[nr]?.cells[nc] as HTMLElement | undefined)?.focus();
+                      if (e.shiftKey) click(nr, nc, true);
+                    }}
+                    className={cx('h-7 min-w-24 cursor-pointer border border-line px-1.5 outline-none focus-visible:shadow-[inset_0_0_0_2px_#93b4ea]', cell.kind === 'input' && (cell.field.required ? 'bg-req' : 'bg-white'), cell.kind === 'calc' && 'bg-[#f3f7fd]', cell.kind === 'blank' && 'bg-[#fafbfc]', isSel(r, c) && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
                     {cell.kind === 'fixed' && String(cell.value)}
                     {cell.kind === 'input' && <span className="text-pri-ink">[{cell.field.label}]</span>}
                     {cell.kind === 'calc' && <span className="font-mono text-[#174a96]">= {cell.field.formula || '계산식?'}</span>}
@@ -109,9 +124,14 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
 
       {paste ? (
         <div className="flex flex-col gap-1.5">
-          <TextArea autoFocus className="min-h-24 font-mono text-xs" placeholder={'엑셀에서 표를 복사해 붙여넣으세요. 첫 줄은 머리글이 돼요.\n사업\t예산\t서울'}
-            onPaste={(e) => { const t = e.clipboardData.getData('text'); e.preventDefault(); put(fromPaste(parsePastedTable(t))); setPaste(false); setSel(null); }} />
-          <Button size="sm" variant="ghost" onClick={() => setPaste(false)}>취소</Button>
+          <TextArea autoFocus aria-label="붙여넣을 표" className="min-h-24 font-mono text-xs" value={pasteText} placeholder={'엑셀에서 표를 복사해 붙여넣으세요. 첫 줄은 머리글이 돼요.\n직접 칠 때는 칸 사이를 Tab으로 띄우고 [표로 바꾸기]를 누르세요.\n사업\t예산\t서울'}
+            onChange={(e) => setPasteText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Tab') { e.preventDefault(); const t = e.currentTarget; const a = t.selectionStart; setPasteText(pasteText.slice(0, a) + '\t' + pasteText.slice(t.selectionEnd)); requestAnimationFrame(() => t.setSelectionRange(a + 1, a + 1)); } }}
+            onPaste={(e) => { const t = e.clipboardData.getData('text'); if (pasteText.trim()) return; e.preventDefault(); applyPaste(t); }} />
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="pri" disabled={!pasteText.trim()} onClick={() => applyPaste(pasteText)}>표로 바꾸기</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setPaste(false); setPasteText(''); }}>취소</Button>
+          </div>
         </div>
       ) : (
         <Button size="sm" onClick={() => setPaste(true)}>엑셀에서 복사한 표 붙여넣기 (지금 표를 바꿔요)</Button>

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { calcProblem, evaluate, parseFormula, printFormula, type FormulaScope } from '@contract/formula';
+import { calcProblem, evaluate, formulaRefs, parseFormula, printFormula, type FormulaScope } from '@contract/formula';
 import { cx } from '../ui/ui';
 
 const OPS: [string, string][] = [['+', '+'], ['−', ' - '], ['×', ' × '], ['÷', ' ÷ '], ['(', '('], [')', ')'], [',', ', ']];
@@ -9,6 +9,7 @@ const FNS: [string, string, string][] = [
   ['평균', '평균(', '여러 값의 평균'],
   ['최소', '최소(', '가장 작은 값'],
   ['최대', '최대(', '가장 큰 값'],
+  ['개수', '개수(', '빈칸이 아닌 칸 수 (예: 이수 인원 = 개수([이름]))'],
   ['반올림', '반올림(', '반올림(값, 소수 자릿수)'],
   ['조건', '조건(', '조건(비교, 맞을 때, 아닐 때)'],
 ];
@@ -17,7 +18,8 @@ const FNS: [string, string, string][] = [
  * 계산식 편집: 버튼으로 조립하거나 글자로 직접 입력 (둘 다).
  * 버튼은 커서 위치에 끼워 넣는다. 아래에 오류 또는 예시 값 계산 결과를 보여준다.
  */
-export function FormulaEditor({ value, onChange, scope }: { value: string; onChange: (v: string) => void; scope: FormulaScope }) {
+/** decimals: 결과 서식의 소수 자릿수 (예시 값도 그 자릿수로 반올림해 보여 준다) */
+export function FormulaEditor({ value, onChange, scope, decimals = 0 }: { value: string; onChange: (v: string) => void; scope: FormulaScope; decimals?: number }) {
   const ref = useRef<HTMLInputElement>(null);
   const [lit, setLit] = useState('');
   const sel = useRef<{ s: number; e: number }>({ s: value.length, e: value.length });
@@ -50,11 +52,14 @@ export function FormulaEditor({ value, onChange, scope }: { value: string; onCha
     if (problem) return { problem, preview: '' };
     try {
       const n = parseFormula(value);
-      const sample = new Map<string, number>(scope.names.map((name, i) => [name, (i + 1) * 10]));
+      // 예시 값은 계산식에 실제로 쓴 칸에만 준다 (쓰지도 않은 칸 이름이 나오던 것)
+      const used = [...new Set(formulaRefs(n))];
+      const one = used.filter((name) => !scope.aggregateOnly.includes(name));
+      const sample = new Map<string, number>(one.map((name, i) => [name, (i + 1) * 10]));
       const v = evaluate(n, (name, agg) => (scope.aggregateOnly.includes(name) && agg ? [10, 20, 30] : sample.get(name)));
-      const vs = v === null ? '(빈칸)' : typeof v === 'number' ? (Math.round(v * 1000) / 1000).toLocaleString('ko-KR') : `"${v}"`;
-      const ex = scope.names.slice(0, 3).map((name, i) => `${name}=${(i + 1) * 10}`).join(', ');
-      return { problem: null, preview: `${printFormula(n)}  →  예시(${ex}${scope.aggregateOnly.length ? ', 목록 10·20·30' : ''})로 계산하면 ${vs}` };
+      const vs = v === null ? '(빈칸)' : typeof v === 'number' ? v.toLocaleString('ko-KR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : `"${v}"`;
+      const ex = [...one.map((name, i) => `${name}=${(i + 1) * 10}`), ...(used.some((name) => scope.aggregateOnly.includes(name)) ? ['목록 10·20·30'] : [])].join(', ');
+      return { problem: null, preview: `${printFormula(n)}  →  ${ex ? `예시(${ex})로 ` : ''}계산하면 ${vs}` };
     } catch {
       return { problem: '계산식을 읽을 수 없어요.', preview: '' };
     }

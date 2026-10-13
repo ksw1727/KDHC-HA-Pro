@@ -98,3 +98,56 @@ describe('빈칸채우기 표', () => {
     }
   });
 });
+
+// ── 사용성 ──
+import { josa } from '@contract/josa';
+import { noticeText } from '../export/noticeText';
+import { normalizeHint } from '../preview/formatSample';
+import { freeAggregationChecks } from '@contract/free';
+import { applyFreeOp, rectOf } from '../state/freeEdit';
+import { newSchema } from '../state/newSchema';
+
+test('조사: 따옴표·숫자·영문으로 끝나도 맞게', () => {
+  expect(josa("'투입 인원'", '을', '를')).toBe("'투입 인원'을");
+  expect(josa("'점검 결과' 줄 수", '을', '를')).toBe("'점검 결과' 줄 수를");
+  expect(josa('"기록부"', '을', '를')).toBe('"기록부"를');
+  expect(josa('B12', '을', '를')).toBe('B12를');
+  expect(josa('A3', '을', '를')).toBe('A3을');
+  expect(josa('목록형', '으로', '로')).toBe('목록형으로');
+});
+
+test('안내문: 필수칸이 없으면 "노란 칸" 말을 빼요', () => {
+  const s = structuredClone(SAMPLE.list);
+  expect(noticeText(s)).toContain('노란 칸은 꼭 채워 주시고');
+  const b = s.blocks[0];
+  if (b.kind === 'list') b.columns.forEach((c) => { c.required = false; });
+  expect(noticeText(s)).not.toContain('노란 칸');
+  expect(noticeText(s)).toContain('칸 이름과 순서는 바꾸지 말아 주세요');
+});
+
+test('사업자번호 정리 안내 예시는 사업자번호 모양', () => {
+  expect(normalizeHint(f('b', '사업자번호', { type: 'pattern', pattern: 'bizno' }))).toContain('"1234567890"');
+});
+
+test('계산식 개수(): 빈칸이 아닌 값 수', () => {
+  expect(evaluate(parseFormula('개수([이름])'), () => ['김', '', null, '이'])).toBe(2);
+});
+
+test('자유 제작형: 줄 영역만 남기면 "안 됨"인 지사별 펼치기를 저절로 뺌', () => {
+  let n = 0;
+  let s: FormSchema = { ...newSchema('free', new Date(), { formId: 'x', key: () => `k${++n}` }), org: { mode: 'preset', orgs: ['서울'], label: '지사' } };
+  s = { ...s, aggregations: [...s.aggregations, 'spread'] };
+  const r = applyFreeOp(s, { op: 'unmark', rect: rectOf('B1') });
+  expect(r.schema!.aggregations).not.toContain('spread');
+  expect(freeAggregationChecks(r.schema!).every((c) => c.status !== 'no' || !r.schema!.aggregations.includes(c.id))).toBe(true);
+});
+
+test('예시 줄 계산 칸은 예시 값으로 계산해 보여 줌', () => {
+  const s = structuredClone(SAMPLE.list);
+  const b = s.blocks[0];
+  if (b.kind !== 'list') throw new Error();
+  b.columns.push(f('h', '시간', { type: 'number' }), f('d', '두 배', { type: 'calc', formula: '[시간] × 2' }));
+  b.exampleRow = { h: 5 };
+  const m = layoutSheet(s, { mode: 'template', orgName: '서울' }, { today: new Date() });
+  expect(m.cells.find((c) => c.role === 'example' && c.fieldKey === 'd')?.value).toBe(10);
+});

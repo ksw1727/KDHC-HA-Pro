@@ -1,7 +1,7 @@
 import type { Block, Field, FieldsBlock, FormSchema, FreeSpec, ListBlock, MatrixBlock } from '@contract/schema';
 import { availableAggregations, requiredAggregations } from '@contract/aggregationIds';
 import { addr, expandRange, parseAddr } from '@contract/layout';
-import { freeRegions, freeSize, inRegion, type FreeRegion } from '@contract/free';
+import { freeAggregationChecks, freeRegions, freeSize, inRegion, sheetAddr, type FreeRegion } from '@contract/free';
 import { newField } from './fieldDefaults';
 
 /** 판 위 사각형 (판 좌표, 1부터, 양 끝 포함) */
@@ -45,7 +45,9 @@ export function tidy(s: FormSchema): FormSchema {
       return { ...b, id };
     });
   const next: FormSchema = { ...s, blocks, free: { ...free, places } };
-  const allowed = availableAggregations(next);
+  // 이 모양으로 "안 됨"인 방식(예: 줄 영역만 있을 때 지사별 펼치기)은 저절로 뺀다
+  const no = new Set(freeAggregationChecks(next).filter((c) => c.status === 'no' && !c.required).map((c) => c.id));
+  const allowed = availableAggregations(next).filter((a) => !no.has(a));
   next.aggregations = [...new Set([...requiredAggregations(next), ...s.aggregations.filter((a) => allowed.includes(a))])];
   return next;
 }
@@ -136,7 +138,7 @@ export function applyFreeOp(s: FormSchema, o: FreeOp): FreeResult {
       const other = regions.find((x) => x !== g && hits(x, to));
       if (other) return { error: `그 자리에는 '${other.name}' 영역이 있어요.` };
       const text = Object.keys(free.texts).find((a) => { const q = parseAddr(a); return inRegion(to, q.row, q.col); });
-      if (text) return { error: `그 자리(${text})에 글자 칸이 있어요. 글자를 지우거나 다른 곳으로 옮겨 주세요.` };
+      if (text) return { error: `그 자리(${sheetAddr(s, text)})에 글자 칸이 있어요. 글자를 지우거나 다른 곳으로 옮겨 주세요.` };
       const places = { ...free.places, [o.key ?? o.blockId]: o.to };
       const size = freeSize({ ...s, free: { ...free, places } });
       return { schema: { ...s, free: { ...free, places, rows: Math.max(free.rows, size.rows), cols: Math.max(free.cols, size.cols) } } };

@@ -37,7 +37,7 @@ export function FieldEditor({ f, onPatch, lockType, hideRequired, hideLabel, sco
             </select>
           </F>
         </div>
-        <FormulaEditor value={f.formula ?? ''} onChange={(formula) => onPatch({ formula })} scope={scope ?? { names: [], aggregateOnly: [] }} />
+        <FormulaEditor value={f.formula ?? ''} decimals={f.decimals ?? 0} onChange={(formula) => onPatch({ formula })} scope={scope ?? { names: [], aggregateOnly: [] }} />
         <CalcFormat f={f} onPatch={onPatch} />
         <div className="rounded-btn bg-auto px-2.5 py-1.5 text-xs text-auto-ink">{normalizeHint(f)}</div>
       </div>

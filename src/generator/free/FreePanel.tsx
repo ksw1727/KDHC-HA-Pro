@@ -1,8 +1,7 @@
-import { freeProblems, freeRegions, inRegion, type FreeRegion } from '@contract/free';
+import { freeProblems, freeRegions, inRegion, sheetRange, type FreeRegion } from '@contract/free';
 import { scopeFor } from '@contract/formula';
 import type { Builder } from '../state/useBuilder';
 import { randomKey } from '../state/newSchema';
-import { rectText } from '../state/freeEdit';
 import { FieldEditor } from '../builder/FieldEditor';
 import { FieldList } from '../builder/FieldList';
 import { ListSettings, MatrixEditor } from '../builder/BlockSettings';
@@ -24,7 +23,7 @@ export function FreePanel({ b, sel, onSel, onMove }: { b: Builder; sel: FreeSel 
     <div className="flex items-center gap-2">
       <i className="inline-block h-3 w-3 rounded-[2px] border-2" style={{ borderColor: REGION_COLOR[g.kind] }} />
       <b>{REGION_NAME[g.kind]}</b>
-      <span className="rounded-full bg-chip px-2 text-xs text-sub">{rectText(g)}</span>
+      <span className="rounded-full bg-chip px-2 text-xs text-sub">{sheetRange(s, g)}</span>
       <span className="flex-1" />
       <Button size="sm" onClick={() => onMove(g)}>↦ 옮기기</Button>
       <Button size="sm" variant="danger" onClick={() => { b.act({ type: 'free/op', op: { op: 'unmark', rect: g } }); onSel(null); }}>지정 풀기</Button>
@@ -89,7 +88,7 @@ export function FreePanel({ b, sel, onSel, onMove }: { b: Builder; sel: FreeSel 
                 <i className="inline-block h-2.5 w-2.5 rounded-[2px] border-2" style={{ borderColor: REGION_COLOR[x.kind] }} />
                 <span className="text-ink">{x.name}</span>
                 <span className="text-xs text-muted">{REGION_NAME[x.kind]}</span>
-                <span className="ml-auto text-xs text-muted">{rectText(x)}</span>
+                <span className="ml-auto text-xs text-muted">{sheetRange(s, x)}</span>
               </button>
             ))}
           </div>

@@ -1,16 +1,17 @@
+import { josa } from '../josa';
 import type { Block, Field, FormSchema, GridBlock, ListBlock, MatrixBlock } from '../schema';
 import { formulaProblem, formulaRefs, parseFormula, refsOnlyInAggregates } from './formula';
 
 /**
  * 계산식에서 쓸 수 있는 칸 이름 (01-contract.md 3.1절)
  * - 목록 계산 칸: 같은 목록의 다른 칸(같은 줄) + 위쪽 정보 항목(고정 칸)
- * - 위쪽 정보 계산 항목: 다른 위쪽 정보 항목 + 목록 칸(합계·평균·최소·최대 안에서만, 열 전체)
+ * - 위쪽 정보 계산 항목: 다른 위쪽 정보 항목 + 목록 칸(합계·평균·최소·최대·개수 안에서만, 열 전체)
  * - 표형 계산 열: 열 제목 + '계'(합계 열이 있을 때) + 다른 계산 열 / 계산 행: 행 제목 + '합계' + 다른 계산 행
  * - 빈칸채우기 계산 칸: 칸 이름 (입력·계산 칸은 항목 이름, 고정 칸은 '{행 첫 칸} · {열 머리글}')
  */
 export interface FormulaScope {
   names: string[];            // 쓸 수 있는 이름
-  aggregateOnly: string[];    // 합계·평균·최소·최대 안에서만 쓸 수 있는 이름
+  aggregateOnly: string[];    // 합계·평균·최소·최대·개수 안에서만 쓸 수 있는 이름
 }
 
 export const TOTAL_ROW_NAME = '합계';
@@ -63,7 +64,7 @@ export function calcProblem(scope: FormulaScope, formula: string | undefined): s
   if (p) return p;
   const node = parseFormula(formula!);
   const outside = formulaRefs(node).filter((r) => scope.aggregateOnly.includes(r) && !refsOnlyInAggregates(node).has(r));
-  if (outside.length) return `[${outside[0]}]은 여러 줄이라 합계·평균·최소·최대 안에서만 쓸 수 있어요.`;
+  if (outside.length) return `${josa(`[${outside[0]}]`, '은', '는')} 여러 줄이라 합계·평균·최소·최대·개수 안에서만 쓸 수 있어요.`;
   return null;
 }
 
