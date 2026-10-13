@@ -89,11 +89,10 @@ export function FormulaEditor({ value, onChange, scope }: { value: string; onCha
         {CMP.map(([l, t]) => <button key={l} type="button" onClick={() => insert(t)} className={cx(chip, 'min-w-7 border-line-strong bg-panel')}>{l}</button>)}
       </div>
       <div className="flex items-center gap-1">
-        <input value={lit} onChange={(e) => setLit(e.target.value)} placeholder="숫자 또는 글자 (예: 100, 적합)" aria-label="넣을 숫자나 글자"
-          className="h-7 w-48 rounded-btn border border-line-strong bg-white px-2 text-xs outline-none focus:border-pri" />
+        <input value={lit} onChange={(e) => setLit(e.target.value)} placeholder="숫자나 글자 넣기 (예: 100, 적합)" aria-label="넣을 숫자나 글자"
+          className="h-7 min-w-0 flex-1 rounded-btn border border-line-strong bg-white px-2 text-xs outline-none focus:border-pri" />
         <button type="button" disabled={!lit.trim()} onClick={() => { const t = lit.trim().replace(/,/g, ''); insert(/^-?\d+(\.\d+)?$/.test(t) ? t : `"${lit.trim().replace(/"/g, '')}"`); setLit(''); }}
-          className={cx(chip, 'border-line-strong bg-white disabled:opacity-50')}>넣기</button>
-        <span className="text-[11px] text-muted">숫자는 그대로, 글자는 따옴표로 들어가요</span>
+          className={cx(chip, 'shrink-0 whitespace-nowrap border-line-strong bg-white disabled:opacity-50')}>넣기</button>
       </div>
       {value && problem ? (
         <div className="rounded-btn bg-err px-2.5 py-1.5 text-xs text-err-ink" role="alert">{problem}</div>

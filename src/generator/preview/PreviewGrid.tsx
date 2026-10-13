@@ -147,7 +147,7 @@ export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleFo
                       aria-selected={selected || undefined}
                     >
                       {c.role === 'locked-value' && text ? `🔒 ${text}` : text}
-                      {c.note && <span className="ml-1 text-[10px] text-pri" aria-hidden>●</span>}
+                      {c.note && c.role !== 'calc' && <span className="ml-1 text-[10px] text-pri" aria-hidden>●</span>}
                     </td>
                   );
                 })}
