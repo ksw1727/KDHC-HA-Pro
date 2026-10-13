@@ -94,7 +94,7 @@ class Layouter {
   private computeLastCol(): number {
     if (this.schema.layout === 'collect') {
       const w = Math.max(0, ...(this.schema.collect?.starter ?? []).map((r) => r.length));
-      return Math.max(3, w);
+      return Math.max(5, w);
     }
     return Math.max(2, ...this.schema.blocks.map((b) => this.blockWidth(b)));
   }

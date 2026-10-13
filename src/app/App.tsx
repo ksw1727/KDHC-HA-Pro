@@ -7,11 +7,11 @@ export function App() {
   const [tab, setTab] = useState<Tab>('generator');
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-4 border-b border-line px-4 py-2.5">
-        <span className="text-[15px] font-extrabold tracking-tight text-pri">
+      <header className="flex items-center gap-4 overflow-x-auto whitespace-nowrap border-b border-line px-4 py-2.5">
+        <span className="shrink-0 text-[15px] font-extrabold tracking-tight text-pri">
           한난<span className="text-ink">MOA</span>
         </span>
-        <nav className="flex gap-0.5 rounded-box bg-chip p-[3px]" aria-label="주요 화면">
+        <nav className="flex shrink-0 gap-0.5 rounded-box bg-chip p-[3px]" aria-label="주요 화면">
           {(
             [
               ['generator', '양식 만들기'],
@@ -32,7 +32,7 @@ export function App() {
             </button>
           ))}
         </nav>
-        <span id="app-header-slot" className="flex flex-1 items-center gap-3" />
+        <span id="app-header-slot" className="flex min-w-0 flex-1 items-center gap-3" />
       </header>
       <main className="min-h-0 flex-1">
         {tab === 'generator' ? (
