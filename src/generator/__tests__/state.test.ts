@@ -190,3 +190,32 @@ describe('자동 저장 (C5)', () => {
     expect(loadForm('bad')).toBeNull();
   });
 });
+
+describe('계산 칸 (상태)', () => {
+  const withCalc = () => {
+    let s = ready('list');
+    s = formReducer(s, { type: 'field/add', blockId: 'b1', key: 'q', fieldType: 'number', label: '수량' });
+    s = formReducer(s, { type: 'field/add', blockId: 'b1', key: 'c', fieldType: 'calc', label: '두배' });
+    return formReducer(s, { type: 'field/update', blockId: 'b1', key: 'c', patch: { formula: '[수량] × 2' } });
+  };
+  test('계산 타입 기본값: 빈 계산식, 필수 아님', () => {
+    const b = withCalc().blocks[0];
+    if (b.kind !== 'list') throw new Error();
+    expect(b.columns[2]).toMatchObject({ type: 'calc', required: false, thousands: true, decimals: 0 });
+  });
+  test('항목 이름을 바꾸면 계산식도 바뀜', () => {
+    const s = formReducer(withCalc(), { type: 'field/update', blockId: 'b1', key: 'q', patch: { label: '개수' } });
+    const b = s.blocks[0];
+    if (b.kind !== 'list') throw new Error();
+    expect(b.columns[2].formula).toBe('[개수] × 2');
+  });
+  test('내보내기 전 검사: 계산식 오류를 그 항목 위치로', () => {
+    const s = formReducer(withCalc(), { type: 'field/update', blockId: 'b1', key: 'c', patch: { formula: '[없음] + 1' } });
+    expect(validateForExport(s)).toEqual([{ where: 'fields', blockId: 'b1', key: 'c', message: '두배: [없음] 칸을 찾을 수 없어요.' }]);
+  });
+  test('표형 계산 열 이름이 열 제목과 같으면 안 됨', () => {
+    let s = ready('matrix');
+    s = formReducer(s, { type: 'matrix/set', blockId: 'b1', patch: { calcCols: [{ key: 'k', label: '1열', type: 'calc', required: false, formula: '[2열] × 2' }] } });
+    expect(validateForExport(s).map((p) => p.message)).toContain('1열: 열 제목과 이름이 같아요. 다른 이름을 써 주세요.');
+  });
+});

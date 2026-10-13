@@ -1,4 +1,9 @@
-import type { ListBlock, MatrixBlock } from '@contract/schema';
+import type { Field, ListBlock, MatrixBlock } from '@contract/schema';
+import { scopeFor } from '@contract/formula';
+import { randomKey } from '../state/newSchema';
+import { newField } from '../state/fieldDefaults';
+import { useState } from 'react';
+import { Button } from '../ui/ui';
 import type { Builder } from '../state/useBuilder';
 import { Field as F, NumberInput, TextArea, TextInput, Toggle } from '../ui/ui';
 import { FieldEditor } from './FieldEditor';
@@ -52,9 +57,47 @@ export function MatrixEditor({ b, block }: { b: Builder; block: MatrixBlock }) {
         <span className="text-sub">합계 행</span><Toggle label="합계 행" checked={block.totalRow} onChange={(v) => set({ totalRow: v })} />
         <span className="ml-4 text-sub">합계 열(계)</span><Toggle label="합계 열" checked={block.totalCol} onChange={(v) => set({ totalCol: v })} />
       </div>
+      <CalcLines b={b} block={block} kind="calcCols" />
+      <CalcLines b={b} block={block} kind="calcRows" />
       <div>
         <div className="rounded-t-card border border-line bg-panel px-2.5 py-1 text-[11.5px] font-semibold text-muted">모든 칸에 적용되는 숫자 서식</div>
         <FieldEditor f={block.cell} lockType onPatch={(p) => b.act({ type: 'field/update', blockId: block.id, key: block.cell.key, patch: p })} />
+      </div>
+    </div>
+  );
+}
+
+/** 표형 계산 열·계산 행 목록 */
+function CalcLines({ b, block, kind }: { b: Builder; block: MatrixBlock; kind: 'calcRows' | 'calcCols' }) {
+  const lines = block[kind] ?? [];
+  const [openLocal, setOpen] = useState<string | null>(null);
+  const open = b.selected?.blockId === block.id && lines.some((l) => l.key === b.selected?.key) ? b.selected.key : openLocal;
+  const isCol = kind === 'calcCols';
+  const set = (next: Field[]) => b.act({ type: 'matrix/set', blockId: block.id, patch: { [kind]: next } });
+  return (
+    <div className="overflow-hidden rounded-card border border-line">
+      <div className="flex items-center justify-between border-b border-line bg-panel px-2.5 py-1 text-[11.5px] font-semibold text-muted">
+        <span>{isCol ? '계산 열 · 표 오른쪽에 붙어요 (예: 비율 = [여] ÷ [계] × 100)' : '계산 행 · 표 아래에 붙어요 (예: 차이 = [2학년] − [1학년])'}</span>
+        <span>{lines.length}</span>
+      </div>
+      {lines.map((f) => (
+        <div key={f.key}>
+          <div className={'flex items-center gap-2 border-b border-line px-2.5 py-1.5 ' + (open === f.key ? 'bg-pri-bg' : 'bg-white')}>
+            <button type="button" className="flex-1 text-left" aria-expanded={open === f.key} onClick={() => { setOpen(open === f.key ? null : f.key); b.setSelected(open === f.key ? null : { blockId: block.id, key: f.key }); }}>
+              <b>{f.label || '(이름 없음)'}</b> <span className="ml-1 font-mono text-xs text-muted">{f.formula || '계산식 없음'}</span>
+            </button>
+            <button type="button" aria-label={`${f.label} 삭제`} className="px-1 text-muted hover:text-err-ink" onClick={() => set(lines.filter((x) => x.key !== f.key))}>✕</button>
+          </div>
+          {open === f.key && (
+            <FieldEditor f={f} lockType scope={scopeFor(b.schema, block, f, isCol ? 'col' : 'row')}
+              onPatch={(p) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: p })} />
+          )}
+        </div>
+      ))}
+      <div className="px-2.5 py-1.5">
+        <Button size="sm" onClick={() => { const key = randomKey(); set([...lines, { ...newField(key, 'calc', isCol ? `계산 열 ${lines.length + 1}` : `계산 행 ${lines.length + 1}`) }]); setOpen(key); }}>
+          + {isCol ? '계산 열' : '계산 행'} 추가
+        </Button>
       </div>
     </div>
   );

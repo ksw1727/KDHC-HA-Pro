@@ -4,6 +4,7 @@ import { FieldList } from './FieldList';
 import { ListSettings, MatrixEditor } from './BlockSettings';
 import { GridEditor } from './GridEditor';
 import { CollectSettings } from './CollectSettings';
+import { scopeFor } from '@contract/formula';
 
 /** ③ 항목·서식: 블록 종류별 편집기 */
 export function FieldsPanel({ b }: { b: Builder }) {
@@ -29,6 +30,7 @@ export function FieldsPanel({ b }: { b: Builder }) {
               onRemove={(key) => { b.act({ type: 'field/remove', blockId: block.id, key }); if (b.selected?.key === key) b.setSelected(null); }}
               onMove={(from, to) => b.act({ type: 'field/move', blockId: block.id, from, to })}
               extra={block.kind === 'list' ? <ListSettings b={b} block={block} /> : undefined}
+              scopeOf={(f) => scopeFor(s, block, f)}
             />
           );
         }

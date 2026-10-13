@@ -3,6 +3,7 @@ import { AGGREGATION_REQUIRED, availableAggregations, type AggregationId } from 
 import { newField, patchField } from './fieldDefaults';
 import { changeLayout } from './changeLayout';
 import { defaultAggregations } from './newSchema';
+import { renameRef } from '@contract/formula';
 
 export type Action =
   | { type: 'meta/set'; patch: Partial<Pick<FormSchema, 'title' | 'guide' | 'deadline' | 'contact'>> }
@@ -12,7 +13,7 @@ export type Action =
   | { type: 'field/remove'; blockId: string; key: string }
   | { type: 'field/move'; blockId: string; from: number; to: number }
   | { type: 'list/set'; blockId: string; patch: { maxRows?: number; exampleRow?: Record<string, string | number> | null } }
-  | { type: 'matrix/set'; blockId: string; patch: Partial<Pick<MatrixBlock, 'rowLabels' | 'colLabels' | 'totalRow' | 'totalCol'>> }
+  | { type: 'matrix/set'; blockId: string; patch: Partial<Pick<MatrixBlock, 'rowLabels' | 'colLabels' | 'totalRow' | 'totalCol' | 'calcRows' | 'calcCols'>> }
   | { type: 'grid/replace'; blockId: string; grid: Pick<GridBlock, 'colLabels' | 'rows' | 'spareRows' | 'spareColumns'> }
   | { type: 'collect/set'; patch: Partial<CollectSpec> }
   | { type: 'org/set'; patch: Partial<FormSchema['org']> }
@@ -36,8 +37,41 @@ export function nextLabel(existing: Field[]): string {
   return `항목 ${n}`;
 }
 
+/** 항목 이름이 바뀌면 같은 블록·위쪽 정보 계산식 안의 [이전 이름]도 바꾼다 */
+function renameInFormulas(s: FormSchema, from: string, to: string): FormSchema {
+  if (!from.trim() || from.trim() === to.trim()) return s;
+  const fix = (f: Field): Field => (f.type === 'calc' && f.formula ? { ...f, formula: renameRef(f.formula, from.trim(), to.trim()) } : f);
+  return {
+    ...s,
+    blocks: s.blocks.map((b): Block => {
+      switch (b.kind) {
+        case 'fields': return { ...b, fields: b.fields.map(fix) };
+        case 'list': return { ...b, columns: b.columns.map(fix) };
+        case 'matrix': return { ...b, calcRows: b.calcRows?.map(fix), calcCols: b.calcCols?.map(fix) };
+        case 'grid': return { ...b, rows: b.rows.map((r) => r.map((c) => (c.kind === 'calc' ? { ...c, field: fix(c.field) } : c))), spareColumns: b.spareColumns?.map(fix) };
+      }
+    }),
+  };
+}
+
+function labelOf(s: FormSchema, blockId: string, key: string): string | undefined {
+  const b = s.blocks.find((x) => x.id === blockId);
+  if (!b) return undefined;
+  const all: Field[] = b.kind === 'fields' ? b.fields : b.kind === 'list' ? b.columns : b.kind === 'matrix' ? [b.cell, ...(b.calcRows ?? []), ...(b.calcCols ?? [])] : [...b.rows.flat().flatMap((c) => (c.kind === 'input' || c.kind === 'calc' ? [c.field] : [])), ...(b.spareColumns ?? [])];
+  return all.find((f) => f.key === key)?.label;
+}
+
 /** 순수 함수 리듀서. 시간·무작위 값은 action으로 받는다. */
 export function formReducer(s: FormSchema, a: Action): FormSchema {
+  if (a.type === 'field/update' && a.patch.label !== undefined) {
+    const old = labelOf(s, a.blockId, a.key);
+    const next = formReducerCore(s, a);
+    return old !== undefined ? renameInFormulas(next, old, a.patch.label) : next;
+  }
+  return formReducerCore(s, a);
+}
+
+function formReducerCore(s: FormSchema, a: Action): FormSchema {
   switch (a.type) {
     case 'meta/set':
       return { ...s, ...a.patch };
@@ -58,11 +92,15 @@ export function formReducer(s: FormSchema, a: Action): FormSchema {
 
     case 'field/update':
       return updateBlock(s, a.blockId, (b) => {
-        if (b.kind === 'matrix') return b.cell.key === a.key ? { ...b, cell: patchField(b.cell, { ...a.patch, type: 'number' }) } : b;
+        if (b.kind === 'matrix') {
+          if (b.cell.key === a.key) return { ...b, cell: patchField(b.cell, { ...a.patch, type: 'number' }) };
+          const fix = (f: Field) => (f.key === a.key ? patchField(f, { ...a.patch, type: 'calc' }) : f);
+          return { ...b, calcRows: b.calcRows?.map(fix), calcCols: b.calcCols?.map(fix) };
+        }
         if (b.kind === 'grid') {
           return {
             ...b,
-            rows: b.rows.map((r) => r.map((c) => (c.kind === 'input' && c.field.key === a.key ? { ...c, field: patchField(c.field, a.patch) } : c))),
+            rows: b.rows.map((r) => r.map((c) => ((c.kind === 'input' || c.kind === 'calc') && c.field.key === a.key ? { ...c, field: patchField(c.field, c.kind === 'calc' ? { ...a.patch, type: 'calc' } : a.patch) } : c))),
             spareColumns: b.spareColumns?.map((f) => (f.key === a.key ? patchField(f, a.patch) : f)),
           };
         }

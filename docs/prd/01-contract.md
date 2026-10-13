@@ -39,7 +39,7 @@ src/contract/
 ## 3. 양식 정의 `FormSchema`
 
 ```ts
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern';
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern' | 'calc';
 
 export interface Field {
   key: string;            // 내부 식별자. 생성 시 자동 발급(예: "f_8k2m"), 이후 절대 변경하지 않음
@@ -58,6 +58,7 @@ export interface Field {
   minDate?: string; maxDate?: string;         // date. 'YYYY-MM-DD' 또는 상대값 'today', 'today+30', 'today-7'
   options?: string[];                         // select (1개 이상, 중복 불가)
   pattern?: 'phone' | 'mobile' | 'email' | 'bizno';   // pattern (필수)
+  formula?: string;                           // calc (필수). 칸 이름으로 쓴 계산식 (3.1절)
 }
 
 export interface FieldsBlock { kind: 'fields'; id: string; title?: string; fields: Field[]; }
@@ -76,12 +77,15 @@ export interface MatrixBlock {
   cell: Field;             // 모든 칸에 적용되는 규칙. type은 반드시 'number'
   totalRow: boolean;       // 합계 행 표시 여부 (빈 양식에는 수식, 취합본에는 값)
   totalCol: boolean;       // 합계 열(계) 표시 여부
+  calcRows?: Field[];      // 계산 행 (type 'calc'). 표 아래, 합계 행 다음
+  calcCols?: Field[];      // 계산 열 (type 'calc'). 표 오른쪽, 계 열 다음
 }
 
 /** 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내고 채운 칸을 겹쳐 합친다. */
 export type GridCell =
   | { kind: 'fixed'; value: string | number }   // 본사가 미리 채운 고정 내용 (잠금)
   | { kind: 'input'; field: Field }             // 작성자가 채우는 칸 (field.key는 블록 안에서 유일)
+  | { kind: 'calc'; field: Field }              // 계산 칸 (type 'calc', 잠금)
   | { kind: 'blank' };                          // 아무것도 아닌 빈칸 (잠금)
 
 export interface GridBlock {
@@ -140,6 +144,30 @@ export interface FormSchema {
 - 이 문서와 화면의 "지사"는 `org.label`로 바뀌어 보인다(예: "부서명", "부서별 시트").
 - 지사명 칸은 블록이 아니다. `org.mode`가 `preset`·`input`이면 생성 파트가 자동으로 넣고 위치를 `CellMap.orgCell`에 적는다. `none`이면 지사명 칸이 없다(파일 하나 = 응답 하나).
 - `fill-in`의 `input` 칸이 1개 이상이거나 `spareRows > 0`이어야 한다.
+
+### 3.1 계산 칸 (`formula/`)
+
+계산 칸(`type: 'calc'`)은 작성자가 입력하지 않고 **엑셀 수식으로 계산**되는 잠긴 칸이다. 계산식 엔진은 `src/contract/formula/` 하나를 두 파트가 함께 쓴다.
+
+**계산식 문법** — 칸은 이름으로 쓴다: `[여] ÷ ([남] + [여]) × 100`
+- 연산: `+ - × ÷ ( )` (`* /`도 됨), 비교 `>= > <= < = <>`, 숫자, 글자 `"적합"`. 계산식 안에서는 천 단위 쉼표를 쓰지 않는다.
+- 함수(한글·영문 둘 다): `합계/SUM`, `평균/AVERAGE`, `최소/MIN`, `최대/MAX`(여러 값, 빈칸 건너뜀), `반올림/ROUND(값, 자릿수)`(엑셀처럼 0에서 먼 쪽), `조건/IF(비교, 맞을 때, 아닐 때)`
+- 저장은 사람이 읽는 글자 그대로. 항목 이름을 바꾸면 빌더가 계산식 안의 이름도 바꾼다.
+
+**쓸 수 있는 이름 (`scopeFor`)**
+
+| 계산 칸 위치 | 쓸 수 있는 이름 | 엑셀 수식 |
+|---|---|---|
+| 목록 열 | 같은 목록의 다른 칸(같은 줄), 위쪽 정보 항목(고정 칸) | 같은 줄 주소, 위쪽 정보는 `$B$6` |
+| 위쪽 정보 항목 | 다른 위쪽 정보 항목, 목록 칸(**합계·평균·최소·최대 안에서만**, 열 전체) | 목록 칸은 `D10:D109` 범위 |
+| 표형 계산 열 | 열 제목, `계`(합계 열), 다른 계산 열 | 행마다 같은 행 주소. 합계 행·계산 행에도 같은 식 |
+| 표형 계산 행 | 행 제목, `합계`(합계 행), 다른 계산 행 | 열마다 같은 열 주소 |
+| 빈칸채우기 계산 칸 | 입력·계산 칸 이름, 숫자 고정 칸 `{행 첫 칸} · {열 머리글}` | 그 칸 주소 |
+| 빈칸채우기 여유 줄 계산 열 | 다른 여유 줄 열 이름(같은 줄) | 같은 줄 주소 |
+
+- 엑셀 수식은 `IFERROR(…,"")`로 감싼다(0으로 나누기·빈칸이면 빈칸). 셀 메모에 `계산: {계산식}`을 단다.
+- 검사(`validateSchema`·`formulaErrors`): 문법, 없는 이름, 자기 자신, 계산 칸끼리 순환, 합계 안에서만 쓸 목록 칸.
+- **취합본은 계산 칸을 읽지 않고, 합친 입력값으로 다시 계산한다**(`computeListRow`, `computeHeader`, `computeMatrix`, `computeGrid`, `computeSpareRow`). 비율처럼 지사 값을 더하면 틀리는 값이 있기 때문이다. 표형 합계 행의 계산 열 값은 합계 행 값으로 다시 계산한다.
 
 ## 4. 파일 메타 `FileMeta`
 
@@ -333,7 +361,7 @@ export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]>;
 
 ```ts
 // src/contract/layout/layoutEngine.ts — 순수 함수
-export function layoutSheet(schema: FormSchema, input: LayoutInput): SheetModel;
+export function layoutSheet(schema: FormSchema, input: LayoutInput, opts: { today: Date }): SheetModel;   // today: 상대 날짜 입력 규칙용
 
 type LayoutInput =
   | { mode: 'template'; orgName?: string }                    // 빈 양식
@@ -354,7 +382,7 @@ interface ModelCell {
   value?: string | number;
   formula?: string;                  // 합계 행·열 등
   role: 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
-      | 'example' | 'fixed' | 'auto-header' | 'auto-value';
+      | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc';
   required?: boolean;
   numFmt?: string;
   wrap?: boolean;

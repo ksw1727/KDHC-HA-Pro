@@ -22,7 +22,7 @@ export function setInputs(g: GridData, range: Range, key: () => string, template
     ...g,
     rows: g.rows.map((row, r) => row.map((cell, c): GridCell => {
       if (!inRange(rg, r, c)) return cell;
-      const base = cell.kind === 'input' ? cell.field : newField(key(), template?.type ?? 'text', inputName(g, r, c));
+      const base = cell.kind === 'input' ? cell.field : newField(key(), template?.type ?? 'text', cell.kind === 'calc' ? cell.field.label : inputName(g, r, c));
       const { key: _k, label: _l, ...rest } = template ?? {};
       return { kind: 'input', field: { ...base, ...rest } };
     })),
@@ -96,5 +96,19 @@ export function fromPaste(table: (string | number | null)[][]): GridData {
     colLabels: head.map((h) => (h == null ? '' : String(h))),
     rows: body.map((r) => r.map((v): GridCell => (v == null ? { kind: 'blank' } : { kind: 'fixed', value: v }))),
     spareRows: 0,
+  };
+}
+
+/** 범위를 계산 칸으로 (계산식은 비어 있음) */
+export function setCalc(g: GridData, range: Range, key: () => string): GridData {
+  const rg = norm(range);
+  return {
+    ...g,
+    rows: g.rows.map((row, r) => row.map((cell, c): GridCell => {
+      if (!inRange(rg, r, c)) return cell;
+      if (cell.kind === 'calc') return cell;
+      const label = cell.kind === 'input' ? cell.field.label : inputName(g, r, c);
+      return { kind: 'calc', field: newField(cell.kind === 'input' ? cell.field.key : key(), 'calc', label) };
+    })),
   };
 }

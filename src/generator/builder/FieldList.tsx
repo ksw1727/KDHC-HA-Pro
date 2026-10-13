@@ -6,6 +6,7 @@ import { FIELD_TYPES, FIELD_TYPE_ORDER } from '@contract/fieldTypes';
 import { Chip, cx } from '../ui/ui';
 import { FieldEditor } from './FieldEditor';
 import { useState } from 'react';
+import type { FormulaScope } from '@contract/formula';
 
 interface Props {
   title: string;
@@ -18,6 +19,7 @@ interface Props {
   onRemove: (key: string) => void;
   onMove: (from: number, to: number) => void;
   extra?: React.ReactNode;
+  scopeOf?: (f: Field) => FormulaScope;
 }
 
 function Row({ f, selected, bad, onClick, onRemove }: { f: Field; selected: boolean; bad: boolean; onClick: () => void; onRemove: () => void }) {
@@ -36,7 +38,7 @@ function Row({ f, selected, bad, onClick, onRemove }: { f: Field; selected: bool
   );
 }
 
-export function FieldList({ title, fields, selectedKey, badKeys, onSelect, onPatch, onAdd, onRemove, onMove, extra }: Props) {
+export function FieldList({ title, fields, selectedKey, badKeys, onSelect, onPatch, onAdd, onRemove, onMove, extra, scopeOf }: Props) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const [adding, setAdding] = useState(false);
   const onDragEnd = (e: DragEndEvent) => {
@@ -52,7 +54,7 @@ export function FieldList({ title, fields, selectedKey, badKeys, onSelect, onPat
             {fields.map((f) => (
               <div key={f.key}>
                 <Row f={f} selected={selectedKey === f.key} bad={badKeys.has(f.key)} onClick={() => onSelect(selectedKey === f.key ? null : f.key)} onRemove={() => onRemove(f.key)} />
-                {selectedKey === f.key && <FieldEditor f={f} onPatch={(p) => onPatch(f.key, p)} />}
+                {selectedKey === f.key && <FieldEditor f={f} onPatch={(p) => onPatch(f.key, p)} scope={scopeOf?.(f)} />}
               </div>
             ))}
           </SortableContext>

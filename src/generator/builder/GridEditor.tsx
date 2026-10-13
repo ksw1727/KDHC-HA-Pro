@@ -6,7 +6,9 @@ import { randomKey } from '../state/newSchema';
 import { Button, NumberInput, TextArea, TextInput, Toggle, cx } from '../ui/ui';
 import { FieldEditor } from './FieldEditor';
 import { parsePastedTable } from './parsePastedTable';
-import { addCol, addRow, fromPaste, norm, removeCol, removeRow, setBlank, setFixed, setInputs, setValue, syncSpare, type GridData, type Range } from './gridOps';
+import { addCol, addRow, fromPaste, norm, removeCol, removeRow, setBlank, setCalc, setFixed, setInputs, setValue, syncSpare, type GridData, type Range } from './gridOps';
+import { scopeFor } from '@contract/formula';
+import { FormulaEditor } from './FormulaEditor';
 
 /** 빈칸채우기형 표 편집기 (02-generator.md 2.4) */
 export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
@@ -21,7 +23,7 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
   const click = (r: number, c: number, shift: boolean) => {
     setSel(shift && sel ? { ...sel, r2: r, c2: c } : { r1: r, c1: c, r2: r, c2: c });
     const cell = g.rows[r][c];
-    if (cell.kind === 'input' && !shift) b.setSelected({ blockId: block.id, key: cell.field.key });
+    if ((cell.kind === 'input' || cell.kind === 'calc') && !shift) b.setSelected({ blockId: block.id, key: cell.field.key });
     else b.setSelected(null);
   };
 
@@ -35,6 +37,13 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
           const cell = next.rows[rg.r1][rg.c1];
           if (cell.kind === 'input') b.setSelected({ blockId: block.id, key: cell.field.key });
         }}>입력칸으로</Button>
+        <Button size="sm" disabled={!rg} onClick={() => {
+          if (!rg) return;
+          const next = setCalc(g, rg, randomKey);
+          put(next);
+          const cell = next.rows[rg.r1][rg.c1];
+          if (cell.kind === 'calc') b.setSelected({ blockId: block.id, key: cell.field.key });
+        }}>계산 칸으로</Button>
         <Button size="sm" disabled={!rg} onClick={() => rg && put(setFixed(g, rg))}>고정 칸으로</Button>
         <Button size="sm" disabled={!rg} onClick={() => rg && put(setBlank(g, rg))}>빈칸으로</Button>
         <span className="flex-1" />
@@ -62,9 +71,10 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
               <tr key={r}>
                 {row.map((cell, c) => (
                   <td key={c} onClick={(e) => click(r, c, e.shiftKey)}
-                    className={cx('h-7 min-w-24 cursor-pointer border border-line px-1.5', cell.kind === 'input' && (cell.field.required ? 'bg-req' : 'bg-white'), cell.kind === 'blank' && 'bg-[#fafbfc]', isSel(r, c) && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
+                    className={cx('h-7 min-w-24 cursor-pointer border border-line px-1.5', cell.kind === 'input' && (cell.field.required ? 'bg-req' : 'bg-white'), cell.kind === 'calc' && 'bg-[#f3f7fd]', cell.kind === 'blank' && 'bg-[#fafbfc]', isSel(r, c) && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
                     {cell.kind === 'fixed' && String(cell.value)}
                     {cell.kind === 'input' && <span className="text-pri-ink">[{cell.field.label}]</span>}
+                    {cell.kind === 'calc' && <span className="font-mono text-[#174a96]">= {cell.field.formula || '계산식?'}</span>}
                   </td>
                 ))}
               </tr>
@@ -81,10 +91,10 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
             onBlur={(e) => put(setValue(g, rg.r1, rg.c1, e.target.value))} />
         </div>
       )}
-      {single?.kind === 'input' && b.selected?.key === single.field.key && (
+      {(single?.kind === 'input' || single?.kind === 'calc') && b.selected?.key === single.field.key && (
         <div>
-          <div className="rounded-t-card border border-line bg-panel px-2.5 py-1 text-[11.5px] font-semibold text-muted">입력칸 설정</div>
-          <FieldEditor f={single.field} onPatch={(p) => b.act({ type: 'field/update', blockId: block.id, key: single.field.key, patch: p })} />
+          <div className="rounded-t-card border border-line bg-panel px-2.5 py-1 text-[11.5px] font-semibold text-muted">{single.kind === 'calc' ? '계산 칸 설정 · 다른 칸은 이름으로 써요 (고정 숫자 칸 이름: 행 첫 칸 · 열 머리글)' : '입력칸 설정'}</div>
+          <FieldEditor f={single.field} lockType={single.kind === 'calc'} scope={scopeFor(b.schema, block, single.field)} onPatch={(p) => b.act({ type: 'field/update', blockId: block.id, key: single.field.key, patch: p })} />
         </div>
       )}
 
@@ -105,7 +115,7 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
           <span className="text-xs text-muted">작성자가 줄을 더 적을 수 있는 영역</span>
         </div>
         {g.spareRows > 0 && (g.spareColumns ?? []).map((f, i) => (
-          <div key={f.key} className="flex items-center gap-2">
+          <div key={f.key} className="flex flex-wrap items-center gap-2">
             <span className="w-24 truncate">{f.label}</span>
             <select aria-label={`${f.label} 타입`} value={f.type} onChange={(e) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: { type: e.target.value as FieldType } })}
               className="h-7 rounded-btn border border-line-strong bg-white px-1.5 text-xs">
@@ -114,6 +124,11 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
             <span className="text-xs text-sub">필수</span>
             <Toggle label={`${f.label} 필수`} checked={f.required} onChange={(v) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: { required: v } })} />
             <span className="sr-only">{i}</span>
+            {f.type === 'calc' && (
+              <div className="basis-full pl-2">
+                <FormulaEditor value={f.formula ?? ''} scope={scopeFor(b.schema, block, f, 'spare')} onChange={(formula) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: { formula } })} />
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -1,6 +1,7 @@
 import type { Block, Field, FormSchema } from '@contract/schema';
 import { orgLabel, validateSchema } from '@contract/schema';
 import { resolveDate } from '@contract/fieldTypes';
+import { calcEntries, calcProblem, formulaErrors, scopeFor } from '@contract/formula';
 
 export type Where = 'meta' | 'layout' | 'fields' | 'aggregations' | 'org';
 
@@ -59,9 +60,14 @@ function blockProblems(b: Block, layout: FormSchema['layout'], out: ExportProble
       if (b.colLabels.filter((x) => x.trim()).length === 0) out.push({ where: 'fields', blockId: b.id, message: '표의 열 제목을 1개 이상 넣어 주세요.' });
       if (b.rowLabels.some((x) => !x.trim()) || b.colLabels.some((x) => !x.trim())) out.push({ where: 'fields', blockId: b.id, message: '비어 있는 행·열 제목이 있어요.' });
       fieldProblems(b.id, [b.cell], out);
+      for (const [lines, used, what] of [[b.calcCols ?? [], [...b.colLabels, ...(b.totalCol ? ['계'] : [])], '열 제목'], [b.calcRows ?? [], [...b.rowLabels, ...(b.totalRow ? ['합계'] : [])], '행 제목']] as const) {
+        fieldProblems(b.id, [...lines], out);
+        for (const f of lines) if (used.map((x) => x.trim()).includes(f.label.trim())) out.push({ where: 'fields', blockId: b.id, key: f.key, message: `${f.label}: ${what}과 이름이 같아요. 다른 이름을 써 주세요.` });
+      }
       break;
     case 'grid': {
       const inputs = b.rows.flat().flatMap((c) => (c.kind === 'input' ? [c.field] : []));
+      fieldProblems(b.id, b.rows.flat().flatMap((c) => (c.kind === 'calc' ? [c.field] : [])), out);
       if (inputs.length === 0 && b.spareRows <= 0) out.push({ where: 'fields', blockId: b.id, message: '입력칸을 1개 이상 지정하거나 여유 줄을 넣어 주세요.' });
       fieldProblems(b.id, inputs, out);
       if (b.spareRows > 0) fieldProblems(b.id, b.spareColumns ?? [], out);
@@ -75,6 +81,11 @@ export function validateForExport(s: FormSchema): ExportProblem[] {
   const out: ExportProblem[] = [];
   if (!s.title.trim()) out.push({ where: 'meta', message: '제목을 입력해 주세요.' });
   s.blocks.forEach((b) => blockProblems(b, s.layout, out));
+  for (const e of calcEntries(s)) {
+    const p = calcProblem(scopeFor(s, e.block, e.field, e.where), e.field.formula);
+    if (p) out.push({ where: 'fields', blockId: e.block.id, key: e.field.key, message: `${e.field.label || '계산 칸'}: ${p}` });
+  }
+  for (const m of formulaErrors(s)) if (m.includes('서로를 가리키고')) out.push({ where: 'fields', message: m });
   if (s.org.mode === 'preset' && !(s.org.orgs?.length)) {
     out.push({ where: 'org', message: `${orgLabel(s)} 목록이 비어 있어요. 목록을 넣거나 "식별 안 함"을 골라 주세요.` });
   }

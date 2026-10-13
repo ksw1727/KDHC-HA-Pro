@@ -72,10 +72,11 @@ export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleFo
   }, [model]);
 
   const display = (c: ModelCell): { text: string; sample?: boolean } => {
+    if (c.formula && c.role === 'calc') return { text: `= ${c.note?.replace(/^계산: /, '') ?? '계산'}`, sample: true };
     if (c.formula) return { text: '자동 합계', sample: true };
     const f = c.fieldKey ? fieldsByKey.get(c.fieldKey) : undefined;
     if (c.value !== undefined) {
-      if (typeof c.value === 'number' && f?.type === 'number' && c.role !== 'header' && c.role !== 'label') return { text: formatNumber(c.value, f) };
+      if (typeof c.value === 'number' && (f?.type === 'number' || f?.type === 'calc') && c.role !== 'header' && c.role !== 'label') return { text: formatNumber(c.value, f) };
       return { text: typeof c.value === 'number' ? c.value.toLocaleString('ko-KR') : c.value };
     }
     if (showSampleForSelected && f && c.fieldKey === selectedKey && c.role === 'input' && firstInputRowOf.get(f.key) === parseAddr(c.address).row)

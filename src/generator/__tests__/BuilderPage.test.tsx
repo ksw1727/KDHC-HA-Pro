@@ -51,3 +51,22 @@ test('② 양식 구조: 지금 구조의 미리보기 애니메이션, 올려 �
   fireEvent.mouseEnter(screen.getByRole('radio', { name: /빈칸채우기형/ }));
   expect(screen.getByText('미리 보기 · 누르면 바뀌어요')).toBeTruthy();
 });
+
+test('목록에 계산 칸 추가: 칸 이름 버튼으로 계산식을 만들고 미리보기에 수식이 보인다', () => {
+  render(<BuilderPage />);
+  const addButtons = screen.getAllByText('+ 항목 추가');
+  fireEvent.click(addButtons[1]);
+  fireEvent.click(screen.getByRole('button', { name: '숫자' }));
+  fireEvent.change(screen.getByDisplayValue('항목 2'), { target: { value: '수량' } });
+  fireEvent.click(screen.getAllByText('+ 항목 추가')[1]);
+  fireEvent.click(screen.getByRole('button', { name: '계산' }));
+  const group = screen.getByRole('group', { name: '칸 이름' });
+  fireEvent.click(within(group).getByRole('button', { name: '수량' }));
+  fireEvent.click(within(screen.getByRole('group', { name: '연산' })).getByRole('button', { name: '×' }));
+  fireEvent.change(screen.getByLabelText('넣을 숫자나 글자'), { target: { value: '2' } });
+  fireEvent.click(screen.getByRole('button', { name: '넣기' }));
+  expect((screen.getByLabelText('계산식') as HTMLInputElement).value).toBe('[수량] × 2');
+  expect(screen.getByText(/예시\(.*\)로 계산하면/)).toBeTruthy();
+  const grid = screen.getByRole('grid', { name: '엑셀 미리보기' });
+  expect(within(grid).getAllByText('= [수량] × 2').length).toBeGreaterThan(0);
+});
