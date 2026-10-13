@@ -25,7 +25,7 @@ src/contract/
   meta.ts          FileMeta, CellMap, NormalizedSubmission 타입
   metaIO.ts        writeMeta(workbook, meta) / readMeta(workbook) — _meta 시트와 파일 속성 읽기·쓰기
   recordsIO.ts     writeRecords / readRecords — _records 시트
-  xlsxPatch.ts     ExcelJS가 지원하지 않는 부분 후처리 (파일 속성 custom.xml, 통합문서 구조 보호)
+  xlsxPatch.ts     ExcelJS가 지원하지 않는 부분 후처리 (파일 속성 custom.xml)
   checksum.ts      computeChecksum(meta)
   fieldTypes/      항목 타입 정의 (5절) — index.ts에 레지스트리
   layout/          같은 틀 레이아웃 엔진 (7절) — layoutEngine.ts, sheetModel.ts, styles.ts
@@ -248,10 +248,11 @@ ExcelJS는 사용자 지정 속성을 지원하지 않으므로 `xlsxPatch.ts`�
 > 참고: 문서 속성 `created`(생성 시각)는 템플릿 생성 시각이 복사되어 모든 회신이 같으므로 최신 판단에 쓰지 않는다. **`modified`(마지막 저장 시각)**를 쓴다.
 
 ### 4.3 보호
-- 입력 시트: 시트 보호. 입력칸(목록 입력 줄, 값 칸, 표 칸, 빈칸채우기 입력칸·여유 줄)만 `locked = false`. 허용 동작: 셀 선택, 서식 없는 입력.
-- 통합문서 구조 보호(`<workbookProtection lockStructure="1"/>`): 시트 추가·삭제·숨기기 해제 차단. `xlsxPatch.ts`가 `xl/workbook.xml`에 삽입. **취합본에는 넣지 않는다.**
+- 입력 시트: 시트 보호. 입력칸(목록 입력 줄, 값 칸, 표 칸, 빈칸채우기 입력칸·여유 줄)만 `locked = false`. 그 밖의 칸(인쇄영역 밖 포함)은 모두 잠긴다. 허용 동작: 셀 선택, 서식 없는 입력, **엑셀 메모 넣기**(개체 편집 허용 — ExcelJS `protect()`에서 `objects`를 `false`로 주지 않는다).
+- 칸 안에 글로 적는 메모는 받지 않는다. 작성자 메모는 **엑셀 메모(말풍선)만** 받는다(`00-overview.md` M20).
+- **통합문서 구조 보호는 넣지 않는다.** 작성자가 계산용 시트를 추가할 수 있어야 하기 때문이다(M20). 추가된 시트는 취합에서 읽지 않는다. 양식 시트 이름이 바뀌어도 취합은 `_meta.sheetName` → 머리글 일치율 순으로 양식 시트를 찾는다. 양식 시트를 지운 파일은 읽을 수 없다("양식 시트가 없어요"로 제외). `_meta`는 veryHidden이라 엑셀 메뉴로 숨김 해제할 수 없다.
 - 보호 비밀번호: 미결정(D2). 기본안은 앱 고정 비밀번호 상수 `PROTECT_PASSWORD`를 `contract/version.ts`에 둔다.
-- **`collect`(시트 모으기형)는 시트 보호와 통합문서 구조 보호를 모두 넣지 않는다.** 엑셀은 보호된 시트에서 셀 합치기를 막고, 구조 보호는 시트 추가를 막기 때문이다(`scope: 'all'`이면 제출처가 시트를 추가할 수 있어야 함). 제출처 식별은 `_meta`(veryHidden이라 엑셀 메뉴에 보이지 않음)와 파일 속성으로만 한다. 1~2행의 제목·제출처명은 안내용이며 고쳐도 취합에 영향이 없다.
+- **`collect`(시트 모으기형)는 시트 보호를 넣지 않는다.** 엑셀은 보호된 시트에서 셀 합치기를 막기 때문이다(`scope: 'all'`이면 제출처가 추가한 시트도 모은다). 제출처 식별은 `_meta`(veryHidden이라 엑셀 메뉴에 보이지 않음)와 파일 속성으로만 한다. 1~2행의 제목·제출처명은 안내용이며 고쳐도 취합에 영향이 없다.
 
 ### 4.4 체크섬
 - `computeChecksum(meta)` = `SHA-256( canonicalJSON({ kind, schema, orgName, sheetName, cellMap, aggregate }) )`의 16진수 앞 16자.
@@ -410,7 +411,7 @@ interface ModelCell {
      list:   머리글 행 + (예시 줄) + maxRows개 입력 행, A열은 번호(잠금)
      matrix: 첫 행 = [빈칸 | 열 제목들 (| 계)], 이후 행 = [행 제목 | 입력칸들 (| 계)], (합계 행)
      grid:   머리글 행 + 본문 행(고정/입력/빈칸) + spareRows개 여유 줄
-인쇄영역 = 1행 ~ 입력 영역 마지막 행, A ~ 마지막 열. 인쇄영역 밖은 작성자 자유 메모 공간.
+인쇄영역 = 1행 ~ 입력 영역 마지막 행, A ~ 마지막 열. 입력칸 밖(인쇄영역 밖 포함)은 잠겨 있어 작성자가 글을 적을 수 없다. 작성자 메모는 엑셀 메모로만 받는다.
 ```
 
 ### 7.2 같은 틀 시트 규칙 (구조별)
@@ -450,7 +451,9 @@ interface ModelCell {
 | `fill-in__conflict.xlsx` | 다른 파일과 같은 칸에 다른 값, 고정 칸 수정 |
 | `messy__hidden-strike-merge.xlsx` | 숨긴 줄, 필터로 가린 줄, 취소선, 합친 셀, `〃` |
 | `messy__units-dates.xlsx` | `1,000개`, `₩5,000`, `2026.11.1`, `11/1`, `약 10`, `#REF!` |
-| `messy__total-example-memo.xlsx` | 예시 줄 미삭제, 합계 줄, 메모 줄, 인쇄영역 밖 메모, 인쇄영역 밖으로 이어진 표 |
+| `messy__total-example.xlsx` | 예시 줄 미삭제, 합계 줄, **입력칸에 메모처럼 적은 줄**(데이터로 읽히고 필수 빈칸으로 확인할 칸에 떠야 함) |
+| `messy__notes-extra-sheet.xlsx` | 입력칸에 단 **엑셀 메모** 2개(취합본 같은 칸과 `메모` 시트에 옮겨져야 함), 작성자가 추가한 **계산용 시트**(읽지 않고 파일목록에 기록), 양식 시트 이름 변경 |
+| `messy__unprotected-copy.xlsx` | 메타 없이 새 파일에 복사(보호 없음), 표 아래·오른쪽에 적은 글(데이터로 섞이지 않고 `info`로 기록) |
 | `messy__extra-column.xlsx` | 양식에 없는 칸 추가, 칸 이름 공백 차이 |
 | `aggregate__north.xlsx`, `aggregate__south.xlsx` | 본부 취합본(다시 취합 테스트) |
 | `collect__ok_seoul.xlsx` 외 2개 | 시트 모으기형. 서로 다른 모양: 기본 틀에 줄 추가 / 셀 합치기·줄바꿈 문단 / 시트 추가("사진") + 파일 이름 변경 |
@@ -471,6 +474,9 @@ interface ModelCell {
 | 인쇄영역 유지 | | | |
 | 데이터 유효성 검사 동작 | | | |
 | 시트 보호 유지 | | | |
+| 보호된 양식 시트에서 엑셀 메모 넣기 (엑셀: 새 메모 / 메모) | | | |
+| 넣은 엑셀 메모가 저장 후 남아 있음 (ExcelJS로 읽힘) | | | |
+| 새 시트 추가 가능 | | | |
 | 날짜 값이 날짜로 저장 | | | |
 | 숫자 표시 서식(단위·쉼표) 유지 | | | |
 

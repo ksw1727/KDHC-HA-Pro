@@ -53,15 +53,15 @@
 **파일 표**
 - 한 줄 = 한 지사(지사 목록이 없거나 지사를 모르는 파일은 파일명으로 한 줄).
 - 모든 포함 파일에 [제외] 버튼(파일 단위 제외, 사유 "운영자 제외"로 기록). 운영자 결정이 더 필요한 것(중복·지사 연결)만 추가 버튼.
-- 행을 펼치면 해당 파일의 읽기 결과(읽은/반영/제외 줄과 사유), 자동 정리 목록(원래 값 → 정리 값), 오류 목록을 보여준다.
+- 행을 펼치면 해당 파일의 읽기 결과(읽은/반영/제외 줄과 사유), 자동 정리 목록(원래 값 → 정리 값), 오류 목록, **작성자 메모 n개**(엑셀 메모), **읽지 않은 시트**(작성자가 추가한 계산용 시트 등)를 보여준다.
 - 정렬: 확인 필요 → 정상 → 자동 처리 → 제외 → 미제출.
 
 **확인할 칸** (값 오류 + 애매한 판단을 한 곳에)
-- 값 오류 칸마다 **(수정안) / (직접 수정) / (그대로)** 중 선택.
+- 값 오류 칸마다 **(수정안) / (직접 수정) / (그대로)** 중 선택. 목록 줄·여유 줄에서 나온 항목에는 **[이 줄 빼기]**도 둔다(입력칸에 메모처럼 적은 줄 등). 뺀 줄은 취합본에 넣지 않고 사유 "운영자 제외"로 파일목록·검산·판단 기록에 남긴다.
   - 수정안: `NormalizeResult.proposal`. 수정안이 없으면 이 선택지는 숨긴다.
   - 직접 수정: 입력한 값도 같은 `normalize()`로 검사해, 여전히 오류면 빨간 안내(저장은 함).
   - 그대로: 원래 값 그대로 넣고 노란색 + 오류 시트에 기록.
-- 애매한 판단도 같은 목록에 예/아니오로: 비슷한 칸 이름, 쉼표로 여러 값(나눌까요?), 같은 틀 시트 여러 개, 같은 줄 두 번, 빈칸채우기 같은 칸 충돌(어느 값?).
+- 애매한 판단도 같은 목록에 예/아니오로: 비슷한 칸 이름, 쉼표로 여러 값(나눌까요?), 양식 시트를 하나로 정할 수 없음(메타 없는 파일에서 같은 틀 시트가 여러 개), 같은 줄 두 번, 빈칸채우기 같은 칸 충돌(어느 값?).
 - **미결정 기본값**: 수정안이 있으면 수정안, 없으면 그대로. 판단 항목은 "예"가 아닌 보수적 기본값(칸 이름 → 맞춤, 여러 값 → 나누지 않음, 충돌 → 최신 파일 값).
 - [취합 파일 받기]를 눌렀을 때 미결정 항목이 남아 있으면 "확인하지 않은 9칸은 자동 수정안으로 넣어요" 안내와 [목록 보기] / [그대로 받기]. 버튼을 비활성화하지 않는다. 판단 기록 시트에 **기본값 적용** 여부를 남긴다.
 
@@ -103,7 +103,7 @@ interface IdentifiedFile {
   notes: string[];                 // 예: '메타 변조 감지', '양식 버전 다름(v1)'
 }
 
-type ExcludeReason = 'blank' | 'example' | 'total' | 'memo-row' | 'outside-print-area';
+type ExcludeReason = 'blank' | 'example' | 'total' | 'operator';   // operator = 검토 화면의 [이 줄 빼기]
 
 interface ReadResult {                       // ② 결과 (값 정리 전 원본)
   fileId: string;
@@ -115,8 +115,8 @@ interface ReadResult {                       // ② 결과 (값 정리 전 원�
   gridSpareRows?: { cells: Record<string, RawCell>; sourceRow: number; flags: RowFlag[] }[];
   excludedRows: { sourceRow: number; reason: ExcludeReason; preview: string }[];
   extraColumns: { header: string; values: { sourceRow: number; value: unknown }[] }[];  // 양식에 없는 칸
-  outsideNotes: { address: string; value: string }[];   // 인쇄영역 밖 내용
-  continuedRows: number;           // 인쇄영역 밖으로 이어져서 넣은 줄 수
+  authorNotes: { address: string; fieldKey?: string; sourceRow?: number; text: string }[];  // 작성자가 단 엑셀 메모
+  unreadSheets: string[];          // 읽지 않은 시트(작성자가 추가한 계산용 시트 등)
   totalRowChecks: { sourceRow: number; fieldKey: string; written: number; computed: number }[];  // 합계 줄 대조용
   notes: string[];
 }
@@ -126,7 +126,8 @@ interface Issue {
   id: string;
   fileId: string;
   code: IssueCode | 'COLUMN_MISSING' | 'COLUMNS_REORDERED' | 'VERSION_MISMATCH' | 'META_TAMPERED'
-      | 'META_MISSING' | 'FIXED_CELL_CHANGED' | 'TOTAL_MISMATCH' | 'IMAGE_NOT_COPIED';
+      | 'META_MISSING' | 'FIXED_CELL_CHANGED' | 'TOTAL_MISMATCH' | 'IMAGE_NOT_COPIED'
+      | 'EXTRA_SHEET' | 'TEXT_OUTSIDE_INPUT' | 'FORM_SHEET_MISSING';
   severity: 'value' | 'info';      // value = 확인할 칸 대상, info = 자동 처리 안내
   sheet: string; address?: string; // 원본 위치 — 수정본 사본에 쓸 때 필요
   location: string;                // 화면용: '목록 7행 수량'
@@ -154,6 +155,7 @@ interface Decisions {
   cellFix: Record<string /*issueId*/, { mode: 'proposal' | 'manual' | 'keep'; value?: CellValue } | undefined>;
   answers: Record<string /*questionId*/, string | undefined>;
   excludeFile: Record<string /*fileId*/, boolean>;
+  excludeRow: Record<string /*fileId:sourceRow*/, boolean>;   // [이 줄 빼기]
   duplicateChoice: Record<string /*org*/, string /*fileId*/>;
   orgLink: Record<string /*fileId*/, string /*org*/>;
 }
@@ -183,11 +185,12 @@ interface Decisions {
 > - 검토 화면의 '내용' 칸에 모을 시트 이름을 보여준다(예: "보고서 · 사진 시트는 모으지 않음").
 > - 그림·차트·도형은 MVP에서 옮기지 않는다(로드맵). 모을 시트에 그림·차트가 있으면 `IMAGE_NOT_COPIED`(info)로 "그림 n개는 옮겨지지 않았어요"를 남긴다.
 
-**읽는 범위 (인쇄영역 기준)**
-- 인쇄영역이 있으면 그 안만 데이터로 읽는다. 밖에 적힌 내용은 `outsideNotes`로 → `메모` 시트(파일·시트·셀 위치와 함께).
-- 인쇄영역 마지막 줄까지 차 있고 표가 바로 아래로 이어지면 → **묻지 않고 넣는다**(빈 줄이 나오면 거기서 멈춤, 파일목록에 "인쇄영역 밖으로 이어진 n줄 포함" 기록).
-- 인쇄영역이 없으면 `CellMap` 범위를 쓰고, 그래도 안 맞으면 머리글 행 탐색으로 표를 찾는다. 시트 이름이 바뀌어도 `_meta`의 `sheetName` → 머리글 일치율 순으로 데이터 시트를 찾는다.
-- 같은 틀의 시트가 여러 개면 모두 읽고 출처에 시트 이름 기록 → 확인(`multi-sheet`).
+**읽는 범위 (양식 시트의 입력칸)** — 양식 시트는 입력칸만 편집할 수 있다(`00-overview.md` M20)
+- **양식 시트 하나만 읽는다.** `_meta`의 `sheetName` → 머리글 일치율 순으로 찾는다(이름이 바뀌어도 찾음). 못 찾으면 `FORM_SHEET_MISSING`으로 파일 제외("양식 시트가 없어요").
+- 그 밖의 보이는 시트(작성자가 추가한 계산용 시트 등)는 **읽지 않는다.** `unreadSheets` → `EXTRA_SHEET`(info), 파일목록에 "읽지 않은 시트: 계산용".
+- 양식 시트에서는 `CellMap`의 입력칸만 읽는다. 인쇄영역이 없으면 `CellMap` 범위를 쓰고, 그래도 안 맞으면 머리글 행 탐색으로 표를 찾는다.
+- 보호가 풀린 사본(메타 없이 새 파일에 복사 등)에서 입력칸 밖에 글이 있으면 데이터로 섞지 않고 `TEXT_OUTSIDE_INPUT`(info)으로 위치·내용을 기록한다. "메모 줄"·"인쇄영역 밖 메모"라는 구분은 두지 않는다.
+- 메타 없는 파일에서 같은 틀의 시트가 여러 개면 어느 것이 양식 시트인지 확인(`multi-sheet`).
 
 **칸 맞추기**
 - 지사명: preset 파일은 메타 `orgName`. input 파일은 `cellMap.orgCell`의 값. none은 없음.
@@ -210,11 +213,12 @@ interface Decisions {
 | 합친 셀 | 병합 범위의 모든 줄에 같은 값(자동, `fill: 'merged'`) |
 | `〃`, `"`, `상동`, `위와 같음` | 윗줄 값으로 채움(자동, `fill: 'ditto'`, 원래 값은 메모) |
 | 선택목록 칸에 쉼표로 여러 값 | 확인(`split-values`): 나눠서 여러 줄로 / 그대로 |
-| 셀 메모(코멘트) | 같은 틀 시트의 같은 칸에 그대로 옮김 |
+| 작성자 메모(엑셀 메모, 입력칸에 단 것) | `authorNotes`로 모아 같은 틀 시트의 같은 칸에 그대로 옮기고, `메모` 시트에 목록으로도 남김. 우리가 단 자동 메모(`[자동]`으로 시작)는 다시 취합할 때 제외 |
 | 수식 칸 | 결과 값 사용. 깨진 수식(`#REF!` 등)은 `FORMULA_ERROR` |
 
 **줄 고르기** (list 블록, grid 여유 줄)
-- 제외: 빈 줄, **예시 줄**(`exampleRow` 위치이면서 `schema`의 예시와 같은 값), **합계 줄**(어느 칸이든 "합계/소계/계/총계"), **메모 줄**(첫 칸에만 글이 있는 줄). 사유와 함께 `excludedRows` → `파일목록` 시트.
+- 제외: 빈 줄(입력칸이 모두 빈 줄, 번호 칸은 보지 않음), **예시 줄**(`exampleRow` 위치이면서 `schema`의 예시와 같은 값), **합계 줄**(어느 칸이든 "합계/소계/계/총계"). 사유와 함께 `excludedRows` → `파일목록` 시트.
+- 그 밖의 줄은 모두 데이터다. 입력칸에 메모처럼 적은 줄도 짐작해서 빼지 않는다 — 필수 빈칸 등으로 확인할 칸에 뜨고, 운영자가 [이 줄 빼기]로 뺀다(`operator`).
 - 합계 줄은 제외하되 숫자 칸 값을 위 줄들의 합과 대조할 수 있도록 `totalRowChecks`에 남긴다.
 - 한 파일 안에서 모든 칸이 같은 줄 → 확인(`same-row-twice`): 둘 다 넣기 / 하나만.
 - 입력 줄이 하나도 없는 파일 → 파일목록에 `제출 · 해당 없음`으로 따로 표시(오류 아님).
@@ -317,7 +321,7 @@ export const METHODS: AggregationMethod[] = [sameFrame, spread, collectSheets, s
 
 | 검사 | 내용 |
 |---|---|
-| 줄 수 | 파일별·전체 `읽은 줄 = 반영 + 제외(사유별: 빈 줄·예시·합계·메모·운영자 제외·중복)` |
+| 줄 수 | 파일별·전체 `읽은 줄 = 반영 + 제외(사유별: 빈 줄·예시·합계·운영자 제외·중복)` |
 | 취합 누락 | 넣은 파일 수 = 반영 + 제외(사유별) + 건너뜀(사유별). 지사 사용 시 미제출 지사 목록 |
 | 숫자 합계 | 숫자 칸마다 `원본 합계(값 정리 후) = 같은 틀 시트 합계`. 수정·제외로 생긴 차이는 별도 줄로 표시(예: "수정으로 +5, 운영자 제외로 -120") |
 | 수식 검산 | 표형 합계 행·열: 원본 파일의 합계 칸 값 = 원본 칸들의 합. 목록에서 제외한 합계 줄(`totalRowChecks`): 적힌 합계 = 위 줄들의 합. 안 맞으면 `TOTAL_MISMATCH`(info)로 해당 파일 표시 |
@@ -329,10 +333,10 @@ export const METHODS: AggregationMethod[] = [sameFrame, spread, collectSheets, s
 1. 같은 틀 시트 (시트 이름 = 양식 제목)
 2. 선택한 방식들의 결과 시트 (`METHODS` 순서)
 3. `오류` (항상): `지사 | 파일명 | 위치 | 항목 | 입력값 | 내용 | 처리(수정안/직접 수정/그대로/자동)` — info 포함 모든 Issue
-4. `파일목록` (항상): 파일별 상태, 읽은/반영/제외 줄과 사유, 해당 없음, 인쇄영역 밖으로 이어진 줄, 건너뛴 파일과 사유
+4. `파일목록` (항상): 파일별 상태, 읽은/반영/제외 줄과 사유, 해당 없음, 읽지 않은 시트, 건너뛴 파일과 사유
 5. `검산` (항상): 3.8 결과
 6. `판단 기록` (항상): 확인할 칸·애매한 판단·지사 연결·중복 선택·파일 제외의 결정 전체, 기본값 적용 여부
-7. `메모` (있을 때만): 인쇄영역 밖 내용 (파일·시트·셀 위치)
+7. `메모` (있을 때만): 작성자가 단 엑셀 메모 목록 (지사 · 파일명 · 위치 · 항목 · 원본 줄 · 메모 내용)
 8. `추가 칸` (있을 때만): 양식에 없는 칸 (파일·원본 줄·칸 이름·값)
 9. `_records` (veryHidden): 포함된 `NormalizedSubmission[]` (최종 값, `01-contract.md` 4.5)
 10. `_meta` (veryHidden): `kind: 'aggregate'`, `aggregate.includedSources`, `methods` — `contract/metaIO.writeMeta()` 사용
@@ -386,10 +390,10 @@ src/aggregator/
 | 대상 | 내용 |
 |---|---|
 | identify | 메타 정상 / 변조 / 시트 삭제(속성만) / 모두 없음(머리글 일치율) / 다른 양식 / 버전 다름 / 취합본 / 내용 완전 동일 / .xls·암호·깨진 파일 |
-| read | 인쇄영역 안·밖, 인쇄영역 밖으로 이어진 표, 열 순서 변경·삭제·비슷한 이름, 추가 칸, 숨긴 줄·필터, 취소선, 합친 셀, `〃`, 빈/예시/합계/메모 줄, 여러 시트, grid 고정 칸 변경·여유 줄 |
+| read | 양식 시트 찾기(이름 변경·삭제), 추가 시트 무시, 열 순서 변경·삭제·비슷한 이름, 추가 칸, 숨긴 줄·필터, 취소선, 합친 셀, `〃`, 빈/예시/합계 줄, 입력칸에 메모처럼 적은 줄(데이터로 읽힘), 작성자 엑셀 메모 수집, 보호 풀린 사본의 입력칸 밖 글(info), grid 고정 칸 변경·여유 줄 |
 | normalize | `01-contract.md` 5절 표의 모든 예시 (타입 × ok/auto/proposal/invalid) |
 | validate | IssueCode 8종, grid 필수 칸은 겹친 뒤 판정 |
-| resolve | 미결정 기본값, 수정안/직접/그대로, 파일 제외, 중복 기본값(최신)·파일 바꾸기, 지사 연결 후 중복 재판정, none 모드 |
+| resolve | 미결정 기본값, 수정안/직접/그대로, 파일 제외, 줄 빼기, 중복 기본값(최신)·파일 바꾸기, 지사 연결 후 중복 재판정, none 모드 |
 | methods | 같은 틀 시트 구조 4종 + 선택 시트 3종 입력 → 기대값 비교 |
 | verify | 줄 수 대조, 숫자 합계 대조(수정·제외 차이 분리), 합계 줄·합계 행 수식 검산 |
 | write | 결과 파일을 다시 열어 시트 순서, `_records`·`_meta` 왕복, 오류·자동 정리 칸 서식과 메모 |

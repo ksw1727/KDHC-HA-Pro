@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>취합 화면 모형</title>
+<!-- 화면 모형 (03-aggregator.md 2절 A안). 엑셀 처리 없이 예시 데이터로만 동작한다. -->
+<style>
+:root{
+  /* 공공 블루 — docs/mockups/generator-themes.html 의 .th-blue 와 같은 값 */
+  --bg:#f6f8fb; --card:#fff; --ink:#18202b; --sub:#56616e; --muted:#8a95a2; --line:#e2e7ee; --line2:#cbd3dd; --soft:#f1f4f8;
+  --acc:#1f5fbf; --acc-ink:#174a96; --acc-soft:#e8f0fc; --acc-line:#b9cff2;
+  --ok:#2f7a3b; --ok-soft:#e8f5ea; --ok-line:#bfe0c5; --warn:#b45309; --warn-soft:#fdf1e3; --warn-line:#f2cfa4;
+  --bad:#b42318; --bad-soft:#fdecea; --bad-line:#f5c2bd; --fix:#e8f0fc; --mark:#fff5d1; --mark-line:#efd88a; --mark-ink:#7a5a00;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif}
+main{max-width:1180px;margin:0 auto;padding:18px 16px 80px}
+.appbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.logo{font-weight:800;color:var(--acc);letter-spacing:-.02em;font-size:15px}
+.tabs{display:flex;gap:2px;background:var(--soft);border-radius:8px;padding:3px}
+.tabs span{padding:4px 12px;border-radius:6px;color:var(--sub);font-size:13px}
+.tabs span.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.appbar .ttl{color:var(--sub);font-size:13px}.sp{flex:1}
+h1{font-size:20px;margin:0}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line2);background:#fff;border-radius:7px;padding:5px 11px;font-size:12.5px;white-space:nowrap}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+button.sm{padding:3px 8px;font-size:12px}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+select,input[type=text]{border:1px solid var(--line2);background:#fff;border-radius:7px;padding:3px 7px;font-size:13px}
+input[type=text]:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft);outline:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px;min-width:0}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.chip{display:inline-block;font-size:11.5px;font-weight:600;padding:0 6px;border-radius:5px;border:1px solid var(--line);background:var(--soft);color:var(--sub);white-space:nowrap}
+.c-ok{background:var(--ok-soft);border-color:var(--ok-line);color:var(--ok)}.c-warn{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn)}.c-bad{background:var(--bad-soft);border-color:var(--bad-line);color:var(--bad)}.c-acc{background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc-ink)}
+.c-req{background:var(--mark);border-color:var(--mark-line);color:var(--mark-ink)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.stat.alert{background:var(--mark);border-color:var(--mark-line)}.stat.alert span,.stat.alert b{color:var(--mark-ink)}
+.stat span{font-size:12px;color:var(--sub)}.stat b{display:block;font-size:22px}
+.stat.good{border-color:var(--ok-line);background:var(--ok-soft)}.stat.good span,.stat.good b{color:var(--ok)}
+h2{font-size:14px;font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.muted{color:var(--sub);font-size:13px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+#files{min-width:620px}
+th,td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:middle;font-size:13px}
+th{font-size:12px;color:var(--sub);font-weight:500;white-space:nowrap}
+tr.file{cursor:pointer}tr.file:hover td{background:var(--soft)}
+tr.file td:first-child::before{content:"▸ ";color:var(--muted)}tr.file.open td:first-child::before{content:"▾ "}
+tr.det td{background:var(--soft);font-size:13px;color:var(--sub)}
+.v{font-family:ui-monospace,Consolas,monospace;font-size:13px;padding:0 5px;border-radius:4px}
+.v-in{background:var(--mark);color:var(--mark-ink)}.v-fix{background:var(--fix)}
+.fix{border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:8px 0;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.bar-wrap{height:10px;background:var(--soft);border-radius:99px;overflow:hidden;margin:10px 0}
+.bar-fill{height:100%;width:0;background:var(--acc);border-radius:99px;transition:width .12s}
+.plist{list-style:none;padding:0;margin:8px 0 0;font-size:13px;max-height:260px;overflow:auto}
+.plist li{padding:3px 0;color:var(--muted)}.plist li.done{color:var(--ink)}.plist li.now{color:var(--acc-ink);font-weight:600}
+.b-bad{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad-line)}
+.stat.badv{background:var(--bad-soft);border-color:var(--bad-line)}.stat.badv span,.stat.badv b{color:var(--bad)}
+.vbad{color:var(--bad);font-weight:600}
+.tabsheet{display:flex;gap:2px;flex-wrap:wrap;margin-top:10px;font-size:12px}
+.tabsheet span{border:1px solid var(--line);border-bottom:0;border-radius:5px 5px 0 0;padding:2px 10px;background:var(--soft);color:var(--sub)}
+.tabsheet span.on{background:#fff;color:var(--ink);font-weight:600}
+.minixl{border:1px solid var(--line);border-collapse:collapse;width:100%;min-width:560px;font-size:12px}
+.minixl td,.minixl th{border:1px solid var(--line);padding:4px 6px}
+.minixl th{background:var(--soft);font-weight:600;color:var(--ink)}
+.minixl a{color:var(--acc);text-decoration:underline}
+.labelbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub);margin:0 0 10px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--line2);border-radius:0;padding:3px 10px;background:#fff;color:var(--sub)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--acc-soft);color:var(--acc-ink);font-weight:700}
+.fixtbl{border-collapse:collapse;margin:4px 0 2px;font-size:12.5px;min-width:0;width:auto}
+.fixtbl td,.fixtbl th{border:1px solid var(--line);padding:2px 8px;background:#fff}
+.fixtbl th{background:var(--soft);font-weight:600;color:var(--sub)}
+.where{font-weight:600;width:100%}
+.where .msg{font-weight:400;color:var(--mark-ink);background:var(--mark);border-radius:4px;padding:0 6px;margin-left:6px}
+.pair{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;width:100%}
+.vb{border:1px solid var(--line);border-radius:7px;padding:4px 10px;min-width:150px;background:#fff}
+.vb small{display:block;font-size:11px;color:var(--sub);margin-bottom:1px}
+.vb.in{border-color:var(--mark-line);background:#fffdf3}.vb.fx{border-color:var(--acc-line);background:#f7faff}
+.pair .arr{align-self:center;color:var(--muted)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin:0 0 6px}
+.fix.out{border-style:dashed;background:var(--soft);color:var(--muted)}
+.out-btn{border-color:var(--bad-line);color:var(--bad)}
+.fix.done{border-color:var(--ok-line);background:#fbfdfb}
+.fix .opts{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:13px}
+.fix label{display:inline-flex;gap:4px;align-items:center;cursor:pointer}
+.err{color:var(--bad);font-size:12px;width:100%}
+.drop{border:2px dashed var(--acc-line);border-radius:10px;padding:48px 16px;text-align:center;background:var(--acc-soft);color:var(--acc-ink);cursor:pointer}
+.drop.over{border-style:solid;border-color:var(--acc);background:#dbe7fb}
+.drop.small{padding:18px 16px}.drop.small .big{font-size:15px!important}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:12px}
+.tile{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--card);min-width:0}
+.tile.skip{background:var(--soft);border-style:dashed}
+.ext{flex:none;width:40px;height:46px;border-radius:6px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;font-size:10px;font-weight:700;letter-spacing:.5px;color:#fff;background:#1f7a4d;position:relative}
+.ext::before{content:"";position:absolute;top:0;right:0;border-style:solid;border-width:0 10px 10px 0;border-color:transparent var(--card) rgba(255,255,255,.35) transparent}
+.ext.zip{background:#7a5a1f}.ext.no{background:var(--muted)}
+.tile .nm{font-size:13px;font-weight:600;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.common{font-size:13px;color:var(--sub);margin-top:8px}
+.common code{background:var(--soft);padding:1px 6px;border-radius:4px}
+.tile .meta{font-size:12px;color:var(--sub)}
+.tile .x{margin-left:auto;flex:none;border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:4px 6px}
+.tile .x:hover{color:var(--bad)}
+.bagbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.banner{border-radius:7px;padding:8px 12px;margin-bottom:12px;font-size:13px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.b-warn{background:var(--warn-soft);color:var(--warn)}.b-ok{background:var(--ok-soft);color:var(--ok)}.b-req{background:var(--mark);color:var(--mark-ink)}
+.foot{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.vlist{margin:6px 0 0;padding-left:20px;font-size:13px;color:var(--sub)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <span class="logo">한난MOA</span>
+  <span class="tabs"><span>양식 만들기</span><span class="on">취합하기</span></span>
+  <span class="ttl" id="barTitle">회신 파일 넣기</span><span id="barChips"></span>
+  <span class="sp"></span>
+  <button id="barMore" hidden>파일 더 넣기</button>
+  <button class="pri" id="barGet" hidden>취합 파일 받기</button>
+</header>
+<main>
+
+<!-- 1. 파일 넣기 -->
+<section id="s-upload">
+  <input type="file" id="pick" multiple hidden>
+  <div class="drop" id="drop" role="button" tabindex="0" aria-label="파일 넣기">
+    <div class="big" style="font-size:18px;font-weight:600">회신받은 엑셀 파일이나 zip을 여기에 끌어다 놓으세요</div>
+    <div style="margin-top:4px">또는 눌러서 파일 고르기</div>
+    <div class="muted" style="color:inherit;margin-top:6px">.xlsx만 처리합니다 · 이전 취합본도 함께 넣을 수 있어요 · 파일 내용은 이 컴퓨터 밖으로 나가지 않아요</div>
+    <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="pri" data-demo="list">예시: 목록형 17개</button>
+      <button data-demo="mismatch">예시: 검산이 안 맞을 때</button>
+      <button data-demo="fill">예시: 빈칸채우기형</button>
+      <button data-demo="collect">예시: 시트 모으기형</button>
+    </div>
+  </div>
+  <div class="card" id="bag" style="margin-top:14px" hidden>
+    <div class="bagbar">
+      <h2 style="margin:0">넣은 파일</h2><span id="bagSum"></span>
+      <button class="sm" id="clearBag" style="margin-left:auto">모두 빼기</button>
+      <button class="pri" id="start">검토 시작</button>
+    </div>
+    <div class="common" id="bagCommon" hidden></div>
+    <div class="tiles" id="bagTiles"></div>
+    <p class="muted" style="margin:10px 0 0">화면 모형이라 아직 엑셀 내용은 읽지 않아요. 검토 화면은 예시 데이터로 보여 드려요.</p>
+    <p class="err" id="bagErr" hidden></p>
+  </div>
+</section>
+
+<!-- 2. 검토 -->
+<section id="s-review" hidden>
+  <div class="card" id="bagStrip" hidden>
+    <div class="bagbar"><b>넣은 파일</b><span id="stripSum"></span><button class="sm" id="stripToggle" style="margin-left:auto">펼치기</button></div>
+    <div id="stripBody" hidden><div class="common" id="stripCommon" hidden></div><div class="tiles" id="stripTiles"></div></div>
+  </div>
+  <div class="banner b-bad" id="mmBanner" hidden><b>검산이 맞지 않아요.</b> 대구 파일에서 읽은 줄 1개가 반영에도 제외에도 없어요. 받기 전에 아래 검산 내역을 확인해 주세요. <button class="sm" id="mmShow">검산 내역 보기</button></div>
+  <div class="banner b-warn">양식 정보가 없는 파일이 1개 있어요. 양식 JSON을 넣으면 이 파일도 취합할 수 있어요. <button class="sm">양식 JSON 넣기</button></div>
+  <div class="labelbar">모형 미리보기 · 양식에서 정한 부르는 말:
+    <span class="seg" id="labelSeg"><button class="on">지사</button><button>부서</button><button>기관</button></span>
+    <span>(실제로는 양식의 <code>org.label</code>을 따라요)</span></div>
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <h2>파일 <span class="muted">줄을 누르면 읽은 내용이 펼쳐져요</span></h2>
+    <div class="scroll"><table id="files"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>확인할 칸 <span class="chip c-req" id="leftChip"></span>
+      <button class="sm" id="applyAll" style="margin-left:auto">남은 칸 모두 "자동으로 고친 값" 쓰기</button></h2>
+    <div class="legend"><span><span class="v v-in">노란 상자</span> 받은 회신 파일에 적혀 있던 값</span><span><span class="v v-fix">파란 상자</span> 취합하면서 프로그램이 자동으로 고친 값</span></div>
+    <p class="muted" style="margin:0 0 4px">칸마다 어느 값으로 넣을지 골라 주세요. 고르지 않은 칸은 받을 때 자동으로 고친 값으로 들어가고(고칠 수 없으면 적혀 있던 값 그대로), 판단 기록에 "기본값 적용"으로 남아요.</p>
+    <div id="fixes"></div>
+  </div>
+
+  <div class="card">
+    <h2>검산 <span class="chip c-ok" id="vChip">일치</span> <button class="sm" id="vToggle" style="margin-left:auto">자세히</button></h2>
+    <ul class="vlist" id="vDetail" hidden>
+      <li id="vRows"></li>
+      <li id="vFile"></li>
+      <li id="vFiles"></li>
+      <li id="vSum"></li>
+      <li id="vTotal"></li>
+      <li id="vMiss"></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>결과에 넣을 시트</h2>
+    <p class="muted" style="margin:0 0 8px">항상 들어가는 시트: 오류 · 파일목록 · 검산 · 판단 기록 · <b>메모</b>(작성자가 단 엑셀 메모 5개 목록)</p>
+    <div class="foot">
+      <label><input type="checkbox" checked disabled> 같은 틀 (필수)</label>
+      <label><input type="checkbox"> <span class="L">지사</span>별 펼치기</label>
+      <label><input type="checkbox"> 시트 모으기</label>
+      <label><input type="checkbox" checked> 제출 현황</label>
+    </div>
+    <div class="foot" style="margin-top:12px">
+      <label id="copyOpt" hidden><input type="checkbox" checked> 직접 고친 값을 반영한 회신 파일 사본도 받기 (<span id="manualN">0</span>칸)</label>
+      <button class="pri" id="get" style="margin-left:auto">취합 파일 받기</button>
+    </div>
+    <div class="banner b-req" id="confirm" style="margin:12px 0 0" hidden>
+      <span id="confirmText"></span>
+      <button class="sm" id="showList">목록 보기</button><button class="sm pri" id="getAnyway">그대로 받기</button>
+    </div>
+  </div>
+</section>
+
+<!-- 1-1. 읽는 중 -->
+<section id="s-progress" hidden>
+  <div class="card" style="max-width:640px;margin:40px auto">
+    <h2>파일 읽는 중 <span class="chip c-acc" id="pCount"></span></h2>
+    <div class="bar-wrap" role="progressbar" aria-label="파일 읽기 진행률" aria-valuemin="0" aria-valuemax="100" id="pBar"><div class="bar-fill" id="pFill"></div></div>
+    <div class="muted" id="pNow"></div>
+    <ul class="plist" id="pList"></ul>
+    <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+      <span class="muted">파일 내용은 이 컴퓨터 안에서만 읽어요. 다 읽으면 검토 화면으로 넘어가요.</span>
+      <button id="pStop" style="margin-left:auto">멈추기</button>
+    </div>
+  </div>
+</section>
+
+<!-- 2-1. 시트 모으기형 검토 (01-contract 3절 collect, 03-aggregator 3.2·3.7) -->
+<section id="s-collect" hidden>
+  <div class="banner b-req">한난MOA 양식이 아닌 파일 1개는 뺐어요. 새 파일에 복사해서 보낸 것 같으면 원래 양식 파일로 다시 받아 주세요.</div>
+  <div class="stats" id="cStats"></div>
+  <div class="card">
+    <h2>부서별 파일 <span class="muted">시트 모으기형은 칸을 검사하지 않고 시트를 모양 그대로 모아요</span></h2>
+    <div class="scroll"><table id="cFiles" style="min-width:620px"></table></div>
+  </div>
+  <div class="card">
+    <h2>결과 파일 모양</h2>
+    <p class="muted" style="margin:0 0 6px">모을 시트: <b>보고서 시트만</b> (양식에서 정함). 부서가 추가한 다른 시트는 모으지 않아요.</p>
+    <div class="tabsheet" id="cTabs"></div>
+    <div class="scroll"><table class="minixl" id="cToc"></table></div>
+  </div>
+  <div class="card">
+    <h2>결과에 넣을 시트</h2>
+    <div class="foot">
+      <label><input type="checkbox" checked disabled> 목차 + 부서별 시트 (필수)</label>
+      <label><input type="checkbox" checked> 제출 현황</label>
+    </div>
+    <div class="foot" style="margin-top:12px">
+      <span class="muted">항상 들어가는 시트: 파일목록 · 판단 기록 (그림이 빠진 시트가 있으면 오류 시트에 안내)</span>
+      <button class="pri" id="cGet" style="margin-left:auto">모은 파일 받기</button>
+    </div>
+  </div>
+</section>
+
+<!-- 3. 받기 완료 -->
+<section id="s-done" hidden>
+  <div class="banner b-ok" style="font-size:16px" id="doneMsg"></div>
+  <div class="card">
+    <h2>내려받은 파일</h2>
+    <ul class="vlist" id="doneList"></ul>
+    <div style="margin-top:12px"><button id="back">검토 화면으로 돌아가기</button></div>
+  </div>
+</section>
+
+</main>
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// 예시 데이터 — 실제로는 파이프라인 결과(IdentifiedFile, Issue, Question)가 들어온다
+let L = '지사';   // 제출처를 부르는 말 (양식의 org.label). 화면의 "지사"는 모두 이 값으로 바뀐다
+let scene = 'list';   // 'list' | 'mismatch' | 'fill' | 'collect' — 모형에서 보여 줄 예시 상황
+const ORGS = ['강원', '충청', '경기'];
+
+// 자동 정리 전체 목록 (원래 값 → 정리한 값)
+const fixTable = (rows) => '<table class="fixtbl"><tr><th>위치</th><th>항목</th><th>원래 값</th><th>정리한 값</th></tr>' +
+  rows.map(([w, f, a, b]) => `<tr><td>${w}</td><td>${f}</td><td><span class="v v-in">${esc(a)}</span></td><td><span class="v v-fix">${esc(b)}</span></td></tr>`).join('') + '</table>';
+
+function buildFiles() {
+  if (scene === 'fill') return [
+    { name: '부산', state: 'req', label: '확인할 칸 1', text: '3행 "담당자"가 서울 파일과 다름', action: 'exclude',
+      detail: `입력칸 10개 중 5개를 채웠어요. 3행 "담당자"에 서울 파일과 다른 값을 적어서 확인할 칸에 올렸어요.<br>자동 정리 2칸:${fixTable([['4행', '설치 연도', '2019년', '2019'], ['7행', '점검일', '10/2', '2026-10-02']])}` },
+    { name: '대구', state: 'grey', label: '고정 칸 수정', text: '본사가 채운 칸을 고쳐서 보냄 → 그 칸은 무시', action: 'exclude',
+      detail: '5행 "설비명" 고정 칸이 "냉각탑 1호" → "냉각탑 A"로 바뀌어 있었어요. 고정 칸은 본사 값을 그대로 쓰고, 오류 시트에 안내만 남겨요.' },
+    { name: '광주', state: 'ok', label: '여유 줄 추가', text: '표 아래 여유 줄에 2줄 추가', action: 'exclude',
+      detail: `여유 줄 21~22행에 새 설비 2개를 적었어요. 취합본의 여유 줄 자리에 이어 붙여요.<br>자동 정리 2칸:${fixTable([['21행', '수량', '2대', '2'], ['22행', '설비명', '␣보일러 3호␣', '보일러 3호']])}` },
+    { name: '서울', state: 'ok', label: '정상', text: '채운 칸 6개', action: 'exclude', detail: `입력칸 10개 중 6개를 채웠어요. 나머지는 다른 ${L}가 채울 칸이에요.` },
+    { name: '울산 · 제주', state: 'grey', label: '미제출', text: '파일이 없어요', action: '', detail: '' },
+  ];
+  return [
+    { name: '부산', state: 'req', label: '확인할 칸 3', text: '수량 \'약 10\'(7행) 외 2', action: 'exclude',
+      detail: `읽은 24줄 = 반영 22 + 합계 줄 1 + 빈 줄 1<br>자동 정리 3칸:${fixTable([['7행', '참가일', '2026.11.1', '2026-11-01'], ['9행', '수량', '2명', '2'], ['12행', '이름', '␣김민수␣', '김민수']])}작성자 메모 2개: 5행 과정 "오전반 희망", 8행 수량 "추후 1명 추가 가능"<br>읽지 않은 시트: 계산용 (작성자가 추가한 시트라 읽지 않았어요)` },
+    { name: '대구', state: 'acc', label: '중복 2개', text: '최신 파일(10/13 저장) 사용', action: 'dup',
+      detail: '대구_참가자.xlsx (10/11 저장) · 대구_참가자_수정.xlsx (10/13 저장). 파일 안에 기록된 저장 시각이 늦은 파일을 씁니다.' },
+    { name: '\'에이지사\'', state: 'warn', label: `${L} 확인`, text: `목록에 없는 ${L}명`, action: 'link',
+      detail: `파일에 적힌 ${L}명 "에이지사"가 ${L} 목록에 없습니다. 목록의 ${L}에 연결하거나 입력값 그대로 둘 수 있습니다.` },
+    { name: '광주', state: 'grey', label: '구조 변경', text: '열 순서 바뀜, 이름으로 자동 맞춤', action: 'exclude',
+      detail: '"과정"과 "수량" 열이 바뀌어 있었습니다. 칸 이름으로 맞춰 넣었습니다. "비고" 열이 없어 빈칸으로 둡니다.' },
+    { name: '서울', state: 'ok', label: '정상', text: '24행 · 자동 정리 3칸', action: 'exclude',
+      detail: `읽은 24줄 = 반영 24. 숨긴 줄 1개는 넣고 상태 칸에 "숨긴 줄"로 표시합니다.<br>자동 정리 3칸:${fixTable([['4행', '참가일', '11/3', '2026-11-03'], ['6행', '수량', '1,000', '1000'], ['20행', '과정', '엑셀기초', '엑셀 기초']])}작성자 메모 3개: 3행 이름 "개명 예정", 10행 참가일 "오후만 가능", 15행 과정 "재수강"` },
+    { name: '인천', state: 'ok', label: '해당 없음', text: '입력 줄 없음 (오류 아님)', action: 'exclude', detail: '입력된 줄이 없어 "제출 · 해당 없음"으로 기록합니다.' },
+    { name: '작년.xlsx', state: 'bad', label: '다른 양식', text: '양식 번호가 달라 자동 제외', action: 'auto', detail: '' },
+    { name: '부산_복사.xlsx', state: 'bad', label: '내용 같음', text: '부산 파일과 완전히 같아 자동 제외', action: 'auto', detail: '' },
+    { name: '명단.xls', state: 'bad', label: '건너뜀', text: '.xls 형식 · "엑셀에서 .xlsx로 다시 저장해서 보내 주세요"', action: 'auto', detail: '' },
+    { name: '울산 · 제주 · 세종', state: 'grey', label: '미제출', text: '파일이 없어요', action: '', detail: '' },
+  ];
+}
+
+function buildFixes() {
+  if (scene === 'fill') return [
+    { id: 'g1', question: '3행 "담당자" 칸에 서로 다른 값이 왔어요. 어느 값을 쓸까요?',
+      choices: [['seoul', '김민수 — 서울 파일, 10/12 저장'], ['busan', '이지은 — 부산 파일, 10/13 저장 (최신)']], def: 'busan' },
+    { id: 'g2', row: '광주:22', where: '광주 · 여유 줄 22행 · 수량', raw: '세 대', proposal: '3', check: (v) => /^\d+$/.test(v) || '숫자만 넣을 수 있어요' },
+  ];
+  return [
+    { id: 'q1', row: '부산:7', where: '부산 · 7행 · 수량', raw: '약 10', proposal: '10', check: (v) => /^\d+$/.test(v) || '숫자만 넣을 수 있어요' },
+    { id: 'q2', row: '부산:9', where: '부산 · 9행 · 과정', raw: '엑셀기초반', proposal: '엑셀 기초', check: (v) => ['엑셀 기초', '보고서 작성'].includes(v) || '목록(엑셀 기초, 보고서 작성)에 없는 값이에요' },
+    { id: 'q3', row: '대구:4', where: '대구 · 4행 · 참가일', raw: '다음주', proposal: null, check: (v) => /^\d{4}-\d{2}-\d{2}$/.test(v) || '2026-11-03 모양으로 넣어 주세요' },
+    { id: 'q6', row: '부산:11', where: '부산 · 11행 · 과정, 수량', msg: '꼭 입력할 칸이 비어 있어요', rawLabel: '이름 칸', raw: '※ 3명은 다음 주 확정', proposal: null,
+      check: (v) => v.trim() !== '' || '값을 넣어 주세요' },
+    { id: 'q7', question: '부산 · 14행과 15행이 모든 칸까지 똑같아요 (<span class="v v-in">박서준 · 보고서 작성 · 1</span>). 실수로 두 번 붙여 넣었을 수 있어요.',
+      choices: [['both', '둘 다 넣기'], ['one', '하나만 넣기']], def: 'both' },
+    { id: 'q4', question: '광주 · 칸 이름 <span class="v v-in">수 량</span>을 <span class="v v-fix">수량</span> 칸으로 볼까요?', choices: [['yes', '예'], ['no', '아니오(추가 칸으로)']], def: 'yes' },
+    { id: 'q5', question: '서울 · 12행 · 과정 <span class="v v-in">엑셀 기초, 보고서 작성</span>을 두 줄로 나눌까요?', choices: [['split', '나누기'], ['keep', '그대로']], def: 'keep' },
+  ];
+}
+let files = buildFiles(), fixes = buildFixes();
+const decided = {};   // id → { mode, value }
+const rowOut = new Set();   // [이 줄 빼기]로 뺀 줄 ('부산:11')
+const isOut = (f) => f.row && rowOut.has(f.row);
+const pending = () => fixes.filter((f) => !decided[f.id] && !isOut(f)).length;
+
+function renderStats() {
+  const left = pending(), fill = scene === 'fill', mm = scene === 'mismatch';
+  $('#stats').innerHTML = (fill
+    ? [['제출', '4/6', ''], ['확인할 칸', left, left ? 'alert' : ''], ['자동 정리', 4, ''], ['작성자 메모', 1, ''], ['제외', 0, ''], ['미제출', 2, ''], ['검산', '일치', 'good']]
+    : [['제출', '12/15', ''], ['확인할 칸', left, left ? 'alert' : ''], ['자동 정리', 31, ''], ['작성자 메모', 5, ''],
+       ['제외', 2, ''], ['미제출', 3, ''], mm ? ['검산', '불일치 2', 'badv'] : ['검산', '일치', 'good']]
+  ).map(([k, v, c]) => `<div class="stat ${c}"><span>${k}</span><b>${v}</b></div>`).join('');
+  $('#leftChip').textContent = left ? `남음 ${left}` : '모두 고름';
+  const manual = Object.values(decided).filter((d) => d.mode === 'manual').length;
+  $('#manualN').textContent = manual;
+  $('#copyOpt').hidden = manual === 0;
+  document.querySelectorAll('.L').forEach((e) => (e.textContent = L));
+  $('#mmBanner').hidden = !mm;
+  $('#vChip').textContent = mm ? '불일치 2' : '일치';
+  $('#vChip').className = 'chip ' + (mm ? 'c-bad' : 'c-ok');
+  $('#vFile').hidden = !mm;
+  if (fill) {
+    // 빈칸채우기형 검산 (03-aggregator 3.8): 입력칸 수 = 채워진 칸 + 빈칸, 충돌 칸 수
+    const pick = decided.g1 ? decided.g1.mode : 'busan';
+    $('#vRows').textContent = '입력칸 40 = 채워진 칸 36 + 빈칸 4 (꼭 입력할 빈칸 1)';
+    $('#vFiles').textContent = '넣은 파일 4 = 반영 4';
+    $('#vSum').textContent = `충돌 칸 1: 3행 "담당자" → ${pick === 'seoul' ? '김민수(서울 파일)' : '이지은(부산 파일, 최신)'}`;
+    $('#vTotal').textContent = `여유 줄: 광주 2줄 추가${rowOut.has('광주:22') ? ' 중 운영자 제외 1' : ''} → 취합본 여유 줄 자리에 ${rowOut.has('광주:22') ? 1 : 2}줄`;
+    $('#vMiss').textContent = `미제출 ${L}: 울산, 제주`;
+    return;
+  }
+  // 검산: 뺀 줄은 "운영자 제외", 하나만 넣은 같은 줄은 "중복"으로 옮겨 가서 읽은 줄 = 반영 + 제외가 계속 맞는다
+  const out = rowOut.size, dup = decided.q7 && decided.q7.mode === 'one' ? 1 : 0;
+  const ex = (mm ? 1 : 2) + out + dup, used = 284 - out - dup;
+  const why = `합계 줄 1${mm ? '' : ', 빈 줄 1'}${out ? `, 운영자 제외 ${out}` : ''}${dup ? `, 중복 ${dup}` : ''}`;
+  $('#vRows').innerHTML = mm
+    ? `읽은 줄 286 ≠ 반영 ${used} + 제외 ${ex} (${why}) → <span class="vbad">1줄 차이</span>`
+    : `읽은 줄 286 = 반영 ${used} + 제외 ${ex} (${why})`;
+  $('#vFile').innerHTML = '대구 파일: 읽은 12줄 ≠ 반영 10 + 제외 1 → <span class="vbad">1줄이 어디에도 기록되지 않았어요</span>. 프로그램 문제일 수 있어요. 받은 파일의 "검산" 시트에 같은 내용이 들어가요.';
+  $('#vFiles').textContent = '넣은 파일 17 = 반영 12 + 해당 없음 1 + 제외 2 (다른 양식 1, 내용 같음 1) + 건너뜀 2 (.xls 1, 암호 1)';
+  $('#vSum').innerHTML = mm
+    ? '숫자 칸 "수량": 원본 합계 512 → 같은 틀 시트 507. 직접 수정으로 −3 (설명됨), <span class="vbad">나머지 −2는 설명되지 않음</span>'
+    : '숫자 칸 "수량": 원본 합계 512 = 같은 틀 시트 합계 512';
+  $('#vTotal').innerHTML = mm
+    ? '참고: 대구 파일의 합계 줄 "수량 25" ≠ 위 줄들의 합 23 — 원본 파일에 적힌 합계가 틀렸어요 (우리 취합 문제는 아님)'
+    : '참고: 부산 파일의 합계 줄 "수량 30" = 위 줄들의 합 30';
+  $('#vMiss').textContent = `미제출 ${L}: 울산, 제주, 세종`;
+}
+
+function renderFiles() {
+  const cls = { ok: 'c-ok', req: 'c-req', warn: 'c-warn', bad: 'c-bad', acc: 'c-acc', grey: '' };
+  const act = (f) => f.action === 'exclude' ? '<button class="sm" data-x>제외</button>'
+    : f.action === 'dup' ? '<select aria-label="반영할 파일"><option>10/13 파일</option><option>10/11 파일</option></select>'
+    : f.action === 'link' ? `<select aria-label="연결할 ${L}"><option>입력값 그대로</option>${ORGS.map((o) => `<option>${o}</option>`).join('')}</select>`
+    : f.action === 'auto' ? '<span class="muted">자동</span>' : '';
+  $('#files').innerHTML = `<tr><th>${L} / 파일</th>` + '<th>상태</th><th>내용</th><th>처리</th></tr>' +
+    files.map((f, i) => `<tr class="${f.detail ? 'file' : ''}" data-i="${i}"><td>${esc(f.name)}</td><td><span class="chip ${cls[f.state]}">${f.label}</span></td><td>${esc(f.text)}</td><td>${act(f)}</td></tr>` +
+      (f.detail ? `<tr class="det" id="det${i}" hidden><td colspan="4">${f.detail}</td></tr>` : '')).join('');
+}
+$('#files').addEventListener('click', (e) => {
+  const x = e.target.closest('[data-x]');
+  if (x) {
+    const tr = x.closest('tr');
+    const on = x.textContent === '제외';
+    x.textContent = on ? '되돌리기' : '제외';
+    tr.style.opacity = on ? 0.5 : 1;
+    return;
+  }
+  if (e.target.closest('select')) return;
+  const tr = e.target.closest('tr.file');
+  if (!tr) return;
+  tr.classList.toggle('open');
+  $('#det' + tr.dataset.i).hidden = !tr.classList.contains('open');
+});
+
+function renderFixes() {
+  $('#fixes').innerHTML = fixes.map((f) => {
+    const d = decided[f.id];
+    if (f.question) {
+      return `<div class="fix ${d ? 'done' : ''}" data-id="${f.id}"><div>${f.question}</div><div class="opts">` +
+        f.choices.map(([v, l]) => `<label><input type="radio" name="${f.id}" value="${v}" ${d && d.mode === v ? 'checked' : ''}>${l}${v === f.def ? ' <span class="muted">(기본)</span>' : ''}</label>`).join('') + '</div></div>';
+    }
+    if (isOut(f)) {
+      return `<div class="fix out" data-id="${f.id}"><div>${f.where} &nbsp; <span class="chip">이 줄은 뺐어요 · 취합본에 넣지 않음</span></div>
+        <div class="opts"><button class="sm" data-in="${f.row}">되돌리기</button></div></div>`;
+    }
+    const opt = (v, l) => `<label><input type="radio" name="${f.id}" value="${v}" ${d && d.mode === v ? 'checked' : ''}>${l}</label>`;
+    const err = d && d.mode === 'manual' && d.value !== '' ? f.check(d.value) : true;
+    // 노란 상자 = 받은 회신 파일에 적혀 있던 값, 파란 상자 = 취합하면서 자동으로 고친 값
+    const fixed = f.msg ? '' : `<span class="arr">→</span><div class="vb fx"><small>자동으로 고친 값</small>${f.proposal
+      ? `<span class="v v-fix">${esc(f.proposal)}</span>` : '<span class="muted">자동으로 고칠 수 없어요</span>'}</div>`;
+    return `<div class="fix ${d ? 'done' : ''}" data-id="${f.id}">
+      <div class="where">${f.where}${f.msg ? `<span class="msg">${f.msg}</span>` : ''}</div>
+      <div class="pair"><div class="vb in"><small>받은 파일에 적혀 있던 값${f.rawLabel ? ` (${f.rawLabel})` : ''}</small><span class="v v-in">${esc(f.raw)}</span></div>${fixed}</div>
+      <div class="opts">${f.proposal ? opt('proposal', '자동으로 고친 값 쓰기') : ''}${opt('manual', '직접 고쳐 쓰기')}
+        <input type="text" aria-label="직접 고칠 값" value="${d && d.mode === 'manual' ? esc(d.value) : ''}" placeholder="넣을 값" style="width:120px" ${d && d.mode === 'manual' ? '' : 'hidden'}>
+        ${opt('keep', '적혀 있던 값 그대로')}
+        ${f.row ? `<button class="sm out-btn" data-out="${f.row}">이 줄 빼기</button>` : ''}</div>
+      ${err === true ? '' : `<div class="err">${err} (그래도 저장은 돼요)</div>`}</div>`;
+  }).join('');
+}
+$('#fixes').addEventListener('change', (e) => {
+  const box = e.target.closest('.fix'); if (!box || e.target.type !== 'radio') return;
+  const prev = decided[box.dataset.id];
+  decided[box.dataset.id] = { mode: e.target.value, value: prev && prev.mode === 'manual' ? prev.value : '' };
+  renderFixes(); renderStats();
+  if (e.target.value === 'manual') document.querySelector(`.fix[data-id="${box.dataset.id}"] input[type=text]`).focus();
+});
+$('#fixes').addEventListener('click', (e) => {
+  const o = e.target.closest('[data-out]'), i = e.target.closest('[data-in]');
+  if (o) rowOut.add(o.dataset.out);
+  else if (i) rowOut.delete(i.dataset.in);
+  else return;
+  renderFixes(); renderStats();
+});
+$('#fixes').addEventListener('input', (e) => {
+  if (e.target.type !== 'text') return;
+  const box = e.target.closest('.fix');
+  decided[box.dataset.id].value = e.target.value;
+  const f = fixes.find((x) => x.id === box.dataset.id);
+  const r = e.target.value === '' ? true : f.check(e.target.value);
+  let el = box.querySelector('.err');
+  if (r === true) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.className = 'err'; box.appendChild(el); }
+  el.textContent = `${r} (그래도 저장은 돼요)`;
+});
+$('#applyAll').onclick = () => {
+  fixes.forEach((f) => { if (!decided[f.id] && !isOut(f)) decided[f.id] = { mode: f.question ? f.def : f.proposal ? 'proposal' : 'keep', value: '' }; });
+  renderFixes(); renderStats();
+};
+$('#vToggle').onclick = () => { const d = $('#vDetail'); d.hidden = !d.hidden; $('#vToggle').textContent = d.hidden ? '자세히' : '접기'; };
+$('#mmShow').onclick = () => { $('#vDetail').hidden = false; $('#vToggle').textContent = '접기'; $('#vDetail').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+
+function finish() {
+  const stamp = '20261013-1530', c = scene === 'collect';
+  const title = c ? '2026 하반기 안전점검 결과 보고' : scene === 'fill' ? '2026 시설 현황표' : '2026 교육 참가자 조사';
+  const list = [`${title}_취합_${stamp}.xlsx`];
+  if (!c && !$('#copyOpt').hidden && $('#copyOpt input').checked) list.push(`${title}_수정본_${stamp}.zip`);
+  $('#doneMsg').className = 'banner ' + (scene === 'mismatch' ? 'b-req' : 'b-ok');
+  const dup = decided.q7 && decided.q7.mode === 'one' ? 1 : 0;
+  $('#doneMsg').textContent = c ? '부서 4곳의 보고서 시트를 모았어요 · 그림 2개는 옮겨지지 않았어요'
+    : scene === 'fill' ? `${L} 4곳의 빈칸을 한 표로 겹쳐 채웠어요 · 충돌 1칸 · 검산 일치`
+    : scene === 'mismatch' ? `${L} 12곳, 행 284개를 취합했어요 · 검산 불일치 2건 (결과 파일의 "검산" 시트를 확인해 주세요)`
+    : `${L} 12곳, 행 ${284 - rowOut.size - dup}개를 취합했어요 · 검산 일치`;
+  BAR.done.title = title;
+  $('#doneList').innerHTML = list.map((n) => `<li>${esc(n)}</li>`).join('');
+  show('done');
+}
+$('#barGet').onclick = () => {
+  if (scene === 'collect') { finish(); return; }
+  $('#get').click(); $('#confirm').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+$('#get').onclick = () => {
+  const left = pending(), mm = scene === 'mismatch';
+  if (!left && !mm) { finish(); return; }
+  $('#confirmText').textContent = [
+    mm ? '검산이 맞지 않아요(2건). 그래도 받을 수 있고, 결과 파일 "검산" 시트에 차이 내역이 들어가요.' : '',
+    left ? `고르지 않은 ${left}칸은 자동으로 고친 값으로 넣어요(고칠 수 없으면 적혀 있던 값 그대로).` : '',
+  ].filter(Boolean).join(' ');
+  $('#showList').textContent = mm ? '검산 내역 보기' : '목록 보기';
+  $('#confirm').hidden = false;
+};
+$('#showList').onclick = () => { $('#confirm').hidden = true; if (scene === 'mismatch') $('#mmShow').click(); else $('#fixes').scrollIntoView({ behavior: 'smooth' }); };
+$('#getAnyway').onclick = () => { $('#confirm').hidden = true; finish(); };
+$('#back').onclick = () => show(scene === 'collect' ? 'collect' : 'review');
+
+// 맨 위 막대: 화면마다 제목·버튼을 바꾼다 (생성 화면의 막대와 같은 자리)
+const BAR = {
+  upload: { title: '회신 파일 넣기', chips: '', more: false, get: false },
+  review: { title: '2026 교육 참가자 조사', chips: '<span class="chip">양식 v2</span> <span class="chip">파일 17개</span>', more: true, get: true },
+  done: { title: '2026 교육 참가자 조사', chips: '<span class="chip c-ok">받기 완료</span>', more: false, get: false },
+  progress: { title: '파일 읽는 중', chips: '', more: false, get: false },
+  collect: { title: '2026 하반기 안전점검 결과 보고', chips: '<span class="chip c-acc">시트 모으기형</span> <span class="chip">파일 6개</span>', more: true, get: true },
+};
+function show(name) {
+  ['upload', 'progress', 'review', 'collect', 'done'].forEach((n) => ($('#s-' + n).hidden = n !== name));
+  const b = BAR[name];
+  $('#barTitle').textContent = b.title; $('#barChips').innerHTML = b.chips;
+  $('#barMore').hidden = !b.more; $('#barGet').hidden = !b.get;
+  $('#barGet').textContent = name === 'collect' ? '모은 파일 받기' : '취합 파일 받기';
+  scrollTo(0, 0);
+}
+function openReview() {
+  if (scene === 'collect') { renderCollect(); show('collect'); return; }
+  BAR.review.title = scene === 'fill' ? '2026 시설 현황표' : '2026 교육 참가자 조사';
+  BAR.review.chips = scene === 'fill' ? '<span class="chip c-acc">빈칸채우기형</span> <span class="chip">파일 4개</span>' : '<span class="chip">양식 v2</span> <span class="chip">파일 17개</span>';
+  rerender(); show('review');
+}
+function rerender() { files = buildFiles(); fixes = buildFixes(); renderFiles(); renderFixes(); renderStats(); }
+$('#labelSeg').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  L = b.textContent;
+  $('#labelSeg').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+  rerender();
+});
+const FILL_NAMES = ['서울', '부산', '대구', '광주'].map((o) => `2026 시설 현황표_${o}.xlsx`);
+
+// 읽는 중: 파일마다 진행을 보여 준다 (03-aggregator 5절 "파일 단위로 진행률 표시")
+let timer = null;
+function startReading(names, nextScene) {
+  scene = nextScene;
+  $('#pList').innerHTML = names.map((n) => `<li>${esc(n)}</li>`).join('');
+  const items = [...$('#pList').children];
+  show('progress');
+  let i = 0;
+  const step = () => {
+    items.forEach((li, k) => { li.className = k < i ? 'done' : k === i ? 'now' : ''; li.textContent = (k < i ? '✓ ' : k === i ? '… ' : '') + names[k]; });
+    const pct = Math.round((i / names.length) * 100);
+    $('#pFill').style.width = pct + '%'; $('#pBar').setAttribute('aria-valuenow', pct);
+    $('#pCount').textContent = `${i} / ${names.length}`;
+    $('#pNow').textContent = i < names.length ? `읽는 중: ${names[i]}` : '다 읽었어요';
+    if (i === names.length) { timer = setTimeout(openReview, 350); return; }
+    i++; timer = setTimeout(step, 110);
+  };
+  step();
+}
+$('#pStop').onclick = () => { clearTimeout(timer); show('upload'); };
+
+const LIST_NAMES = ['서울', '경기', '인천', '부산', '대구', '광주', '대전', '강원', '충청', '전북', '전남', '경북', '경남']
+  .map((o) => `2026 교육 참가자 조사_${o}지사.xlsx`).concat(['대구_참가자_수정.xlsx', '작년.xlsx', '부산_복사.xlsx', '명단.xls']);
+const COLLECT_NAMES = ['시설팀', '안전팀', '운영팀', '총무팀'].map((d) => `안전점검 결과_${d}.xlsx`).concat(['안전점검_복사본.xlsx', '안전점검 결과_안전팀_사진추가.xlsx']);
+document.querySelectorAll('[data-demo]').forEach((b) => b.addEventListener('click', (e) => {
+  e.stopPropagation(); bag = []; renderBag();
+  Object.keys(decided).forEach((k) => delete decided[k]); rowOut.clear();   // 예시를 바꾸면 고른 것도 처음부터
+  startReading(b.dataset.demo === 'collect' ? COLLECT_NAMES : b.dataset.demo === 'fill' ? FILL_NAMES : LIST_NAMES, b.dataset.demo);
+}));
+
+// 시트 모으기형 검토: 칸 검사·확인할 칸·검산 없이 "모을 시트"만 보여 준다
+const COLLECT = [
+  { org: '시설팀', state: 'ok', label: '제출', file: '안전점검 결과_시설팀.xlsx', text: '보고서 시트 1개', act: 'x' },
+  { org: '안전팀', state: 'req', label: '그림 안 옮김', file: '안전점검 결과_안전팀_사진추가.xlsx', text: '보고서 시트 1개 · 그림 2개는 옮겨지지 않아요', act: 'dup' },
+  { org: '운영팀', state: 'ok', label: '제출', file: '안전점검 결과_운영팀.xlsx', text: '보고서 시트 1개 · "사진" 시트는 모으지 않음', act: 'x' },
+  { org: '총무팀', state: 'ok', label: '제출', file: '안전점검 결과_총무팀.xlsx', text: '보고서 시트 1개 (셀 합치기·줄바꿈 그대로)', act: 'x' },
+  { org: '안전점검_복사본.xlsx', state: 'bad', label: '제외', file: '', text: '한난MOA 양식 파일이 아니에요 (양식 정보 없음)', act: 'auto' },
+  { org: '전기팀 · 기계팀', state: 'grey', label: '미제출', file: '', text: '파일이 없어요', act: '' },
+];
+function renderCollect() {
+  $('#cStats').innerHTML = [['제출', '4/6', ''], ['모을 시트', 4, ''], ['그림 안 옮김', 2, 'alert'], ['제외', 1, ''], ['미제출', 2, '']]
+    .map(([k, v, c]) => `<div class="stat ${c}"><span>${k}</span><b>${v}</b></div>`).join('');
+  const cls = { ok: 'c-ok', req: 'c-req', bad: 'c-bad', grey: '' };
+  const act = (r) => r.act === 'x' ? '<button class="sm" data-x>제외</button>'
+    : r.act === 'dup' ? '<select aria-label="반영할 파일"><option>10/13 파일 (사진추가)</option><option>10/11 파일</option></select>'
+    : r.act === 'auto' ? '<span class="muted">자동</span>' : '';
+  $('#cFiles').innerHTML = '<tr><th>부서 / 파일</th><th>상태</th><th>모을 시트</th><th>처리</th></tr>' +
+    COLLECT.map((r) => `<tr><td>${esc(r.org)}</td><td><span class="chip ${cls[r.state]}">${r.label}</span></td><td>${esc(r.text)}</td><td>${act(r)}</td></tr>`).join('');
+  const got = COLLECT.filter((r) => r.file);
+  $('#cTabs').innerHTML = ['목차', ...got.map((r) => r.org), '제출 현황', '파일목록', '판단 기록'].map((n, i) => `<span class="${i === 0 ? 'on' : ''}">${esc(n)}</span>`).join('');
+  $('#cToc').innerHTML = '<tr><th>부서</th><th>상태</th><th>원본 파일</th><th>저장 시각</th><th>모은 시트</th><th>바로가기</th></tr>' +
+    got.map((r) => `<tr><td>${esc(r.org)}</td><td>제출</td><td>${esc(r.file)}</td><td>10/13 09:12</td><td>보고서</td><td><a>${esc(r.org)} 시트로</a></td></tr>`).join('') +
+    '<tr><td>전기팀</td><td>미제출</td><td></td><td></td><td></td><td></td></tr><tr><td>기계팀</td><td>미제출</td><td></td><td></td><td></td><td></td></tr>';
+}
+$('#cFiles').addEventListener('click', (e) => {
+  const x = e.target.closest('[data-x]'); if (!x) return;
+  const on = x.textContent === '제외';
+  x.textContent = on ? '되돌리기' : '제외';
+  x.closest('tr').style.opacity = on ? 0.5 : 1;
+});
+$('#cGet').onclick = () => finish();
+
+// 파일 넣기: 끌어다 놓기 · 눌러서 고르기. 모형이라 내용은 읽지 않고 이름만 확인한다.
+// 화면 아무 데나 떨어뜨려도 브라우저가 파일을 열어 버리지 않게 막는다.
+['dragover', 'drop'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault()));
+const drop = $('#drop');
+drop.addEventListener('dragover', () => drop.classList.add('over'));
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', (e) => { drop.classList.remove('over'); take(e.dataTransfer.files); });
+drop.addEventListener('click', () => $('#pick').click());
+drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#pick').click(); } });
+$('#barMore').onclick = () => $('#pick').click();
+$('#pick').onchange = (e) => { take(e.target.files); e.target.value = ''; };
+
+// 넣은 파일 목록. 같은 이름·같은 크기는 한 번만 받는다.
+let bag = [];
+const kb = (n) => (n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
+function take(list) {
+  let dup = 0;
+  for (const f of list) {
+    if (bag.some((b) => b.name === f.name && b.size === f.size)) { dup++; continue; }
+    const m = f.name.match(/\.([^.]+)$/);
+    const ext = m ? m[1].toLowerCase() : '';
+    const ok = ext === 'xlsx' || ext === 'zip';
+    bag.push({ name: f.name, size: f.size, ext, ok,
+      reason: ok ? '' : ext === 'xls' ? '옛날 엑셀(.xls) · .xlsx로 다시 저장해 주세요' : `.${ext || '?'} 파일은 받지 않아요` });
+  }
+  bag.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
+  $('#bagErr').hidden = !dup;
+  $('#bagErr').textContent = dup ? `이미 넣은 파일 ${dup}개는 건너뛰었어요.` : '';
+  renderBag();
+}
+// 양식 회신은 이름 앞뒤가 같다 (예: 감시장치_발주수량_01_서울지사.xlsx).
+// 모든 이름에 공통인 앞부분·뒷부분을 구분자(_ - 공백 괄호 .) 단위로 찾아, 카드에는 다른 부분만 크게 보여 준다.
+const SEP = /[_\-\s().\[\]]/;
+function commonParts(names) {
+  if (names.length < 2) return { pre: '', suf: '' };
+  const bases = names.map((n) => n.replace(/\.[^.]+$/, ''));
+  let pre = bases.reduce((p, s) => { let i = 0; while (i < p.length && p[i] === s[i]) i++; return p.slice(0, i); });
+  let suf = bases.reduce((p, s) => { let i = 0; while (i < p.length && p[p.length - 1 - i] === s[s.length - 1 - i]) i++; return p.slice(p.length - i); });
+  while (pre && !SEP.test(pre[pre.length - 1])) pre = pre.slice(0, -1);   // 단어 중간에서 자르지 않기
+  while (suf && !SEP.test(suf[0])) suf = suf.slice(1);
+  const shortest = Math.min(...bases.map((b) => b.length));
+  if (pre.length + suf.length >= shortest) suf = '';                     // 다른 부분이 사라지면 뒷부분은 포기
+  if (pre.length >= shortest) pre = '';
+  return { pre, suf };
+}
+function shortName(name, cp) {
+  const ext = (name.match(/\.[^.]+$/) || [''])[0];
+  const base = name.slice(0, name.length - ext.length);
+  return base.slice(cp.pre.length, base.length - cp.suf.length) || name;
+}
+function commonHtml(cp) {
+  if (!cp.pre && !cp.suf) return '';
+  return `모든 파일에 같은 이름 <code>${esc(cp.pre)}…${esc(cp.suf)}</code>은 줄여서 보여요. 카드에 마우스를 올리면 전체 이름이 나와요.`;
+}
+function tilesHtml(removable, cp) {
+  return bag.map((b, i) => `<div class="tile ${b.ok ? '' : 'skip'}" title="${esc(b.name)}">
+    <div class="ext ${b.ext === 'zip' ? 'zip' : b.ok ? '' : 'no'}">${esc((b.ext || '?').toUpperCase().slice(0, 4))}</div>
+    <div style="min-width:0"><div class="nm">${esc(shortName(b.name, cp))}</div>
+      <div class="meta">${kb(b.size)} · ${b.ok ? '<span style="color:var(--ok)">받음</span>' : `<span style="color:var(--bad)">건너뜀</span> · ${esc(b.reason)}`}</div></div>
+    ${removable ? `<button class="x" data-rm="${i}" aria-label="${esc(b.name)} 빼기">×</button>` : ''}</div>`).join('');
+}
+function bagSummary() {
+  const ok = bag.filter((b) => b.ok), skip = bag.length - ok.length;
+  return `<span class="chip c-ok">받음 ${ok.length}</span>` + (skip ? ` <span class="chip c-bad">건너뜀 ${skip}</span>` : '') +
+    ` <span class="muted">${kb(ok.reduce((t, b) => t + b.size, 0))}</span>`;
+}
+function renderBag() {
+  const has = bag.length > 0;
+  $('#bag').hidden = !has;
+  drop.classList.toggle('small', has);
+  const cp = commonParts(bag.map((b) => b.name));
+  const common = commonHtml(cp);
+  $('#bagSum').innerHTML = bagSummary();
+  $('#bagCommon').innerHTML = common; $('#bagCommon').hidden = !common;
+  $('#bagTiles').innerHTML = tilesHtml(true, cp);
+  $('#bagStrip').hidden = !has;
+  $('#stripSum').innerHTML = bagSummary();
+  $('#stripCommon').innerHTML = common; $('#stripCommon').hidden = !common;
+  $('#stripTiles').innerHTML = tilesHtml(false, cp);
+}
+$('#bagTiles').addEventListener('click', (e) => { const b = e.target.closest('[data-rm]'); if (b) { bag.splice(+b.dataset.rm, 1); renderBag(); } });
+$('#clearBag').onclick = () => { bag = []; $('#bagErr').hidden = true; renderBag(); };
+$('#start').onclick = () => {
+  if (!bag.some((b) => b.ok)) { $('#bagErr').hidden = false; $('#bagErr').textContent = '받을 수 있는 파일(.xlsx·zip)이 없어요. 엑셀에서 .xlsx로 다시 저장해서 넣어 주세요.'; return; }
+  startReading(bag.filter((b) => b.ok).map((b) => b.name), 'list');
+};
+$('#stripToggle').onclick = () => { const t = $('#stripBody'); t.hidden = !t.hidden; $('#stripToggle').textContent = t.hidden ? '펼치기' : '접기'; };
+</script>
+</body>
+</html>

@@ -292,7 +292,7 @@ footer{font-size:13px;color:var(--muted);text-align:center;margin-top:30px}
   <div class="grid2">
     <div class="card"><b>입력 규칙</b><span class="sub">숫자 칸엔 정해진 범위의 숫자만, 날짜 칸엔 날짜만, 고르기 칸은 목록에서 선택. 틀리게 쓰면 엑셀이 바로 막고 안내 문구를 보여 줍니다.</span></div>
     <div class="card"><b>잠금</b><span class="sub">제목 줄·지사명·고정 내용은 잠겨 있어 지사가 칸을 지우거나 바꾸기 어렵습니다.</span></div>
-    <div class="card"><b>인쇄영역</b><span class="sub">제목부터 입력 칸 끝까지를 인쇄영역으로 정합니다. 인쇄영역 안은 자료, 밖은 지사의 자유 메모 공간으로 봅니다.</span></div>
+    <div class="card"><b>인쇄영역</b><span class="sub">제목부터 입력 칸 끝까지를 인쇄영역으로 정합니다. 양식 시트는 입력 칸만 쓸 수 있고, 메모는 칸에 엑셀 메모로 답니다. 계산이 필요하면 새 시트를 추가해 씁니다.</span></div>
     <div class="card"><b>지사별 파일</b><span class="sub">지사 목록을 넣으면 지사 이름이 미리 들어간 파일을 지사 수만큼 만들어 한 묶음(zip)으로 줍니다. 목록이 없으면 파일 1개.</span></div>
     <div class="card"><b>양식 다시 쓰기</b><span class="sub">만든 양식은 브라우저에 저장되고, 빈 양식이나 취합본 엑셀을 올려도 양식을 되살릴 수 있어 다음 차수에 그대로 씁니다.</span></div>
     <div class="card"><b>버전</b><span class="sub">칸 구조를 바꿔 다시 내보내면 버전이 올라갑니다(파일명 _v2). 안내 문구만 바꾸면 그대로.</span></div>
@@ -423,13 +423,14 @@ footer{font-size:13px;color:var(--muted);text-align:center;margin-top:30px}
   <div class="scroll">
   <table class="plain">
     <tr><th>파일에서 본 모양</th><th>처리</th></tr>
-    <tr><td>인쇄영역 밖에 적은 내용</td><td><span class="tag t-gray">보관</span> 자료로 넣지 않고 "메모" 시트에 위치와 함께 옮김</td></tr>
-    <tr><td>인쇄영역 끝까지 차고 표가 아래로 이어짐</td><td><span class="tag t-green">넣음</span> 빈 줄이 나올 때까지 읽고 기록</td></tr>
+    <tr><td>칸에 단 엑셀 메모</td><td><span class="tag t-green">옮김</span> 취합본의 같은 칸에 옮기고 "메모" 시트에 목록으로</td></tr>
+    <tr><td>작성자가 추가한 시트 (계산용 등)</td><td><span class="tag t-gray">안 읽음</span> 파일목록에 "읽지 않은 시트"로 기록</td></tr>
     <tr><td>숨긴 줄 · 필터로 가린 줄</td><td><span class="tag t-green">넣음</span> 상태 칸 "숨긴 줄", 흐리게 표시</td></tr>
     <tr><td>취소선 그은 줄</td><td><span class="tag t-green">넣음</span> 상태 칸 "취소선", 취소선 유지</td></tr>
     <tr><td>합친 셀</td><td><span class="tag t-green">자동</span> 합친 범위의 모든 줄에 같은 값</td></tr>
     <tr><td>〃, 상동, 위와 같음</td><td><span class="tag t-green">자동</span> 윗줄 값으로 채우고 원래 값은 메모</td></tr>
-    <tr><td>빈 줄 · 예시 줄 · 합계 줄 · 메모 줄</td><td><span class="tag t-gray">뺌</span> 사유와 함께 "파일목록"에 기록. 합계 줄 숫자는 검산에 사용</td></tr>
+    <tr><td>빈 줄 · 예시 줄 · 합계 줄</td><td><span class="tag t-gray">뺌</span> 사유와 함께 "파일목록"에 기록. 합계 줄 숫자는 검산에 사용</td></tr>
+    <tr><td>입력 칸에 메모처럼 적은 줄</td><td><span class="tag t-green">넣음</span> 데이터로 읽고 확인할 칸에 표시, 운영자가 <span class="tag t-amber">이 줄 빼기</span></td></tr>
     <tr><td>양식에 없는 칸을 추가함</td><td><span class="tag t-gray">보관</span> 버리지 않고 "추가 칸" 시트에</td></tr>
     <tr><td>칸 순서 바뀜 · 칸 삭제 · "수 량"처럼 비슷한 이름</td><td><span class="tag t-green">자동</span> 이름으로 맞춤 / 비슷한 이름은 <span class="tag t-amber">확인</span></td></tr>
     <tr><td>셀 메모(코멘트) · 수식</td><td>메모는 취합본 같은 칸으로 옮기고, 수식은 결과 값 사용(깨진 수식은 오류)</td></tr>
@@ -518,7 +519,7 @@ footer{font-size:13px;color:var(--muted);text-align:center;margin-top:30px}
   </div>
   <div class="grid2">
     <div class="card"><b>같은 틀 시트 (항상)</b><span class="sub">빈 양식과 같은 모양. 2행에 "취합일 · 파일 수 · 오류 수 · 검산 결과".</span></div>
-    <div class="card"><b>점선 시트 (골랐거나 내용이 있을 때)</b><span class="sub">지사별 펼치기, 시트 모으기, 제출 현황, 인쇄영역 밖 메모, 양식에 없던 추가 칸.</span></div>
+    <div class="card"><b>점선 시트 (골랐거나 내용이 있을 때)</b><span class="sub">지사별 펼치기, 시트 모으기, 제출 현황, 작성자 메모 목록, 양식에 없던 추가 칸.</span></div>
     <div class="card"><b>기록 시트 (항상)</b><span class="sub">오류 목록, 파일별 읽은·넣은·뺀 줄, 검산 결과, 운영자가 내린 판단 전체.</span></div>
     <div class="card"><b>숨은 시트</b><span class="sub">설계도 사본과 정리된 원자료. 이 결과 파일을 상위 기관이 다시 넣어 합칠 때 씁니다.</span></div>
   </div>
