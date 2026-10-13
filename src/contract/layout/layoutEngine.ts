@@ -1,0 +1,414 @@
+import type { DataValidation } from 'exceljs';
+import type { Block, Field, FieldsBlock, FormSchema, GridBlock, ListBlock, MatrixBlock } from '../schema';
+import { orgLabel } from '../schema';
+import type { CellMap, CellValue, FieldsBlockMap, GridBlockMap, ListBlockMap, MatrixBlockMap } from '../meta';
+import { FIELD_TYPES } from '../fieldTypes';
+import { addr, colLetter, range } from './address';
+import type { AggregateFill, LayoutInput, ModelCell, SheetModel } from './sheetModel';
+
+/**
+ * 같은 틀 레이아웃 엔진 (01-contract.md 7절). 순수 함수.
+ * 빈 양식(template)과 취합본 첫 시트(aggregate)를 같은 규칙으로 배치한다.
+ * 상대 날짜 입력 규칙 때문에 today를 받는다(기본값 없음 → 호출하는 쪽이 정함).
+ */
+export function layoutSheet(schema: FormSchema, input: LayoutInput, opts: { today: Date }): SheetModel {
+  return new Layouter(schema, input, opts.today).run();
+}
+
+const FORBIDDEN_SHEET = /[\\/?*[\]:]/g;
+
+/** 엑셀 시트 이름 규칙: 31자 이하, 금지 문자 → '_'. 비면 '양식'. */
+export function sheetNameOf(title: string): string {
+  const s = title.replace(FORBIDDEN_SHEET, '_').trim().slice(0, 31);
+  return s || '양식';
+}
+
+const asCell = (v: CellValue | undefined): string | number | undefined => (v === null || v === undefined || v === '' ? undefined : v);
+
+/** 글자 폭 대략 계산 (한글 2, 나머지 1). 열 너비 정하는 데 쓴다. */
+function textWidth(v: unknown): number {
+  const s = String(v ?? '');
+  let w = 0;
+  for (const ch of s) w += /[ㄱ-힝]/.test(ch) ? 2 : 1;
+  return w;
+}
+
+function infoLine(schema: FormSchema): string {
+  const parts: string[] = [];
+  if (schema.guide?.trim()) parts.push(schema.guide.trim());
+  if (schema.deadline) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(schema.deadline);
+    parts.push(m ? `제출 기한 ${Number(m[2])}월 ${Number(m[3])}일` : `제출 기한 ${schema.deadline}`);
+  }
+  if (schema.contact?.trim()) parts.push(`문의 ${schema.contact.trim()}`);
+  return parts.join(' · ');
+}
+
+const headerText = (f: Field) => (f.required ? `${f.label} *` : f.label);
+
+class Layouter {
+  private cells = new Map<string, ModelCell>();
+  private merges: string[] = [];
+  private validations: { address: string; rule: DataValidation }[] = [];
+  private cellMap: CellMap = { printArea: '', blocks: {} };
+  private freeze?: { row: number };
+  private lastInputRow = 0;
+  private readonly agg?: AggregateFill;
+  private readonly lastCol: number;
+
+  constructor(private schema: FormSchema, private input: LayoutInput, private today: Date) {
+    this.agg = input.mode === 'aggregate' ? input.data : undefined;
+    this.lastCol = this.computeLastCol();
+  }
+
+  private get isTemplate() { return this.input.mode === 'template'; }
+  private get autoCount() { return this.agg?.autoColumns.length ?? 0; }
+
+  private put(cell: ModelCell) {
+    this.cells.set(cell.address, cell);
+    const row = Number(/\d+$/.exec(cell.address)![0]);
+    if (cell.role === 'input' || cell.role === 'example' || cell.role === 'auto-value' || cell.role === 'row-number' || cell.formula || cell.role === 'fixed')
+      this.lastInputRow = Math.max(this.lastInputRow, row);
+  }
+
+  private merge(c1: number, r: number, c2: number) {
+    if (c2 > c1) this.merges.push(range(c1, r, c2, r));
+  }
+
+  private validate(address: string, field: Field) {
+    if (!this.isTemplate) return;
+    const rule = FIELD_TYPES[field.type].excelValidation(field, this.today);
+    if (rule) this.validations.push({ address, rule });
+  }
+
+  /** 블록이 필요로 하는 열 수 (자동 칸 포함). */
+  private blockWidth(b: Block): number {
+    switch (b.kind) {
+      case 'fields': return 2;
+      case 'list': return 1 + b.columns.length + this.autoCount;
+      case 'matrix': return 1 + b.colLabels.length + (b.totalCol ? 1 : 0);
+      case 'grid': return b.colLabels.length + (this.agg && b.spareRows > 0 ? this.autoCount : 0);
+    }
+  }
+
+  private computeLastCol(): number {
+    if (this.schema.layout === 'collect') {
+      const w = Math.max(0, ...(this.schema.collect?.starter ?? []).map((r) => r.length));
+      return Math.max(3, w);
+    }
+    return Math.max(2, ...this.schema.blocks.map((b) => this.blockWidth(b)));
+  }
+
+  run(): SheetModel {
+    if (this.schema.layout === 'collect') return this.runCollect();
+
+    const { schema } = this;
+    const last = this.lastCol;
+
+    // 1행 제목, 2행 정보칸
+    this.put({ address: 'A1', value: schema.title, role: 'title' });
+    this.merge(1, 1, last);
+    const info = this.input.mode === 'aggregate' ? this.input.info : infoLine(schema);
+    this.put({ address: 'A2', value: info || undefined, role: 'guide', wrap: true });
+    this.merge(1, 2, last);
+
+    // 4행 제출처 줄
+    let row = 4;
+    if (schema.org.mode !== 'none') {
+      this.put({ address: 'A4', value: `${orgLabel(schema)}명`, role: 'label', required: schema.org.mode === 'input' });
+      if (this.input.mode === 'aggregate') {
+        this.put({ address: 'B4', value: '(줄별 자동 칸 참고)', role: 'input', mark: 'muted' });
+      } else if (schema.org.mode === 'preset') {
+        this.put({ address: 'B4', value: this.input.orgName ?? schema.org.orgs?.[0], role: 'locked-value' });
+      } else {
+        this.put({ address: 'B4', role: 'input', required: true });
+        const orgs = schema.org.orgs ?? [];
+        if (orgs.length) {
+          this.validations.push({
+            address: 'B4',
+            rule: {
+              type: 'list', allowBlank: false, formulae: [`"${orgs.join(',')}"`],
+              showErrorMessage: true, errorStyle: 'stop', errorTitle: '입력 형식 확인',
+              error: `${orgLabel(schema)}명: 목록에서 고르세요`,
+            },
+          });
+        }
+      }
+      this.merge(2, 4, last);
+      this.cellMap.orgCell = 'B4';
+      row = 6;
+    }
+
+    schema.blocks.forEach((b, i) => {
+      if (i > 0) row += 1; // 블록 사이 빈 행
+      if (b.title?.trim()) {
+        this.put({ address: addr(1, row), value: b.title.trim(), role: 'label' });
+        this.merge(1, row, last);
+        row += 1;
+      }
+      row = this.placeBlock(b, row);
+    });
+
+    const printArea = range(1, 1, last, Math.max(this.lastInputRow, 2));
+    this.cellMap.printArea = printArea;
+
+    return {
+      sheetName: sheetNameOf(schema.title),
+      columns: this.columnWidths(),
+      cells: [...this.cells.values()].sort(cellOrder),
+      merges: this.merges,
+      validations: this.validations,
+      printArea,
+      freeze: this.freeze,
+      cellMap: this.cellMap,
+    };
+  }
+
+  /** 블록을 row부터 배치하고 다음 빈 행 번호를 돌려준다. */
+  private placeBlock(b: Block, row: number): number {
+    switch (b.kind) {
+      case 'fields': return this.placeFields(b, row);
+      case 'list': return this.placeList(b, row);
+      case 'matrix': return this.placeMatrix(b, row);
+      case 'grid': return this.placeGrid(b, row);
+    }
+  }
+
+  private placeFields(b: FieldsBlock, row: number): number {
+    const map: FieldsBlockMap = { kind: 'fields', cells: {} };
+    for (const f of b.fields) {
+      const labelCell = addr(1, row);
+      const valueCell = addr(2, row);
+      this.put({ address: labelCell, value: f.label, role: 'label', required: f.required, fieldKey: f.key });
+      if (this.isTemplate) {
+        this.put({ address: valueCell, role: 'input', required: f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), wrap: f.type === 'memo', fieldKey: f.key });
+        this.validate(valueCell, f);
+      } else {
+        this.put({ address: valueCell, value: '(줄별 자동 칸 참고)', role: 'input', mark: 'muted', fieldKey: f.key });
+      }
+      this.merge(2, row, this.lastCol);
+      map.cells[f.key] = { labelCell, valueCell };
+      row += 1;
+    }
+    this.cellMap.blocks[b.id] = map;
+    return row;
+  }
+
+  private placeList(b: ListBlock, row: number): number {
+    const headerRow = row;
+    const map: ListBlockMap = { kind: 'list', headerRow, firstDataRow: 0, lastDataRow: 0, columns: {} };
+    this.put({ address: addr(1, headerRow), value: '번호', role: 'header' });
+    b.columns.forEach((f, i) => {
+      const col = 2 + i;
+      this.put({ address: addr(col, headerRow), value: headerText(f), role: 'header', required: f.required, fieldKey: f.key });
+      map.columns[f.key] = colLetter(col);
+    });
+    const autoStart = 2 + b.columns.length;
+    this.agg?.autoColumns.forEach((name, i) => this.put({ address: addr(autoStart + i, headerRow), value: name, role: 'auto-header' }));
+    this.freeze = { row: headerRow };
+
+    let r = headerRow + 1;
+    if (this.isTemplate && b.exampleRow) {
+      map.exampleRow = r;
+      this.put({ address: addr(1, r), value: '예시', role: 'row-number' });
+      b.columns.forEach((f, i) => this.put({ address: addr(2 + i, r), value: asCell(b.exampleRow?.[f.key]), role: 'example', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
+      r += 1;
+    }
+    map.firstDataRow = r;
+
+    if (this.isTemplate) {
+      for (let n = 1; n <= b.maxRows; n++, r++) {
+        this.put({ address: addr(1, r), value: n, role: 'row-number' });
+        b.columns.forEach((f, i) => this.put({ address: addr(2 + i, r), role: 'input', required: f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), wrap: f.type === 'memo', fieldKey: f.key }));
+      }
+      map.lastDataRow = r - 1;
+      b.columns.forEach((f, i) => this.validate(range(2 + i, map.firstDataRow, 2 + i, map.lastDataRow), f));
+    } else {
+      const rows = this.agg?.rows ?? [];
+      rows.forEach((rec, n) => {
+        const rowMark = rec.strike ? 'strike' : rec.muted ? 'muted' : undefined;
+        this.put({ address: addr(1, r), value: n + 1, role: 'row-number', mark: rowMark });
+        b.columns.forEach((f, i) => {
+          const m = rec.marks?.find((x) => x.key === f.key);
+          this.put({ address: addr(2 + i, r), value: asCell(rec.values[f.key]), role: 'input', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), mark: m?.mark ?? rowMark, note: m?.note, fieldKey: f.key });
+        });
+        rec.auto.forEach((v, i) => this.put({ address: addr(autoStart + i, r), value: asCell(v), role: 'auto-value', mark: rowMark }));
+        r += 1;
+      });
+      map.lastDataRow = Math.max(map.firstDataRow, r - 1);
+      if (rows.length === 0) r += 1;
+    }
+    this.cellMap.blocks[b.id] = map;
+    return r;
+  }
+
+  private placeMatrix(b: MatrixBlock, row: number): number {
+    const map: MatrixBlockMap = { kind: 'matrix', rowLabelCells: [], colLabelCells: [], cells: [] };
+    const f = b.cell;
+    const fmt = FIELD_TYPES.number.excelNumFmt(f);
+    const nC = b.colLabels.length;
+    const nR = b.rowLabels.length;
+    const firstCol = 2;
+    const lastDataCol = firstCol + nC - 1;
+    const totalColIdx = lastDataCol + 1;
+
+    this.put({ address: addr(1, row), role: 'header' });
+    b.colLabels.forEach((label, c) => {
+      const a = addr(firstCol + c, row);
+      this.put({ address: a, value: label, role: 'header', fieldKey: f.key });
+      map.colLabelCells.push(a);
+    });
+    if (b.totalCol) this.put({ address: addr(totalColIdx, row), value: '계', role: 'header' });
+
+    const firstRow = row + 1;
+    const sums = this.agg?.matrixSums;
+    for (let r = 0; r < nR; r++) {
+      const rr = firstRow + r;
+      const la = addr(1, rr);
+      this.put({ address: la, value: b.rowLabels[r], role: 'header' });
+      map.rowLabelCells.push(la);
+      const rowCells: string[] = [];
+      for (let c = 0; c < nC; c++) {
+        const a = addr(firstCol + c, rr);
+        this.put({ address: a, value: this.isTemplate ? undefined : asCell(sums?.[r]?.[c]), role: 'input', required: f.required, numFmt: fmt, fieldKey: f.key });
+        rowCells.push(a);
+      }
+      map.cells.push(rowCells);
+      if (b.totalCol) {
+        const a = addr(totalColIdx, rr);
+        if (this.isTemplate) this.put({ address: a, formula: `SUM(${range(firstCol, rr, lastDataCol, rr)})`, role: 'fixed', numFmt: fmt });
+        else this.put({ address: a, value: sumOf(sums?.[r] ?? []), role: 'fixed', numFmt: fmt });
+      }
+    }
+    const lastRow = firstRow + nR - 1;
+    if (this.isTemplate && nR > 0 && nC > 0) this.validate(range(firstCol, firstRow, lastDataCol, lastRow), f);
+
+    let next = lastRow + 1;
+    if (b.totalRow) {
+      const tr = next;
+      this.put({ address: addr(1, tr), value: '합계', role: 'header' });
+      for (let c = 0; c < nC + (b.totalCol ? 1 : 0); c++) {
+        const col = firstCol + c;
+        const a = addr(col, tr);
+        if (this.isTemplate) {
+          this.put({ address: a, formula: `SUM(${range(col, firstRow, col, lastRow)})`, role: 'fixed', numFmt: fmt });
+        } else {
+          const v = c < nC ? sumOf((sums ?? []).map((rowV) => rowV?.[c])) : sumOf((sums ?? []).map((rowV) => sumOf(rowV ?? [])));
+          this.put({ address: a, value: v, role: 'fixed', numFmt: fmt });
+        }
+      }
+      next += 1;
+    }
+    this.cellMap.blocks[b.id] = map;
+    return next;
+  }
+
+  private placeGrid(b: GridBlock, row: number): number {
+    const headerRow = row;
+    const map: GridBlockMap = { kind: 'grid', headerRow, firstRow: row + 1, columns: [], inputCells: {}, fixedCells: {} };
+    const width = b.colLabels.length;
+    b.colLabels.forEach((label, c) => {
+      this.put({ address: addr(1 + c, headerRow), value: label || undefined, role: 'header' });
+      map.columns.push(colLetter(1 + c));
+    });
+    const showAuto = !!this.agg && b.spareRows > 0;
+    if (showAuto) this.agg!.autoColumns.forEach((name, i) => this.put({ address: addr(width + 1 + i, headerRow), value: name, role: 'auto-header' }));
+    this.freeze = { row: headerRow };
+
+    let r = headerRow + 1;
+    for (const cells of b.rows) {
+      cells.forEach((cell, c) => {
+        const a = addr(1 + c, r);
+        if (cell.kind === 'fixed') {
+          this.put({ address: a, value: cell.value, role: 'fixed' });
+          map.fixedCells[a] = cell.value;
+        } else if (cell.kind === 'input') {
+          const f = cell.field;
+          const g = this.agg?.grid?.[f.key];
+          this.put({ address: a, value: this.isTemplate ? undefined : asCell(g?.value), note: g?.note, role: 'input', required: f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key });
+          map.inputCells[f.key] = a;
+          this.validate(a, f);
+        } else {
+          this.put({ address: a, role: 'fixed' });
+        }
+      });
+      r += 1;
+    }
+
+    if (b.spareRows > 0) {
+      const spareFirst = r;
+      const cols = b.spareColumns ?? [];
+      if (this.isTemplate) {
+        for (let n = 0; n < b.spareRows; n++, r++)
+          cols.forEach((f, c) => this.put({ address: addr(1 + c, r), role: 'input', required: f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
+        cols.forEach((f, c) => this.validate(range(1 + c, spareFirst, 1 + c, r - 1), f));
+      } else {
+        for (const sp of this.agg?.gridSpare ?? []) {
+          cols.forEach((f, c) => this.put({ address: addr(1 + c, r), value: asCell(sp.values[c]), role: 'input', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
+          sp.auto.forEach((v, i) => this.put({ address: addr(width + 1 + i, r), value: asCell(v), role: 'auto-value' }));
+          r += 1;
+        }
+        if (r === spareFirst) r += 1;
+      }
+      map.spare = { firstRow: spareFirst, lastRow: Math.max(spareFirst, r - 1) };
+    }
+    this.cellMap.blocks[b.id] = map;
+    return r;
+  }
+
+  private runCollect(): SheetModel {
+    const { schema } = this;
+    const last = this.lastCol;
+    this.put({ address: 'A1', value: schema.title, role: 'title' });
+    this.merge(1, 1, last);
+    const info = infoLine(schema);
+    if (schema.org.mode !== 'none') {
+      this.put({ address: 'A2', value: `${orgLabel(schema)}명`, role: 'label' });
+      this.put({ address: 'B2', value: this.input.mode === 'template' ? this.input.orgName ?? schema.org.orgs?.[0] : undefined, role: 'locked-value' });
+      this.put({ address: 'C2', value: info || undefined, role: 'guide', wrap: true });
+      this.merge(3, 2, last);
+    } else {
+      this.put({ address: 'A2', value: info || undefined, role: 'guide', wrap: true });
+      this.merge(1, 2, last);
+    }
+    (schema.collect?.starter ?? []).forEach((cells, i) => {
+      cells.forEach((v, c) => {
+        if (v !== null && v !== '') this.put({ address: addr(1 + c, 4 + i), value: v, role: 'fixed' });
+      });
+    });
+    return {
+      sheetName: '보고서',
+      columns: this.columnWidths(),
+      cells: [...this.cells.values()].sort(cellOrder),
+      merges: this.merges,
+      validations: [],
+      printArea: '',
+      cellMap: { printArea: '', blocks: {} },
+    };
+  }
+
+  private columnWidths(): { width: number }[] {
+    const widths = Array.from({ length: this.lastCol }, () => 10);
+    const merged = new Set(this.merges.map((m) => m.split(':')[0]));
+    for (const c of this.cells.values()) {
+      if (c.role === 'title' || c.role === 'guide' || merged.has(c.address)) continue;
+      const col = /^([A-Z]+)/.exec(c.address)![1];
+      const idx = col.split('').reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+      if (idx >= widths.length) continue;
+      widths[idx] = Math.max(widths[idx], Math.min(40, textWidth(c.value) + 4));
+    }
+    if (this.schema.blocks.some((b) => b.kind === 'list') && !this.schema.blocks.some((b) => b.kind === 'fields') && this.schema.org.mode === 'none')
+      widths[0] = 6;
+    return widths.map((width) => ({ width }));
+  }
+}
+
+function sumOf(vals: (CellValue | undefined)[]): number {
+  return vals.reduce<number>((s, v) => s + (typeof v === 'number' ? v : 0), 0);
+}
+
+function cellOrder(a: ModelCell, b: ModelCell): number {
+  const pa = /^([A-Z]+)(\d+)$/.exec(a.address)!;
+  const pb = /^([A-Z]+)(\d+)$/.exec(b.address)!;
+  return Number(pa[2]) - Number(pb[2]) || pa[1].length - pb[1].length || pa[1].localeCompare(pb[1]);
+}
