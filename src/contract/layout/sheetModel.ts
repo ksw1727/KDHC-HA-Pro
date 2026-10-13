@@ -3,7 +3,7 @@ import type { CellMap, CellValue } from '../meta';
 
 export type Role =
   | 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
-  | 'example' | 'fixed' | 'auto-header' | 'auto-value';
+  | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc';
 
 export type Mark = 'auto-fixed' | 'error' | 'muted' | 'strike';
 

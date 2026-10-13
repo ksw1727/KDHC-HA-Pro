@@ -24,6 +24,7 @@ export const ROLE_STYLES: Record<Role, RoleStyle> = {
   'row-number':   { color: '#8A95A2', align: 'center', border: true, locked: true },
   'auto-header':  { bold: true, fill: '#CFEADF', color: '#0F6E56', align: 'center', border: true, locked: true },
   'auto-value':   { fill: '#E5F4EE', color: '#0F6E56', border: true, locked: true },
+  calc:           { fill: '#F3F7FD', color: '#174A96', border: true, locked: true },   // 계산 칸 (엑셀 수식)
 };
 
 /** 필수 칸 강조 */

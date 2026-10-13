@@ -1,7 +1,8 @@
 import { CONTRACT_VERSION } from './version';
+import { formulaErrors } from './formula/context';
 import { AGGREGATION_IDS, AGGREGATION_REQUIRED, availableAggregations, type AggregationId } from './aggregationIds';
 
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern';
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern' | 'calc';
 
 export interface Field {
   key: string;            // 내부 식별자. 생성 시 자동 발급(예: "f_8k2m"), 이후 절대 변경하지 않음
@@ -20,6 +21,7 @@ export interface Field {
   minDate?: string; maxDate?: string;         // date. 'YYYY-MM-DD' 또는 상대값 'today', 'today+30', 'today-7'
   options?: string[];                         // select (1개 이상, 중복 불가)
   pattern?: 'phone' | 'mobile' | 'email' | 'bizno';   // pattern (필수)
+  formula?: string;                           // calc (필수). 칸 이름으로 쓴 계산식, 예: '[여] ÷ ([남] + [여]) × 100' (3.1절)
 }
 
 export interface FieldsBlock { kind: 'fields'; id: string; title?: string; fields: Field[]; }
@@ -38,12 +40,15 @@ export interface MatrixBlock {
   cell: Field;             // 모든 칸에 적용되는 규칙. type은 반드시 'number'
   totalRow: boolean;       // 합계 행 표시 여부 (빈 양식에는 수식, 취합본에는 값)
   totalCol: boolean;       // 합계 열(계) 표시 여부
+  calcRows?: Field[];      // 계산 행 (type 'calc'). 계산식은 행 제목·'합계'·앞의 계산 행 이름을 쓴다. 표 아래(합계 행 다음)에 놓인다
+  calcCols?: Field[];      // 계산 열 (type 'calc'). 계산식은 열 제목·'계'·앞의 계산 열 이름을 쓴다. 표 오른쪽(계 열 다음)에 놓인다
 }
 
 /** 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내고 채운 칸을 겹쳐 합친다. */
 export type GridCell =
   | { kind: 'fixed'; value: string | number }   // 본사가 미리 채운 고정 내용 (잠금)
   | { kind: 'input'; field: Field }             // 작성자가 채우는 칸 (field.key는 블록 안에서 유일)
+  | { kind: 'calc'; field: Field }              // 계산 칸 (field.type = 'calc', 잠금). 다른 칸 이름(3.1절)을 쓴다
   | { kind: 'blank' };                          // 아무것도 아닌 빈칸 (잠금)
 
 export interface GridBlock {
@@ -107,13 +112,15 @@ export function blockFields(block: Block): Field[] {
   switch (block.kind) {
     case 'fields': return block.fields;
     case 'list': return block.columns;
-    case 'matrix': return [block.cell];
+    case 'matrix': return [block.cell, ...(block.calcRows ?? []), ...(block.calcCols ?? [])];
     case 'grid': {
-      const inputs = block.rows.flat().flatMap((c) => (c.kind === 'input' ? [c.field] : []));
+      const inputs = block.rows.flat().flatMap((c) => (c.kind === 'input' || c.kind === 'calc' ? [c.field] : []));
       return [...inputs, ...(block.spareRows > 0 ? block.spareColumns ?? [] : [])];
     }
   }
 }
+
+export const isCalc = (f: Pick<Field, 'type'>) => f.type === 'calc';
 
 export function orgLabel(schema: Pick<FormSchema, 'org'>): string {
   return schema.org.label?.trim() || '지사';
@@ -171,6 +178,8 @@ export function validateSchema(x: unknown): ValidateResult {
       if (b.spareRows > 0 && b.spareColumns?.length !== width) errors.push('여유 줄의 열 규칙 수가 머리글 수와 달라요');
     }
   }
+
+  for (const msg of formulaErrors(s)) errors.push(msg);
 
   if (s.layout === 'collect') {
     if (!s.collect || (s.collect.scope !== 'report' && s.collect.scope !== 'all')) errors.push('시트 모으기형은 collect 설정이 필요해요');

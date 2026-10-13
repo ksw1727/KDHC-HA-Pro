@@ -8,6 +8,7 @@ const FORMAT_PROPS: Record<FieldType, (keyof Field)[]> = {
   select: ['options'],
   memo: [],
   pattern: ['pattern'],
+  calc: ['formula', 'decimals', 'thousands', 'unit'],
 };
 const ALL_FORMAT_PROPS = [...new Set(Object.values(FORMAT_PROPS).flat())];
 
@@ -17,6 +18,7 @@ export function typeDefaults(type: FieldType): Partial<Field> {
     case 'date': return { dateFormat: 'yyyy-mm-dd' };
     case 'select': return { options: [] };
     case 'pattern': return { pattern: 'mobile' };
+    case 'calc': return { formula: '', thousands: true, decimals: 0 };
     default: return {};
   }
 }
@@ -32,6 +34,7 @@ export function patchField(field: Field, patch: Partial<Field>): Field {
     for (const p of ALL_FORMAT_PROPS) if (!FORMAT_PROPS[patch.type].includes(p)) delete next[p];
     Object.assign(next, typeDefaults(patch.type), pick(patch, FORMAT_PROPS[patch.type]));
   }
+  if (next.type === 'calc') next.required = false;
   for (const k of Object.keys(next) as (keyof Field)[]) if (next[k] === undefined) delete next[k];
   return next;
 }

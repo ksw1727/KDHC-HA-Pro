@@ -33,6 +33,8 @@ export function formatSample(field: Field, index = 0): string {
       return field.pattern ? PATTERN_INFO[field.pattern].example : '';
     case 'memo':
       return '여러 줄 메모';
+    case 'calc':
+      return formatNumber(1234.5, field);
     case 'text': {
       if (/이름|성명/.test(field.label)) return ['김민수', '이서연', '박지훈'][index % 3];
       if (/담당/.test(field.label)) return ['홍길동', '정다은', '윤성호'][index % 3];
@@ -54,6 +56,8 @@ export function normalizeHint(field: Field): string {
       return field.pattern === 'email'
         ? '앞뒤 공백과 대문자 도메인은 취합할 때 자동으로 정리돼요.'
         : `"01012345678"처럼 들어와도 ${field.pattern ? PATTERN_INFO[field.pattern].example : ''} 모양으로 정리돼요.`;
+    case 'calc':
+      return '계산 칸은 잠겨 있고 엑셀이 자동으로 계산해요. 취합본에서는 합친 값으로 다시 계산해요(비율처럼 더하면 틀리는 값도 맞게).';
     default:
       return '앞뒤 공백은 취합할 때 자동으로 정리돼요.';
   }

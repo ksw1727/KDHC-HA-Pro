@@ -19,7 +19,7 @@ describe('주소 도우미', () => {
     expect(expandRange('A1:B2')).toEqual(['A1', 'B1', 'A2', 'B2']);
   });
   test('스타일 표에 모든 role이 있음', () => {
-    expect(Object.keys(ROLE_STYLES)).toHaveLength(11);
+    expect(Object.keys(ROLE_STYLES)).toHaveLength(12);
   });
 });
 
@@ -246,5 +246,64 @@ describe('불변 조건 (B9)', () => {
 
   test('같은 입력이면 같은 결과 (순수 함수)', () => {
     for (const k of Object.keys(SAMPLE) as FormSchema['layout'][]) expect(tpl(SAMPLE[k])).toEqual(tpl(SAMPLE[k]));
+  });
+});
+
+describe('계산 칸', () => {
+  test('목록: 같은 줄 수식, 위쪽 정보는 절대 주소', () => {
+    const s = clone(SAMPLE['header-list']);
+    const h = s.blocks[0];
+    const l = s.blocks[1];
+    if (h.kind !== 'fields' || l.kind !== 'list') throw new Error();
+    h.fields.push(f('rate', '단가', { type: 'number' }));
+    l.columns.push(f('qty', '수량', { type: 'number' }), f('amt', '금액', { type: 'calc', formula: '[수량] × [단가]' }));
+    h.fields.push(f('tot', '총 금액', { type: 'calc', formula: '합계([금액])' }));
+    const m = tpl(s);
+    // 위쪽 정보 4줄(6~9행) → 목록 머리글 11행, 첫 줄 12행. 칸: B 이름, C 교육비, D 수량, E 금액
+    expect(at(m, 'E12')).toMatchObject({ role: 'calc', formula: 'IFERROR(D12*$B$8,"")', note: '계산: [수량] × [단가]' });
+    expect(at(m, 'E13')?.formula).toBe('IFERROR(D13*$B$8,"")');
+    expect(at(m, 'B9')?.formula).toBe('IFERROR(SUM(E12:E111),"")');
+    expect(m.validations.find((v) => v.address.startsWith('E'))).toBeUndefined();
+  });
+
+  test('계산식이 잘못되면 "(계산식 확인)"', () => {
+    const s = clone(SAMPLE.list);
+    const l = s.blocks[0];
+    if (l.kind !== 'list') throw new Error();
+    l.columns.push(f('bad', '오류', { type: 'calc', formula: '[없는칸] + 1' }));
+    expect(at(tpl(s), 'D7')).toMatchObject({ value: '(계산식 확인)', mark: 'error' });
+  });
+
+  test('표형: 계산 열·계산 행 수식과 취합본 다시 계산', () => {
+    const s = clone(SAMPLE.matrix);
+    const mb = s.blocks[0];
+    if (mb.kind !== 'matrix') throw new Error();
+    mb.calcCols = [f('ratio', '여 비율', { type: 'calc', formula: '[여] ÷ [계] × 100', decimals: 1 })];
+    mb.calcRows = [f('diff', '학년 차이', { type: 'calc', formula: '[2학년] - [1학년]' })];
+    const m = tpl(s);
+    // 6행 머리글: B 남, C 여, D 계, E 여 비율 / 7·8행 학년, 9행 합계, 10행 학년 차이
+    expect(at(m, 'E6')).toMatchObject({ value: '여 비율', fieldKey: 'ratio' });
+    expect(at(m, 'E7')?.formula).toBe('IFERROR(C7/D7*100,"")');
+    expect(at(m, 'E9')?.formula).toBe('IFERROR(C9/D9*100,"")');
+    expect(at(m, 'A10')?.value).toBe('학년 차이');
+    expect(at(m, 'B10')?.formula).toBe('IFERROR(B8-B7,"")');
+    expect(at(m, 'E10')?.formula).toBe('IFERROR(C10/D10*100,"")');
+    const a = layoutSheet(s, { mode: 'aggregate', info: '', data: { autoColumns: [], matrixSums: [[45, 41], [38, 40]] } }, { today });
+    expect(at(a, 'E9')?.value).toBeCloseTo((81 / 164) * 100, 5); // 합계 행 비율은 다시 계산
+    expect(at(a, 'B10')?.value).toBe(-7);
+    expect(at(a, 'D9')?.value).toBe(164);
+  });
+
+  test('빈칸채우기: 칸 이름으로 수식, 고정 숫자 칸도 이름으로', () => {
+    const s = clone(SAMPLE['fill-in']);
+    const g = s.blocks[0];
+    if (g.kind !== 'grid') throw new Error();
+    g.colLabels = ['사업', '예산', '서울', '잔액'];
+    g.rows[0].push({ kind: 'calc', field: f('c1', '교육 · 잔액', { type: 'calc', formula: '[교육 · 예산] - [교육 · 서울]' }) });
+    g.rows[1].push({ kind: 'blank' });
+    const m = tpl(s);
+    expect(at(m, 'D5')).toMatchObject({ role: 'calc', formula: 'IFERROR(B5-C5,"")' });
+    const a = layoutSheet(s, { mode: 'aggregate', info: '', data: { autoColumns: [], grid: { g1: { value: 300 } } } }, { today });
+    expect(at(a, 'D5')?.value).toBe(600);
   });
 });
