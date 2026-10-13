@@ -42,3 +42,12 @@ test('시트 모으기형: 제작한 양식으로 보내기 → 표 그리기, �
   expect(within(grid).getByText('소화기')).toBeTruthy();
   expect(screen.queryByText(/붙여넣으세요/)).toBeNull();
 });
+
+test('② 양식 구조: 지금 구조의 미리보기 애니메이션, 올려 둔 구조로 바뀜', () => {
+  render(<BuilderPage />);
+  fireEvent.click(screen.getByRole('button', { name: /양식 구조/ }));
+  expect(screen.getByLabelText('구조 미리보기 애니메이션')).toBeTruthy();
+  expect(screen.getByText('지금 구조')).toBeTruthy();
+  fireEvent.mouseEnter(screen.getByRole('radio', { name: /빈칸채우기형/ }));
+  expect(screen.getByText('미리 보기 · 누르면 바뀌어요')).toBeTruthy();
+});
