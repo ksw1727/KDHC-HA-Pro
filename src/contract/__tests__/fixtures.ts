@@ -56,4 +56,21 @@ export const SAMPLE: Record<FormSchema['layout'], FormSchema> = {
     aggregations: ['collect-sheets', 'submission-status'],
     org: { mode: 'preset', orgs: ['서울', '부산'] },
   },
+  free: {
+    ...base, layout: 'free', title: '10월 안전점검 결과',
+    // 판: 1행 점검자·점검일 입력 칸, 3행 숫자 표(불량 현황), 6행 입력 줄 영역(점검 내역)
+    blocks: [
+      { kind: 'fields', id: 'b1', fields: [f('insp', '점검자', { required: true }), f('day', '점검일', { type: 'date' })] },
+      { kind: 'matrix', id: 'b2', title: '불량 현황', rowLabels: ['불량 수'], colLabels: ['소화기', '비상등'], cell: f('bad', '불량', { type: 'number' }), totalRow: false, totalCol: true },
+      { kind: 'list', id: 'b3', title: '점검 내역', maxRows: 5, columns: [f('item', '항목', { required: true }), f('res', '결과', { type: 'select', options: ['양호', '불량'] }), f('cost', '조치 금액', { type: 'number', unit: '원' })] },
+    ],
+    free: {
+      rows: 11, cols: 4,
+      texts: { A1: '점검자', C1: '점검일' },
+      merges: [],
+      places: { insp: 'B1', day: 'D1', b2: 'A3', b3: 'A6' },
+    },
+    aggregations: ['same-frame', 'submission-status'],
+    org: { mode: 'preset', orgs: ['서울', '부산'] },
+  },
 };

@@ -1,5 +1,6 @@
 import type { Block, CollectSpec, Field, FieldType, FormSchema, GridBlock, ListBlock, MatrixBlock } from '@contract/schema';
-import { AGGREGATION_REQUIRED, availableAggregations, type AggregationId } from '@contract/aggregationIds';
+import { availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
+import { applyFreeOp, tidy, type FreeOp } from './freeEdit';
 import { newField, patchField } from './fieldDefaults';
 import { changeLayout } from './changeLayout';
 import { defaultAggregations } from './newSchema';
@@ -18,7 +19,9 @@ export type Action =
   | { type: 'collect/set'; patch: Partial<CollectSpec> }
   | { type: 'org/set'; patch: Partial<FormSchema['org']> }
   | { type: 'agg/toggle'; id: AggregationId }
-  | { type: 'schema/load'; schema: FormSchema };
+  | { type: 'schema/load'; schema: FormSchema }
+  | { type: 'free/op'; op: FreeOp }
+  | { type: 'block/title'; blockId: string; title: string };
 
 const updateBlock = (s: FormSchema, id: string, fn: (b: Block) => Block): FormSchema => ({
   ...s,
@@ -68,7 +71,16 @@ export function formReducer(s: FormSchema, a: Action): FormSchema {
     const next = formReducerCore(s, a);
     return old !== undefined ? renameInFormulas(next, old, a.patch.label) : next;
   }
-  return formReducerCore(s, a);
+  const next = formReducerCore(s, a);
+  // 자유 제작형: 입력 칸 항목을 지우면 놓인 자리도 지우고, 필수 취합 방식을 맞춘다
+  if (next.layout === 'free' && next !== s && a.type !== 'schema/load' && a.type !== 'layout/change') {
+    if (a.type === 'field/remove' && next.free?.places[a.key]) {
+      const { [a.key]: _gone, ...places } = next.free.places;
+      return tidy({ ...next, free: { ...next.free, places } });
+    }
+    return a.type === 'free/op' ? next : tidy(next);
+  }
+  return next;
 }
 
 function formReducerCore(s: FormSchema, a: Action): FormSchema {
@@ -168,7 +180,7 @@ function formReducerCore(s: FormSchema, a: Action): FormSchema {
     }
 
     case 'agg/toggle': {
-      if (AGGREGATION_REQUIRED[s.layout].includes(a.id)) return s;
+      if (requiredAggregations(s).includes(a.id)) return s;
       if (!availableAggregations(s).includes(a.id)) return s;
       const on = s.aggregations.includes(a.id);
       return { ...s, aggregations: on ? s.aggregations.filter((x) => x !== a.id) : [...s.aggregations, a.id] };
@@ -176,5 +188,12 @@ function formReducerCore(s: FormSchema, a: Action): FormSchema {
 
     case 'schema/load':
       return a.schema;
+
+    case 'block/title':
+      return updateBlock(s, a.blockId, (b) => ({ ...b, title: a.title }));
+
+    case 'free/op':
+      // 할 수 없는 편집은 그대로 둔다 (화면이 미리 applyFreeOp로 이유를 보여준다)
+      return applyFreeOp(s, a.op).schema ?? s;
   }
 }

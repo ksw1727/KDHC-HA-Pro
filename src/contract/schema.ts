@@ -1,6 +1,6 @@
 import { CONTRACT_VERSION } from './version';
 import { formulaErrors } from './formula/context';
-import { AGGREGATION_IDS, AGGREGATION_REQUIRED, availableAggregations, type AggregationId } from './aggregationIds';
+import { AGGREGATION_IDS, availableAggregations, requiredAggregations, type AggregationId } from './aggregationIds';
 
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern' | 'calc';
 
@@ -61,7 +61,20 @@ export interface GridBlock {
 
 export type Block = FieldsBlock | ListBlock | MatrixBlock | GridBlock;
 
-export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect';
+export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect' | 'free';
+
+/**
+ * 자유 제작형 그리는 판 (3.2절). layout = 'free'일 때만 쓴다.
+ * 판 주소는 판 왼쪽 위가 A1이다. 엑셀에서는 제목·안내·제출처 줄 아래(제출처가 있으면 6행, 없으면 4행)부터 놓인다.
+ * 입력 영역은 기존 블록으로 저장한다: 입력 칸 = fields 블록(0~1개)의 항목, 입력 줄 영역 = list 블록, 숫자 표 = matrix 블록.
+ */
+export interface FreeSpec {
+  rows: number;                       // 판 행 수 (영역이 더 길면 영역 끝까지)
+  cols: number;                       // 판 열 수
+  texts: Record<string, string>;      // 판 주소 → 글자 칸 (잠김)
+  merges: string[];                   // 판 범위, 예: 'A1:C1'. 글자 칸끼리만 합친다
+  places: Record<string, string>;     // 놓인 자리: fields 항목 key → 판 주소, list·matrix 블록 id → 왼쪽 위 판 주소
+}
 
 /** 시트 모으기형 설정. layout = 'collect'일 때만 쓴다. */
 export interface CollectSpec {
@@ -80,6 +93,7 @@ export interface FormSchema {
   layout: Layout;
   blocks: Block[];                 // collect는 빈 배열
   collect?: CollectSpec;           // layout = 'collect'일 때 필수
+  free?: FreeSpec;                 // layout = 'free'일 때 필수
   aggregations: AggregationId[];   // 기본 선택된 취합 방식. 필수 방식(AGGREGATION_REQUIRED)은 항상 포함
   org: {
     mode: 'preset' | 'input' | 'none';
@@ -96,16 +110,20 @@ export const LAYOUT_LABELS: Record<Layout, string> = {
   'header-list': '혼합형',
   'fill-in': '빈칸채우기형',
   collect: '시트 모으기형',
+  free: '자유 제작형',
 };
 
-/** 구조별 블록 종류 순서 (01-contract.md 3절 표). */
-const LAYOUT_BLOCKS: Record<Layout, Block['kind'][]> = {
+/** 구조별 블록 종류 순서 (01-contract.md 3절 표). 자유 제작형은 null = 아래 규칙으로 따로 검사 */
+const LAYOUT_BLOCKS: Record<Layout, Block['kind'][] | null> = {
   list: ['list'],
   matrix: ['matrix'],
   'header-list': ['fields', 'list'],
   'fill-in': ['grid'],
   collect: [],
+  free: null,
 };
+
+const ADDR = /^[A-Z]{1,3}[1-9]\d*$/;
 
 /** 블록 안의 모든 항목(Field). 표형은 cell 하나, 빈칸채우기형은 입력칸 + 여유 줄 규칙. */
 export function blockFields(block: Block): Field[] {
@@ -151,8 +169,22 @@ export function validateSchema(x: unknown): ValidateResult {
 
   const kinds = s.blocks.map((b) => b?.kind);
   const expected = LAYOUT_BLOCKS[s.layout];
-  if (kinds.length !== expected.length || kinds.some((k, i) => k !== expected[i])) {
+  if (expected && (kinds.length !== expected.length || kinds.some((k, i) => k !== expected[i]))) {
     errors.push(`${s.layout} 구조의 블록은 [${expected.join(', ')}] 이어야 해요 (지금: [${kinds.join(', ')}])`);
+  }
+  if (s.layout === 'free') {
+    if (kinds.some((k) => k !== 'fields' && k !== 'list' && k !== 'matrix')) errors.push('자유 제작형의 블록은 fields·list·matrix만 쓸 수 있어요');
+    if (kinds.filter((k) => k === 'fields').length > 1) errors.push('자유 제작형의 fields 블록은 1개까지예요');
+    const f = s.free;
+    if (!isObj(f) || !Number.isInteger(f.rows) || !Number.isInteger(f.cols) || f.rows < 1 || f.cols < 1 || !isObj(f.texts) || !Array.isArray(f.merges) || !isObj(f.places)) {
+      errors.push('자유 제작형은 free 설정(rows·cols·texts·merges·places)이 필요해요');
+    } else {
+      for (const b of s.blocks) {
+        const need = b?.kind === 'fields' ? b.fields.map((x) => x.key) : b?.id ? [b.id] : [];
+        for (const k of need) if (!ADDR.test(f.places[k] ?? '')) errors.push(`놓인 자리가 없어요: ${k}`);
+      }
+      for (const a of Object.keys(f.texts)) if (!ADDR.test(a)) errors.push(`글자 칸 주소가 올바르지 않아요: ${a}`);
+    }
   }
   s.blocks.forEach((b, i) => {
     if (b?.id !== `b${i + 1}`) errors.push(`블록 id는 b${i + 1}이어야 해요`);
@@ -192,7 +224,7 @@ export function validateSchema(x: unknown): ValidateResult {
   if (!Array.isArray(s.aggregations)) errors.push('aggregations가 배열이 아니에요');
   else {
     for (const a of s.aggregations) if (!AGGREGATION_IDS.includes(a)) errors.push(`알 수 없는 취합 방식: ${a}`);
-    for (const r of AGGREGATION_REQUIRED[s.layout]) if (!s.aggregations.includes(r)) errors.push(`필수 취합 방식이 빠졌어요: ${r}`);
+    for (const r of requiredAggregations(s)) if (!s.aggregations.includes(r)) errors.push(`필수 취합 방식이 빠졌어요: ${r}`);
     if (isObj(s.org)) {
       const allowed = availableAggregations(s);
       for (const a of s.aggregations) if (!allowed.includes(a)) errors.push(`이 양식에서 쓸 수 없는 취합 방식: ${a}`);

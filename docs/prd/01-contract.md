@@ -98,7 +98,15 @@ export interface GridBlock {
 
 export type Block = FieldsBlock | ListBlock | MatrixBlock | GridBlock;
 
-export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect';
+export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect' | 'free';
+
+/** 자유 제작형 그리는 판 (3.2절). layout = 'free'일 때만 쓴다. 판 주소는 판 왼쪽 위가 A1 */
+export interface FreeSpec {
+  rows: number; cols: number;           // 판 크기 (영역이 더 크면 영역 끝까지)
+  texts: Record<string, string>;        // 판 주소 → 글자 칸 (잠김)
+  merges: string[];                     // 판 범위, 글자 칸끼리만 합친다
+  places: Record<string, string>;       // 놓인 자리: fields 항목 key → 판 주소, list·matrix 블록 id → 왼쪽 위 판 주소
+}
 
 /** 시트 모으기형 설정. layout = 'collect'일 때만 쓴다. */
 export interface CollectSpec {
@@ -117,7 +125,8 @@ export interface FormSchema {
   layout: Layout;
   blocks: Block[];                 // collect는 빈 배열
   collect?: CollectSpec;           // layout = 'collect'일 때 필수
-  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 필수 방식(AGGREGATION_REQUIRED)은 항상 포함
+  free?: FreeSpec;                 // layout = 'free'일 때 필수
+  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 필수 방식(requiredAggregations)은 항상 포함
   org: {
     mode: 'preset' | 'input' | 'none';
     orgs?: string[];       // preset: 필수(1개 이상). input: 선택(있으면 지사명 칸이 드롭다운). none: 사용 안 함
@@ -137,6 +146,7 @@ export interface FormSchema {
 | `header-list` | 혼합형 | `[FieldsBlock, ListBlock]` (이 순서) |
 | `fill-in` | 빈칸채우기형 | `[GridBlock]` |
 | `collect` | 시트 모으기형 | `[]` (블록 없음, `collect` 설정 사용) |
+| `free` | 자유 제작형 | `fields`(0~1개, 맨 앞)·`list`·`matrix`를 개수 제한 없이. `free` 설정 필수, 모든 항목·블록에 놓인 자리(`places`) 필요 |
 
 - 블록 `id`는 `b1`, `b2`처럼 순서대로 부여한다.
 - `collect`는 `org.mode`로 `preset`·`none`만 쓸 수 있다(`input`은 지사명 칸을 읽어야 하는데 자유 서식이라 칸 위치가 보장되지 않음). `collect` 설정은 필수다.
@@ -144,6 +154,30 @@ export interface FormSchema {
 - 이 문서와 화면의 "지사"는 `org.label`로 바뀌어 보인다(예: "부서명", "부서별 시트").
 - 지사명 칸은 블록이 아니다. `org.mode`가 `preset`·`input`이면 생성 파트가 자동으로 넣고 위치를 `CellMap.orgCell`에 적는다. `none`이면 지사명 칸이 없다(파일 하나 = 응답 하나).
 - `fill-in`의 `input` 칸이 1개 이상이거나 `spareRows > 0`이어야 한다.
+
+### 3.2 자유 제작형 (`free.ts`)
+
+운영자가 판에 표 모양을 직접 그리고(글자 칸·합친 칸), 작성자가 채울 곳을 세 가지로 지정한다. **입력 영역은 기존 블록으로 저장**하므로 셀 지도(`CellMap`)는 다른 구조와 같은 모양이고, 취합 파트의 값 읽기·검산은 그대로 쓴다.
+
+| 판에서 지정 | 저장 | 셀 지도 | 판 위 크기 |
+|---|---|---|---|
+| 입력 칸 (한 칸에 값 하나) | `fields` 블록의 항목 | `FieldsBlockMap` (labelCell = 왼쪽 글자 칸, 없으면 위쪽, 없으면 값 칸) | 1칸 |
+| 입력 줄 영역 (머리글 + 여러 줄) | `list` 블록 (번호 열 없음) | `ListBlockMap` | 머리글 1행 + `maxRows`행 × 칸 수 |
+| 숫자 표 (열 제목 × 행 제목) | `matrix` 블록 | `MatrixBlockMap` | 기존 표형과 같음 (왼쪽 위 = 빈칸) |
+
+- **엑셀 배치**: 1~2행 제목·안내, 4행 제출처 줄은 다른 구조와 같다. 판 A1은 제출처 줄이 있으면 **6행**, 없으면 **4행**(`freeTop`)의 A열에 놓인다. 글자 칸은 `label` 스타일로 잠긴다. 판 영역 전체가 인쇄영역이다.
+- **영역 계산**: `freeRegions(schema)`가 영역마다 판 좌표 사각형을 돌려준다. 공통 문제(`freeProblems`): 영역 없음, 영역끼리 겹침, 영역 안 글자 칸, 영역에 걸친 합친 칸.
+- **취합 검사** (`freeAggregationChecks`, 화면 ④와 내보내기 전 검사가 같이 쓴다):
+
+| 방식 | 가능 조건 | 결과 모양 |
+|---|---|---|
+| 같은 틀 시트 (필수) | 입력 줄 영역 **0~1개**, 줄 영역의 **아래와 오른쪽**(머리글·입력 줄 행)에는 다른 영역·글자 칸이 없음 (늘어나는 줄·자동 칸이 덮어쓰기 때문) | 줄 영역이 있으면 혼합형 규칙: 줄이 이어지고 입력 칸 값·`지사`·출처가 줄마다 오른쪽 자동 칸. 없으면 입력 칸 자리에 "(지사별 시트 참고)"(흐리게). 숫자 표는 칸끼리 합계 |
+| 지사별 펼치기 | 입력 칸이나 숫자 표가 있음 | 제출당 1행: 입력 칸들 + 숫자 표 `{행제목} {열제목}` + (줄 영역 있으면) `목록 행 수` |
+| 시트 모으기·제출 현황표 | 항상 (현황표는 지사를 식별할 때) | 다른 구조와 같음 |
+
+- **필수 방식** (`requiredAggregations`): `same-frame` + 줄 영역이 없는데 입력 칸이나 숫자 표가 있으면 `spread`(입력 칸 값이 모이는 곳).
+- 숫자 표가 여러 개일 수 있으므로 `AggregateFill.matrixSumsBy`(블록 id → 칸별 합)를 쓴다. 없으면 `matrixSums`.
+- 버전: 놓인 자리·합친 칸이 바뀌면 칸 구조 변경으로 보고 `formVersion`을 올린다(셀 지도가 달라지므로). 글자 칸 내용만 바뀌면 유지.
 
 ### 3.1 계산 칸 (`formula/`)
 
@@ -343,13 +377,14 @@ export type IssueCode =
 ```ts
 export type AggregationId =
   | 'same-frame'         // 같은 틀 시트        — collect를 뺀 모든 layout, 항상 포함
-  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in
+  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in, free(조건부 필수, 3.2)
   | 'collect-sheets'     // 시트 모으기         — 모든 layout. collect는 항상 포함(목차 시트 포함)
   | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
 export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]>;
-// list·header-list·fill-in: ['same-frame'] / matrix: ['same-frame', 'spread'] / collect: ['collect-sheets']
+// list·header-list·fill-in: ['same-frame'] / matrix: ['same-frame', 'spread'] / collect: ['collect-sheets'] / free: ['same-frame']
+export function requiredAggregations(schema): AggregationId[];   // free는 모양에 따라 spread 추가 (3.2). 필수 판단은 이 함수로 한다
 ```
 
 - 생성 파트는 빌더에서 해당 layout이 지원하는 방식만 보여주고, 필수 방식은 체크 해제할 수 없게 한다.
@@ -423,6 +458,7 @@ interface ModelCell {
 | matrix | 양식과 같은 표에 **모든 제출의 합계** | 없음 (지사별 값은 `spread` 시트, 항상 포함) |
 | fill-in | 양식과 같은 표에 **모든 제출을 겹쳐 채움**, 여유 줄 자리에 추가된 행 전부 | 여유 줄에만 `지사`, `출처 파일`, `원본 줄`. 입력칸 출처는 셀 메모 |
 | collect | 같은 틀 시트 없음. 첫 시트는 **목차**(`03-aggregator.md` 3.7) | — |
+| free | 판 모양 그대로. 줄 영역 자리에 모든 반영 행, 숫자 표는 합계, 입력 칸은 줄 영역이 있으면 "(줄별 자동 칸 참고)", 없으면 "(지사별 시트 참고)" (3.2) | 줄 영역이 있을 때만, **줄 영역 오른쪽**에: `지사`, 입력 칸 항목들, `출처 파일`, `원본 줄`, `상태` |
 
 **`collect` 빈 양식 배치**: 1행 제목, 2행 `{org.label}명`(값)·작성 안내·기한·문의처(org.mode = 'none'이면 제출처명 없이 안내만), 3행 빈 행, 4행부터 `starter` 표(없으면 빈칸). 잠금·입력 규칙·인쇄영역 없음. `layoutSheet(schema, { mode: 'template' })`가 이 모양을 돌려준다.
 

@@ -17,10 +17,10 @@ export const AGGREGATION_LABELS: Record<AggregationId, string> = {
 };
 
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]> = {
-  'same-frame': ['list', 'header-list', 'matrix', 'fill-in'],
-  spread: ['matrix', 'header-list', 'fill-in'],
-  'collect-sheets': ['list', 'header-list', 'matrix', 'fill-in', 'collect'],
-  'submission-status': ['list', 'header-list', 'matrix', 'fill-in', 'collect'],
+  'same-frame': ['list', 'header-list', 'matrix', 'fill-in', 'free'],
+  spread: ['matrix', 'header-list', 'fill-in', 'free'],
+  'collect-sheets': ['list', 'header-list', 'matrix', 'fill-in', 'collect', 'free'],
+  'submission-status': ['list', 'header-list', 'matrix', 'fill-in', 'collect', 'free'],
 };
 
 export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]> = {
@@ -29,7 +29,19 @@ export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]> = {
   'fill-in': ['same-frame'],
   matrix: ['same-frame', 'spread'],
   collect: ['collect-sheets'],
+  free: ['same-frame'],   // + requiredAggregations()의 규칙
 };
+
+/**
+ * 이 양식의 필수 취합 방식. 자유 제작형은 모양에 따라 정한다:
+ * 입력 줄 영역이 없는데 입력 칸이나 숫자 표가 있으면 지사별 펼치기도 필수(입력 칸 값은 지사별 시트에 한 줄씩 모인다).
+ */
+export function requiredAggregations(schema: Pick<FormSchema, 'layout' | 'blocks'>): AggregationId[] {
+  const base = AGGREGATION_REQUIRED[schema.layout];
+  if (schema.layout !== 'free') return base;
+  const has = (k: string) => schema.blocks.some((b) => b.kind === k);
+  return !has('list') && (has('fields') || has('matrix')) ? [...base, 'spread'] : base;
+}
 
 /** 이 양식에서 고를 수 있는 취합 방식. 제출 현황표는 지사를 식별할 때(preset·input)만. */
 export function availableAggregations(schema: Pick<FormSchema, 'layout' | 'org'>): AggregationId[] {
