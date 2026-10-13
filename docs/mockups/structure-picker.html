@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한난MOA 구조 고르기</title>
+<style>
+:root{
+  --page:#eef1f5;--bg:#ffffff;--panel:#f6f8fb;--chip:#f1f4f8;
+  --ink:#18202b;--sub:#56616e;--muted:#8a95a2;--line:#e2e7ee;--line2:#cbd3dd;
+  --pri:#1f5fbf;--pri-ink:#174a96;--pri-bg:#e8f0fc;--pri-line:#b9cff2;
+  --req:#fff5d1;--auto:#e5f4ee;--auto-h:#cfeadf;--auto-ink:#0f6e56;
+  --head:#eef2f7;--sheet-line:#d9dfe7;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;font-size:15px;line-height:1.6}
+.page{max-width:1300px;margin:0 auto;padding:36px 16px 80px}
+.eyebrow{font-size:13px;color:var(--muted)}
+h1{font-size:28px;margin:4px 0 8px}
+h2{font-size:21px;margin:0 0 6px}
+.lead{color:var(--sub);margin:0;max-width:880px}
+.sec{margin-top:40px}
+.idea{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+@media (max-width:860px){.idea{grid-template-columns:1fr}}
+.idea div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px}
+.idea b{display:block;margin-bottom:2px}
+.idea .n{display:inline-block;background:var(--pri);color:#fff;border-radius:50%;width:20px;height:20px;text-align:center;font-size:12px;line-height:20px;margin-right:6px}
+.scroller{overflow-x:auto;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 10px 28px rgba(16,24,40,.10);margin-top:14px}
+.app{min-width:1180px;background:var(--bg);border:1px solid #cfd6df;border-radius:14px;overflow:hidden;font-size:13px}
+.chrome{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#e3e6ea;border-bottom:1px solid #cfd4da}
+.chrome .d{width:10px;height:10px;border-radius:50%;background:#c6ccd3}
+.chrome .u{flex:1;margin-left:8px;background:#fff;border-radius:6px;padding:3px 10px;color:#8a939d;font-size:12px}
+.bar{display:flex;align-items:center;gap:14px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.logo{font-weight:800;color:var(--pri);letter-spacing:-.02em;font-size:15px}
+.logo span{color:var(--ink)}
+.tabs{display:flex;gap:2px;background:#eef2f7;border-radius:8px;padding:3px}
+.tabs span{padding:4px 12px;border-radius:6px;color:var(--sub)}
+.tabs span.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:7px;padding:6px 13px;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}
+.btn.link{border:0;background:none;color:var(--pri-ink);font-weight:600;padding:4px 2px}
+.crumb{color:var(--muted);font-size:12.5px}
+
+.pick{padding:22px 28px 26px}
+.pick-h{display:flex;align-items:flex-end;gap:16px}
+.pick-h h3{font-size:20px;margin:0}
+.pick-h p{margin:2px 0 0;color:var(--sub)}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}
+.card{border:1.5px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;overflow:hidden;transition:border-color .15s,box-shadow .15s;text-align:left;font-family:inherit;padding:0;color:inherit}
+.card:hover{border-color:var(--pri-line)}
+.card.on{border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-bg)}
+.card .thumb{height:118px;background:var(--panel);border-bottom:1px solid var(--line);position:relative;overflow:hidden}
+.card .thumb .scale{position:absolute;left:8px;top:8px;transform:scale(.4);transform-origin:top left;width:660px}
+.card .body{padding:10px 12px 12px}
+.card .t{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14.5px}
+.card .t .rd{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line2);display:inline-block;position:relative}
+.card.on .t .rd{border-color:var(--pri)}
+.card.on .t .rd::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--pri)}
+.card .one{color:var(--sub);margin:2px 0 6px;font-size:13px}
+.ex{display:flex;flex-wrap:wrap;gap:4px}
+.ex span{font-size:11.5px;background:var(--chip);border:1px solid var(--line);color:var(--sub);border-radius:5px;padding:0 6px}
+.reco{display:none;font-size:11.5px;font-weight:700;color:#fff;background:var(--pri);border-radius:5px;padding:0 6px;margin-left:auto}
+.card.reco-on .reco{display:inline-block}
+
+.stage{margin-top:18px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:16px 18px}
+.stage-h{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.stage-h b{font-size:15px}
+.steps{display:flex;gap:6px;margin-left:12px}
+.steps span{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 10px;background:#fff;transition:all .2s}
+.steps span.on{color:#fff;background:var(--pri);border-color:var(--pri)}
+.result{margin-top:10px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 12px;color:var(--sub);font-size:13.5px}
+.result b{color:var(--auto-ink)}
+.foot{display:flex;align-items:center;gap:10px;margin-top:16px}
+
+/* story */
+.story{display:grid;grid-template-columns:1fr 26px 1.25fr 26px 1.15fr;align-items:center;gap:6px;width:100%}
+.pane{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:150px;transition:box-shadow .25s,border-color .25s}
+.pane.cur{border-color:var(--pri-line);box-shadow:0 0 0 3px var(--pri-bg)}
+.pane .cap{font-size:11.5px;color:var(--muted);font-weight:700;margin-bottom:5px}
+.arrow{color:var(--line2);font-size:20px;text-align:center;transition:color .2s}
+.arrow.in{color:var(--pri)}
+.files{display:flex;gap:6px}
+.file{flex:1;border:1px solid var(--line);border-radius:6px;padding:4px;background:#fbfcfd;min-width:0}
+.file .fn{font-size:10.5px;color:var(--sub);font-weight:700;margin-bottom:3px}
+.s{border-collapse:collapse;width:100%;font-size:11.5px;table-layout:fixed}
+.s td{border:1px solid var(--sheet-line);padding:1px 4px;height:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s .h{background:var(--head);font-weight:700}
+.s .rq{background:var(--req)}
+.s .fx{color:var(--ink)}
+.s .au{background:var(--auto);color:var(--auto-ink)}
+.s .auh{background:var(--auto-h);color:var(--auto-ink);font-weight:700}
+.s .sum{background:var(--pri-bg);color:var(--pri-ink);font-weight:700}
+.s .num{text-align:right}
+.s.mini{font-size:10.5px}
+.s.mini td{height:17px;padding:0 3px}
+.mt{margin-top:5px}
+.tag{display:inline-block;font-size:10.5px;color:var(--auto-ink);background:var(--auto);border-radius:4px;padding:0 5px;margin-right:3px}
+[data-at]{transition:opacity .35s ease,transform .35s ease}
+[data-at]:not(.in){opacity:0;transform:translateY(5px)}
+td[data-at]:not(.in){opacity:1;transform:none;color:transparent}
+td[data-at]{transition:color .3s,background-color .3s}
+td[data-at].in.flash{background:#fff2b3}
+@media (prefers-reduced-motion: reduce){[data-at]{transition:none}}
+
+/* quiz */
+.quiz{display:none;margin-top:14px;border:1px solid var(--pri-line);background:var(--pri-bg);border-radius:12px;padding:14px 16px}
+.quiz.open{display:block}
+.q{font-weight:700;margin-bottom:8px}
+.qa{display:flex;gap:8px;flex-wrap:wrap}
+.qa button{font-family:inherit;font-size:13px;border:1px solid var(--pri-line);background:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;text-align:left}
+.qa button:hover{border-color:var(--pri)}
+.qa button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.qa button small{display:block;color:var(--muted);font-size:11.5px}
+.qa button.on small{color:#dbe7fb}
+.q2{display:none;margin-top:12px}
+.q2.open{display:block}
+.qres{display:none;margin-top:12px;font-weight:600;color:var(--pri-ink)}
+.qres.open{display:block}
+
+/* builder mini */
+.mini-wrap{display:grid;grid-template-columns:400px 1fr;gap:18px;margin-top:14px;align-items:start}
+@media (max-width:900px){.mini-wrap{grid-template-columns:1fr}}
+.acc{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.acc .ah{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:8px}
+.acc .ah .n{width:19px;height:19px;border-radius:50%;background:var(--pri);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center}
+.seg{display:flex;border:1px solid var(--line2);border-radius:7px;overflow:hidden}
+.seg span{flex:1;text-align:center;padding:5px 4px;border-right:1px solid var(--line2);color:var(--sub);font-size:12.5px}
+.seg span:last-child{border-right:0}
+.seg span.on{background:var(--pri-bg);color:var(--pri-ink);font-weight:700}
+.pop{margin-top:8px;border:1px solid var(--line2);border-radius:10px;box-shadow:0 8px 24px rgba(16,24,40,.14);padding:10px;background:#fff}
+.notes{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:14px}
+.notes ul{margin:6px 0 0;padding-left:18px}
+.notes li{margin:3px 0}
+.box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">한난MOA · 생성 파트 · 공공 블루 스타일 · 양식 구조 고르기 화면 제안</div>
+  <h1>"어떤 구조로 만들지" 고민하지 않게 하는 화면</h1>
+  <p class="lead">구조 이름(목록형, 표형 등)만으로는 결과를 떠올리기 어렵습니다. 그래서 <b>배포 양식이 지사를 거쳐 취합본이 되는 과정</b>을 짧은 움직임으로 보여주고, 그래도 모르겠으면 질문에 답해서 고를 수 있게 했습니다. 아래 목업은 실제로 눌러볼 수 있습니다.</p>
+
+  <div class="idea">
+    <div><span class="n">1</span><b>카드에서 미리 보기</b>구조 4개를 카드로 나란히 보여줍니다. 카드마다 결과 모양이 작게 반복 재생되고, 쓰임새 예시가 붙어 있습니다.</div>
+    <div><span class="n">2</span><b>크게 보기 (3컷 이야기)</b>카드를 누르면 아래 큰 화면에서 "① 배포 양식 → ② 지사가 작성 → ③ 취합본"이 차례로 재생됩니다. 마지막에 "취합하면 이렇게 돼요" 한 줄 설명이 붙습니다.</div>
+    <div><span class="n">3</span><b>질문으로 고르기</b>"잘 모르겠어요"를 누르면 질문 1~2개로 알맞은 구조를 추천하고, 해당 카드에 '추천' 표시를 합니다.</div>
+  </div>
+
+  <section class="sec">
+    <h2>목업: 새 양식 만들기 → 구조 고르기</h2>
+    <div class="scroller"><div class="app">
+      <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="crumb">시작 › 새 양식 › <b style="color:var(--ink)">구조 고르기</b></span><span class="sp"></span><button class="btn">취소</button></div>
+      <div class="pick">
+        <div class="pick-h">
+          <div><h3>어떤 모양의 양식을 만들까요?</h3><p>카드를 누르면 아래에서 지사가 작성하고 취합되는 과정을 크게 보여드려요.</p></div>
+          <span class="sp"></span>
+          <button class="btn link" id="quizBtn">잘 모르겠어요 · 질문으로 골라 주세요 ▾</button>
+        </div>
+
+        <div class="quiz" id="quiz">
+          <div class="q">지사에서 무엇을 받나요?</div>
+          <div class="qa" id="q1">
+            <button data-a="rows">여러 줄 명단이나 내역<small>사람, 물품, 건별 기록</small></button>
+            <button data-a="matrix">정해진 표에 숫자만<small>칸 제목이 미리 정해진 통계표</small></button>
+            <button data-a="fill">우리가 만든 표의 빈칸만<small>대부분 채워 두고 일부만 받기</small></button>
+          </div>
+          <div class="q2" id="q2wrap">
+            <div class="q">명단 위에 지사 정보(담당자, 연락처 등)도 한 번 받나요?</div>
+            <div class="qa" id="q2">
+              <button data-a="list">아니요, 명단만 받아요</button>
+              <button data-a="mixed">네, 위쪽에 한 번 받아요</button>
+            </div>
+          </div>
+          <div class="qres" id="qres"></div>
+        </div>
+
+        <div class="cards" id="cards"></div>
+
+        <div class="stage">
+          <div class="stage-h"><b id="stTitle"></b><span class="steps" id="steps"><span>① 배포 양식</span><span>② 지사가 작성</span><span>③ 취합본</span></span><span class="sp"></span><button class="btn" id="replay">↻ 다시 보기</button><button class="btn" id="pause">❚❚ 멈춤</button></div>
+          <div id="big"></div>
+          <div class="result" id="stResult"></div>
+        </div>
+
+        <div class="foot"><span class="crumb">구조는 만드는 중에도 ② 양식 구조에서 바꿀 수 있어요.</span><span class="sp"></span><button class="btn">양식 JSON 불러오기</button><button class="btn pri" id="go">혼합형으로 시작하기 →</button></div>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="sec">
+    <h2>빌더 안에서도 다시 보기</h2>
+    <p class="lead">양식을 만드는 중에도 빌더 왼쪽 ② 양식 구조에서 다른 구조를 고르면, 바꾸기 전에 그 구조의 움직임을 작게 보여주고 확인을 받습니다.</p>
+    <div class="mini-wrap">
+      <div class="acc">
+        <div class="ah"><span class="n">2</span>양식 구조</div>
+        <div class="seg"><span>목록형</span><span>표형</span><span class="on">혼합형</span><span>빈칸채우기형</span></div>
+        <div class="pop">
+          <div style="display:flex;align-items:center;margin-bottom:6px"><b style="font-size:13px">표형으로 바꿀까요?</b><span class="sp"></span><span class="crumb">미리 보기</span></div>
+          <div style="height:96px;overflow:hidden;position:relative;background:var(--panel);border-radius:8px"><div class="scale" id="popStory" style="position:absolute;left:6px;top:6px;transform:scale(.36);transform-origin:top left;width:900px"></div></div>
+          <div class="crumb" style="margin:6px 0 8px">목록 칸 4개는 옮길 수 없어서 지워져요. 위쪽 정보 2개는 그대로 남아요.</div>
+          <div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn">취소</button><button class="btn pri">표형으로 바꾸기</button></div>
+        </div>
+      </div>
+      <div class="notes">
+        <b>이 화면에서 지키는 원칙</b>
+        <ul>
+          <li>구조 이름보다 <b>결과 모양과 예시</b>("교육 참가자 명단", "학년별 인원표")를 먼저 보여줍니다.</li>
+          <li>모든 구조는 같은 3컷 이야기(배포 → 작성 → 취합)로 보여줘 서로 비교하기 쉽게 합니다.</li>
+          <li>움직임은 6초 안에 끝나고 반복합니다. [멈춤]과 [다시 보기]를 항상 둡니다.</li>
+          <li>컴퓨터에 "동작 줄이기"가 켜져 있으면 움직이지 않고 3컷을 한꺼번에 보여줍니다.</li>
+          <li>구조를 바꾸면 지워지는 항목을 미리 알려 줍니다(PRD 2.2 "이동 불가한 항목은 확인 창").</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>만드는 방법 (개발자 1 메모)</h2>
+    <div class="box" style="font-size:14px">
+      <ul style="margin:0;padding-left:18px">
+        <li><b>동영상이나 GIF가 아니라 실제 화면 요소</b>(작은 표)를 순서대로 나타나게 하는 방식입니다. 파일 용량이 거의 없고, 한 파일 빌드(index.html)에 그대로 들어가며, 글자가 선명합니다.</li>
+        <li>부품은 두 개입니다. <code>StructurePicker</code>(카드 4개, 질문, 시작 버튼)와 <code>StructureStory</code>(3컷 이야기, 크게/작게 공용)입니다. 이야기 내용은 구조별 데이터 표 하나로 관리해서, 나중에 구조가 늘어나도 데이터만 추가하면 됩니다.</li>
+        <li>움직임은 CSS 전환과 0.5초 간격 타이머로만 만듭니다(추가 라이브러리 없음). 화면 밖에 있거나 [멈춤]을 누르면 타이머를 멈춥니다.</li>
+        <li>질문 흐름: "여러 줄" → (지사 정보도? 아니요 = 목록형 / 네 = 혼합형), "정해진 표 숫자" = 표형, "빈칸만" = 빈칸채우기형.</li>
+        <li>PRD 반영 위치: <code>02-generator.md</code> 2.1 시작 화면의 "구조 선택(각각 작은 그림 예시)"을 이 화면으로 구체화합니다.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+var D={
+ list:{name:'목록형',one:'지사마다 여러 줄을 적어요',ex:['교육 참가자 명단','물품 구매 내역','차량 운행 기록'],
+  result:'취합하면 <b>모든 지사의 줄이 한 표로 이어지고</b>, 오른쪽에 <span class="tag">지사</span> 칸이 자동으로 붙어요.',
+  p1:'<table class="s"><tr><td class="h">이름 *</td><td class="h">직급</td><td class="h">참가일</td></tr><tr><td class="rq"></td><td></td><td></td></tr><tr><td class="rq"></td><td></td><td></td></tr><tr><td class="rq"></td><td></td><td></td></tr></table>',
+  p2:[['서울',[['김민수','대리','11.01'],['이서연','과장','11.03']]],['부산',[['박지훈','사원','11.01']]],['대구',[['최유진','차장','11.05']]]],
+  p2h:['이름','직급','참가일'],
+  p3:'<table class="s"><tr><td class="h">이름</td><td class="h">직급</td><td class="h">참가일</td><td class="auh">지사</td></tr>'+
+   [['김민수','대리','11.01','서울'],['이서연','과장','11.03','서울'],['박지훈','사원','11.01','부산'],['최유진','차장','11.05','대구']].map(function(r,i){return '<tr data-at="'+(8+i)+'"><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="au">'+r[3]+'</td></tr>'}).join('')+'</table>'},
+ matrix:{name:'표형',one:'칸 제목이 정해진 표에 숫자만 적어요',ex:['학년×성별 인원표','월별 실적표','시설별 점검 수'],
+  result:'취합하면 <b>같은 표의 같은 칸끼리 더한 합계표</b>가 되고, 지사별 시트도 함께 들어가요.',
+  p1:'<table class="s"><tr><td class="h"></td><td class="h">남</td><td class="h">여</td></tr><tr><td class="h">1학년</td><td class="rq"></td><td class="rq"></td></tr><tr><td class="h">2학년</td><td class="rq"></td><td class="rq"></td></tr></table>',
+  p2:[['서울',[['1학년','12','10'],['2학년','9','11']]],['부산',[['1학년','20','18'],['2학년','15','17']]],['대구',[['1학년','13','13'],['2학년','14','12']]]],
+  p2h:['','남','여'],matrixLike:true,
+  p3:'<table class="s"><tr><td class="h">전체</td><td class="h">남</td><td class="h">여</td></tr><tr><td class="h">1학년</td><td class="sum num" data-at="8">Σ 45</td><td class="sum num" data-at="8">Σ 41</td></tr><tr><td class="h">2학년</td><td class="sum num" data-at="9">Σ 38</td><td class="sum num" data-at="9">Σ 40</td></tr></table><div class="mt" data-at="10"><span class="tag">+ 시트</span><span class="tag">서울</span><span class="tag">부산</span><span class="tag">대구</span></div>'},
+ mixed:{name:'혼합형',one:'지사 정보는 한 번, 명단은 여러 줄 적어요',ex:['담당자 + 참가자 명단','기관 정보 + 구매 내역'],
+  result:'취합하면 명단이 한 표로 이어지고, 위쪽 정보(<span class="tag">담당자</span>)와 <span class="tag">지사</span>가 <b>줄마다 오른쪽에 자동으로</b> 붙어요.',
+  p1:'<table class="s"><tr><td class="h">담당자 *</td><td class="rq" colspan="2"></td></tr></table><table class="s mt"><tr><td class="h">이름 *</td><td class="h">직급</td><td class="h">참가일</td></tr><tr><td class="rq"></td><td></td><td></td></tr><tr><td class="rq"></td><td></td><td></td></tr></table>',
+  p2:[['서울',[['김민수','대리','11.01'],['이서연','과장','11.03']],'홍길동'],['부산',[['박지훈','사원','11.01']],'정다은'],['대구',[['최유진','차장','11.05']],'윤성호']],
+  p2h:['이름','직급','참가일'],
+  p3:'<table class="s"><tr><td class="h">이름</td><td class="h">직급</td><td class="auh">지사</td><td class="auh">담당자</td></tr>'+
+   [['김민수','대리','서울','홍길동'],['이서연','과장','서울','홍길동'],['박지훈','사원','부산','정다은'],['최유진','차장','대구','윤성호']].map(function(r,i){return '<tr data-at="'+(8+i)+'"><td>'+r[0]+'</td><td>'+r[1]+'</td><td class="au">'+r[2]+'</td><td class="au">'+r[3]+'</td></tr>'}).join('')+'</table>'},
+ fill:{name:'빈칸채우기형',one:'본사가 만든 표의 빈칸만 지사가 채워요',ex:['사업별 지사 예산 배분표','지사별 목표 확인표'],
+  result:'취합하면 지사마다 채운 빈칸이 <b>하나의 완성된 표로 겹쳐져요</b>. 같은 칸에 다른 값이 오면 확인을 요청해요.',
+  p1:'<table class="s"><tr><td class="h">사업</td><td class="h">예산</td><td class="h">서울</td><td class="h">부산</td><td class="h">대구</td></tr><tr><td class="fx">교육</td><td class="fx num">900</td><td class="rq"></td><td class="rq"></td><td class="rq"></td></tr><tr><td class="fx">홍보</td><td class="fx num">600</td><td class="rq"></td><td class="rq"></td><td class="rq"></td></tr></table>',
+  fillLike:true,
+  p3:'<table class="s"><tr><td class="h">사업</td><td class="h">예산</td><td class="h">서울</td><td class="h">부산</td><td class="h">대구</td></tr><tr><td>교육</td><td class="num">900</td><td class="au num" data-at="8">300</td><td class="au num" data-at="9">350</td><td class="au num" data-at="10">250</td></tr><tr><td>홍보</td><td class="num">600</td><td class="au num" data-at="8">200</td><td class="au num" data-at="9">250</td><td class="au num" data-at="10">150</td></tr></table>'}
+};
+var ORDER=['list','matrix','mixed','fill'];
+
+function p2html(d){
+  if(d.fillLike){
+    var v={서울:[300,200],부산:[350,250],대구:[250,150]};var cols=['서울','부산','대구'];
+    return '<div class="files">'+cols.map(function(o,k){
+      return '<div class="file"><div class="fn">'+o+'.xlsx</div><table class="s mini"><tr><td class="h">사업</td>'+cols.map(function(c){return '<td class="h">'+c.slice(0,1)+'</td>'}).join('')+'</tr>'+
+      ['교육','홍보'].map(function(r,ri){return '<tr><td>'+r+'</td>'+cols.map(function(c,ci){return ci===k?'<td class="num flash" data-at="'+(3+k)+'">'+v[o][ri]+'</td>':'<td></td>'}).join('')+'</tr>'}).join('')+'</table></div>'}).join('')+'</div>';
+  }
+  return '<div class="files">'+d.p2.map(function(f,k){
+    var t='<div class="file"><div class="fn">'+f[0]+'.xlsx</div>';
+    if(f[2]) t+='<table class="s mini"><tr><td class="h">담당자</td><td class="flash" data-at="'+(3+k)+'">'+f[2]+'</td></tr></table><div style="height:3px"></div>';
+    t+='<table class="s mini"><tr>'+d.p2h.map(function(h){return '<td class="h">'+h+'</td>'}).join('')+'</tr>'+
+      f[1].map(function(r){return '<tr>'+r.map(function(c,ci){return (d.matrixLike&&ci===0)?'<td class="h">'+c+'</td>':'<td class="flash'+(d.matrixLike?' num':'')+'" data-at="'+(3+k)+'">'+c+'</td>'}).join('')+'</tr>'}).join('')+'</table></div>';
+    return t;}).join('')+'</div>';
+}
+function storyHTML(key){
+  var d=D[key];
+  return '<div class="story"><div class="pane" data-pane="1"><div class="cap">① 배포 양식</div><div data-at="1">'+d.p1+'</div></div>'+
+   '<div class="arrow" data-arrow="2">→</div>'+
+   '<div class="pane" data-pane="2"><div class="cap">② 지사 3곳이 작성</div>'+p2html(d)+'</div>'+
+   '<div class="arrow" data-arrow="7">→</div>'+
+   '<div class="pane" data-pane="3"><div class="cap">③ 취합본</div>'+d.p3+'</div></div>';
+}
+var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+var MAX=16;
+function Player(el){this.el=el;this.p=0;this.paused=false;}
+Player.prototype.render=function(){
+  var p=reduce?MAX:this.p,el=this.el;
+  el.querySelectorAll('[data-at]').forEach(function(x){x.classList.toggle('in',+x.dataset.at<=p)});
+  el.querySelectorAll('[data-arrow]').forEach(function(x){x.classList.toggle('in',+x.dataset.arrow<=p)});
+  var cur=p<3?1:p<7?2:3;
+  el.querySelectorAll('[data-pane]').forEach(function(x){x.classList.toggle('cur',!reduce&&+x.dataset.pane===cur&&p<=12)});
+  return cur;
+};
+Player.prototype.tick=function(){if(this.paused)return;this.p=this.p>=MAX?0:this.p+1;return this.render();};
+var players=[];
+
+var cards=document.getElementById('cards');
+ORDER.forEach(function(k){
+  var d=D[k];var b=document.createElement('button');b.className='card';b.dataset.k=k;
+  b.innerHTML='<div class="thumb"><div class="scale">'+storyHTML(k)+'</div></div><div class="body"><div class="t"><span class="rd"></span>'+d.name+'<span class="reco">추천</span></div><div class="one">'+d.one+'</div><div class="ex">'+d.ex.map(function(e){return '<span>'+e+'</span>'}).join('')+'</div></div>';
+  cards.appendChild(b);
+  var pl=new Player(b.querySelector('.scale'));pl.p=Math.floor(Math.random()*6);players.push(pl);
+  b.addEventListener('click',function(){choose(k)});
+});
+var big=document.getElementById('big'),bigP=new Player(big),steps=document.querySelectorAll('#steps span');
+function choose(k){
+  document.querySelectorAll('.card').forEach(function(c){c.classList.toggle('on',c.dataset.k===k)});
+  big.innerHTML=storyHTML(k);bigP.p=0;bigP.render();
+  document.getElementById('stTitle').textContent=D[k].name+'은 이렇게 쓰여요';
+  document.getElementById('stResult').innerHTML=D[k].result;
+  document.getElementById('go').textContent=D[k].name+'으로 시작하기 →';
+}
+function bigTick(){var cur=bigP.tick();if(cur)steps.forEach(function(s,i){s.classList.toggle('on',i+1===cur)});}
+document.getElementById('replay').onclick=function(){bigP.p=0;bigP.paused=false;document.getElementById('pause').textContent='❚❚ 멈춤';bigP.render();};
+document.getElementById('pause').onclick=function(){bigP.paused=!bigP.paused;this.textContent=bigP.paused?'▶ 재생':'❚❚ 멈춤';};
+choose('mixed');
+
+var pop=document.getElementById('popStory');pop.innerHTML=storyHTML('matrix');var popP=new Player(pop);players.push(popP);
+
+if(!reduce){setInterval(function(){players.forEach(function(p){p.tick()});bigTick();},500);}
+players.forEach(function(p){p.render()});bigP.render();
+
+document.getElementById('quizBtn').onclick=function(){document.getElementById('quiz').classList.toggle('open')};
+function recommend(k){
+  document.querySelectorAll('.card').forEach(function(c){c.classList.toggle('reco-on',c.dataset.k===k)});
+  var r=document.getElementById('qres');r.classList.add('open');r.textContent='→ '+D[k].name+'을 추천해요. 아래에서 움직임을 확인해 보세요.';
+  choose(k);
+}
+document.querySelectorAll('#q1 button').forEach(function(b){b.onclick=function(){
+  document.querySelectorAll('#q1 button').forEach(function(x){x.classList.toggle('on',x===b)});
+  document.querySelectorAll('#q2 button').forEach(function(x){x.classList.remove('on')});
+  var a=b.dataset.a,q2=document.getElementById('q2wrap');
+  if(a==='rows'){q2.classList.add('open');document.getElementById('qres').classList.remove('open');}
+  else{q2.classList.remove('open');recommend(a);}
+}});
+document.querySelectorAll('#q2 button').forEach(function(b){b.onclick=function(){
+  document.querySelectorAll('#q2 button').forEach(function(x){x.classList.toggle('on',x===b)});recommend(b.dataset.a);
+}});
+</script>
+</body>
+</html>
