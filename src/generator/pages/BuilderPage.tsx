@@ -16,6 +16,7 @@ import { FieldsPanel } from '../builder/FieldsPanel';
 import { AggPanel } from '../builder/AggPanel';
 import { OrgPanel } from '../builder/OrgPanel';
 import { CheckDialog } from '../builder/CheckDialog';
+import { ExportFlow } from '../builder/ExportFlow';
 import { Button, Chip, Dialog, Seg } from '../ui/ui';
 
 function useHeaderSlot() {
@@ -31,6 +32,7 @@ export function BuilderPage() {
   const [mode, setMode] = useState<'template' | 'aggregate'>('template');
   const [previewOrg, setPreviewOrg] = useState<string | undefined>();
   const [check, setCheck] = useState<ExportProblem[] | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [loadErr, setLoadErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -51,7 +53,8 @@ export function BuilderPage() {
   const onExport = () => {
     const problems = validateForExport(s);
     b.setProblems(problems);
-    setCheck(problems);
+    if (problems.length) setCheck(problems);
+    else setExporting(true);
   };
   const onFix = (p: ExportProblem) => {
     setCheck(null);
@@ -145,6 +148,7 @@ export function BuilderPage() {
       </section>
 
       {check && <CheckDialog problems={check} onFix={onFix} onClose={() => setCheck(null)} />}
+      {exporting && <ExportFlow schema={s} lastExported={b.lastExported} onClose={() => setExporting(false)} onExported={b.markExported} />}
       {loadErr && <Dialog tone="err" title={loadErr} onClose={() => setLoadErr('')} footer={<><span className="flex-1" /><Button variant="pri" onClick={() => setLoadErr('')}>확인</Button></>}><p className="m-0">한난MOA에서 저장한 .form.json 파일을 골라 주세요.</p></Dialog>}
       {newOpen && <NewFormDialog onClose={() => setNewOpen(false)} onPick={(l) => { b.startNew(l); setNewOpen(false); }} />}
     </div>

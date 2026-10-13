@@ -19,7 +19,7 @@ function initial(): StoredForm {
 export function useBuilder() {
   const [init] = useState(initial);
   const [schema, dispatch] = useReducer(formReducer, init.schema);
-  const [lastExported] = useState<FormSchema | undefined>(init.lastExported);
+  const [lastExported, setLastExported] = useState<FormSchema | undefined>(init.lastExported);
   const [selected, setSelected] = useState<Selection | null>(null);
   const [openPanel, setOpenPanel] = useState<PanelId | null>('fields');
   const [problems, setProblems] = useState<ExportProblem[]>([]);
@@ -53,11 +53,19 @@ export function useBuilder() {
 
   const startNew = useCallback((layout: Layout) => {
     dispatch({ type: 'schema/load', schema: newSchema(layout, new Date(), { formId: randomFormId(), key: randomKey }) });
+    setLastExported(undefined);
     setSelected(null);
     setProblems([]);
   }, []);
 
+  /** 내보내기 성공: 내보낸 버전을 지금 양식 버전으로 기록 */
+  const markExported = useCallback((exported: FormSchema) => {
+    dispatch({ type: 'schema/load', schema: exported });
+    setLastExported(exported);
+  }, []);
+
   return {
+    markExported,
     schema, act, selected, setSelected, selectKey, openPanel, setOpenPanel,
     problems, setProblems, saved, lastExported,
     version: nextVersion(schema, lastExported),

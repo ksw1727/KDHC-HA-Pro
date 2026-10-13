@@ -143,17 +143,18 @@ export function Checkbox({ checked, onChange, label, disabled, locked }: { check
   );
 }
 
-export function Dialog({ title, children, footer, onClose, tone = 'default' }: { title: ReactNode; children: ReactNode; footer: ReactNode; onClose: () => void; tone?: 'default' | 'err' }) {
+export function Dialog({ title, children, footer, onClose, tone = 'default', wide }: { title: ReactNode; children: ReactNode; footer: ReactNode; onClose: () => void; tone?: 'default' | 'err' | 'ok'; wide?: boolean }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,24,40,.42)] p-5" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" className="w-[620px] max-w-full overflow-hidden rounded-[14px] bg-white shadow-2xl" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div role="dialog" aria-modal="true" className={cx(wide ? "w-[960px]" : "w-[620px]", "max-w-full overflow-hidden rounded-[14px] bg-white shadow-2xl")} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
         <div className="flex items-center gap-2.5 border-b border-line px-5 py-4">
           {tone === 'err' && <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-err font-bold text-err-ink">!</span>}
+          {tone === 'ok' && <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#e8f5ea] font-bold text-[#2f7a3b]">✓</span>}
           <b className="text-[17px]">{title}</b>
           <span className="flex-1" />
           <Button variant="ghost" size="sm" onClick={onClose} aria-label="닫기">✕</Button>
         </div>
-        <div className="flex max-h-[60vh] flex-col gap-3.5 overflow-auto px-5 py-4">{children}</div>
+        <div className="flex max-h-[70vh] flex-col gap-3.5 overflow-auto px-5 py-4">{children}</div>
         <div className="flex items-center gap-2 border-t border-line bg-panel px-5 py-3">{footer}</div>
       </div>
     </div>

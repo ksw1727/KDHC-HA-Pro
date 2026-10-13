@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GeneratorRoot } from '@gen/index';
 
 type Tab = 'generator' | 'aggregator';
 
 export function App() {
   const [tab, setTab] = useState<Tab>('generator');
+  // 양식 만들기 완료 화면의 [취합하기로 이동]
+  useEffect(() => {
+    const on = (e: Event) => setTab((e as CustomEvent<{ tab: Tab }>).detail.tab);
+    window.addEventListener('hanan-moa:tab', on);
+    return () => window.removeEventListener('hanan-moa:tab', on);
+  }, []);
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-4 overflow-x-auto whitespace-nowrap border-b border-line px-4 py-2.5">
