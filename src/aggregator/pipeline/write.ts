@@ -1,0 +1,281 @@
+import ExcelJS from 'exceljs';
+import { BORDER_COLOR, cellStyle, type SheetModel } from '@contract/layout';
+import type { CellValue, NormalizedSubmission } from '@contract/meta';
+import { buildMeta, writeChunkSheet, writeMeta } from '@contract/metaIO';
+import { kdhcProps, patchXlsx } from '@contract/xlsxPatch';
+import { CONTRACT_VERSION } from '@contract/version';
+import { AGGREGATION_REQUIRED, type AggregationId } from '@contract/aggregationIds';
+import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
+import { buildSameFrame, fmtTime, spreadTable, statusTable, type SameFrame, type Table } from './aggregate';
+import { RECORDS_MARK, RECORDS_SHEET } from './parse';
+import { STATUS_LABEL, type FinalSubmission, type Resolved } from './resolve';
+import { verify, type VerifyResult } from './verify';
+
+/** ⑧ 결과 파일 쓰기 (03-aggregator.md 3.9). 결과 파일은 보호하지 않는다 */
+
+const argb = (hex: string) => 'FF' + hex.replace('#', '').toUpperCase();
+const FORBIDDEN = /[\\/?*[\]:]/g;
+
+const stamp = (d: Date) => fmtTime(d.toISOString()).replace(/[-:]/g, '').replace(' ', '-');
+
+/** 엑셀 시트 이름 규칙: 31자, 금지 문자 → _, 같은 이름이면 (2) */
+export function sheetNamer() {
+  const used = new Set<string>();
+  return (name: string) => {
+    const base = (name.replace(FORBIDDEN, '_').trim() || '시트').slice(0, 31);
+    let s = base;
+    for (let i = 2; used.has(s.toLowerCase()); i++) s = `${base.slice(0, 31 - `(${i})`.length)}(${i})`;
+    used.add(s.toLowerCase());
+    return s;
+  };
+}
+
+/** SheetModel → 워크시트 (빈 양식과 같은 role 스타일. 입력 규칙·보호는 넣지 않음) */
+function writeModel(ws: ExcelJS.Worksheet, model: SheetModel, fieldOf: Map<string, Field>) {
+  model.columns.forEach((c, i) => { ws.getColumn(i + 1).width = c.width; });
+  const side = { style: 'thin' as const, color: { argb: argb(BORDER_COLOR) } };
+  for (const c of model.cells) {
+    const cell = ws.getCell(c.address);
+    cell.value = excelValue(c.value, c.fieldKey ? fieldOf.get(c.fieldKey) : undefined);
+    const st = cellStyle(c.role, c.required, c.mark);
+    cell.font = { name: '맑은 고딕', size: st.size ?? 10, bold: st.bold, italic: st.italic, strike: st.strike, color: st.color ? { argb: argb(st.color) } : undefined };
+    if (st.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(st.fill) } };
+    if (st.border) cell.border = { top: side, left: side, bottom: side, right: side };
+    cell.alignment = { vertical: 'middle', horizontal: st.align, wrapText: c.wrap || undefined };
+    if (c.numFmt) cell.numFmt = c.numFmt;
+    if (c.note) cell.note = c.note;
+  }
+  for (const m of model.merges) ws.mergeCells(m);
+  if (model.freeze) ws.views = [{ state: 'frozen', ySplit: model.freeze.row, xSplit: 0 }];
+  ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, ...(model.printArea ? { printArea: model.printArea } : {}) };
+}
+
+/** 날짜 칸은 엑셀 날짜로(연도형은 숫자), 나머지는 그대로 */
+function excelValue(v: string | number | undefined | null, field?: Field): ExcelJS.CellValue {
+  if (v === undefined || v === null) return null;
+  if (field?.type === 'date' && typeof v === 'string') {
+    if (/^\d{4}$/.test(v)) return Number(v);
+    const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(v);
+    if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, m[3] ? +m[3] : 1));
+  }
+  return v;
+}
+
+function writeTable(ws: ExcelJS.Worksheet, t: Table, fieldOf?: Map<string, Field>, keys?: (string | undefined)[]) {
+  ws.addRow(t.columns.map((c) => c.header));
+  for (const r of t.rows) ws.addRow(r.map((v, i) => excelValue(v, keys?.[i] ? fieldOf?.get(keys[i]!) : undefined)));
+  const head = ws.getRow(1);
+  head.font = { bold: true };
+  head.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb('#EEF2F7') } }; });
+  t.columns.forEach((c, i) => {
+    const longest = Math.max(c.header.length * 2, ...t.rows.slice(0, 200).map((r) => String(r[i] ?? '').length * 1.6));
+    ws.getColumn(i + 1).width = c.width ?? Math.min(50, Math.max(8, Math.ceil(longest) + 2));
+  });
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+  if (t.rows.length) ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1 + t.rows.length, column: t.columns.length } };
+}
+
+const table = (name: string, headers: string[], rows: CellValue[][]): Table => ({ name, columns: headers.map((header) => ({ header })), rows });
+const show = (v: unknown) => (v === null || v === undefined ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === 'object' ? JSON.stringify(v) : String(v));
+
+export interface ResultInput {
+  schema: FormSchema;
+  res: Resolved;
+  methods: AggregationId[];
+  workbooks: Map<string, ExcelJS.Workbook>;     // fileId → 원본 (시트 모으기용)
+  now: Date;
+}
+
+export interface ResultFile { fileName: string; bytes: Uint8Array; verify: VerifyResult }
+
+/** 검토 화면용: 같은 틀 시트를 만들어 검산까지 (내려받기 전) */
+export function preview(schema: FormSchema, res: Resolved, now: Date): { frame?: SameFrame; verify: VerifyResult } {
+  if (schema.layout === 'collect') return { verify: verify(schema, res) };
+  const frame = buildSameFrame(schema, res, '', now);
+  return { frame, verify: verify(schema, res, frame.model) };
+}
+
+export async function writeResult({ schema, res, methods, workbooks, now }: ResultInput): Promise<ResultFile> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'KDHC-HA-Pro';
+  wb.created = now;
+  wb.modified = now;
+  const name = sheetNamer();
+  const fieldOf = new Map<string, Field>();
+  for (const b of schema.blocks) for (const f of blockFields(b)) fieldOf.set(f.key, f);
+  const chosen = [...new Set([...AGGREGATION_REQUIRED[schema.layout], ...methods])];
+  const collect = schema.layout === 'collect';
+  let vr: VerifyResult;
+
+  if (collect) {
+    vr = verify(schema, res);
+    writeCollectSheets(wb, schema, res, workbooks, name, now, true);
+  } else {
+    // 1. 같은 틀 시트 (정보칸에 검산 결과를 넣으려고 한 번 만들어 검산한 뒤 다시 만든다)
+    const first = buildSameFrame(schema, res, '', now);
+    vr = verify(schema, res, first.model);
+    const errors = res.valueIssues.filter((i) => i.choice === '적혀 있던 값 그대로').length + res.crossIssues.length;
+    const info = `취합일 ${fmtTime(now.toISOString()).slice(0, 10)} · 파일 ${res.included.length}개 · 오류 ${errors} · 검산 ${vr.ok ? '일치' : '불일치'}`;
+    const frame = buildSameFrame(schema, res, info, now);
+    const ws = wb.addWorksheet(name(frame.model.sheetName));
+    writeModel(ws, frame.model, fieldOf);
+    copyAuthorNotes(ws, schema, res, frame);
+
+    // 2. 선택한 방식 (METHODS 순서)
+    if (chosen.includes('spread')) writeTable(wb.addWorksheet(name('지사별')), spreadTable(schema, res));
+    if (chosen.includes('collect-sheets')) writeCollectSheets(wb, schema, res, workbooks, name, now, false);
+  }
+  if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
+
+  // 3~8. 오류 · 파일목록 · 검산 · 판단 기록 · 메모 · 추가 칸
+  const lbl = orgLabel(schema);
+  const labelOf = (fileId: string) => res.files.find((f) => f.fileId === fileId)?.label ?? '';
+  const nameOf = (fileId: string) => res.files.find((f) => f.fileId === fileId)?.fileName ?? '';
+  const infoIssues = res.included.flatMap((s) => s.issues.filter((i) => i.severity === 'info'));
+  const errRows: CellValue[][] = [
+    ...res.valueIssues.map((i) => [labelOf(i.fileId), nameOf(i.fileId), i.location, i.fieldLabel ?? '', show(i.raw), i.message, i.choice]),
+    ...res.crossIssues.map((i) => ['(전체)', '', i.location, i.fieldLabel ?? '', '', i.message, '그대로']),
+    ...infoIssues.map((i) => [labelOf(i.fileId), nameOf(i.fileId), i.location, '', '', i.message, '자동']),
+  ];
+  if (!collect || errRows.length) writeTable(wb.addWorksheet(name('오류')), table('오류', [lbl, '파일명', '위치', '항목', '입력값', '내용', '처리'], errRows));
+
+  writeTable(wb.addWorksheet(name('파일목록')), fileListTable(schema, res));
+  if (!collect) writeTable(wb.addWorksheet(name('검산')), table('검산', ['검사', '내용', '결과'], vr.lines.map((l) => [l.check, l.detail, l.ok ? '일치' : '불일치'])));
+  writeTable(wb.addWorksheet(name('판단 기록')), table('판단 기록', ['항목', '대상', '결정', '기본값 적용'], res.log.map((l) => [l.what, l.target, l.choice, l.defaulted ? '예' : ''])));
+
+  if (!collect) {
+    const notes = res.included.flatMap((s) => s.read.authorNotes.map((n) => [s.label, s.sourceFile, n.address, n.fieldKey ? fieldOf.get(n.fieldKey)?.label ?? '' : '', n.sourceRow ?? null, n.text]));
+    if (notes.length) writeTable(wb.addWorksheet(name('메모')), table('메모', [lbl, '파일명', '위치', '항목', '원본 줄', '메모 내용'], notes));
+    const extra = res.included.flatMap((s) => [...s.read.extraColumns, ...s.extraFromAlias].flatMap((e) => e.values.map((v) => [s.label, s.sourceFile, v.sourceRow, e.header, show(v.value)])));
+    if (extra.length) writeTable(wb.addWorksheet(name('추가 칸')), table('추가 칸', [lbl, '파일명', '원본 줄', '칸 이름', '값'], extra));
+  }
+
+  // 9. _records (다시 취합용 원자료), 10. _meta
+  const records: NormalizedSubmission[] = collect ? [] : res.included.map((s) => ({
+    ...(s.org ? { org: s.org } : {}), sourceFile: s.sourceFile, savedAt: s.savedAt, header: s.header, rows: s.rows,
+    ...(s.matrix ? { matrix: s.matrix } : {}), ...(s.grid ? { grid: s.grid } : {}), ...(s.gridSpareRows ? { gridSpareRows: s.gridSpareRows } : {}),
+  }));
+  writeChunkSheet(wb, RECORDS_SHEET, RECORDS_MARK, JSON.stringify(records));
+  writeMeta(wb, await buildMeta({
+    contractVersion: CONTRACT_VERSION, kind: 'aggregate', schema, generatedAt: now.toISOString(),
+    aggregate: { includedSources: res.included.map((s) => ({ ...(s.org ? { org: s.org } : {}), sourceFile: s.sourceFile, savedAt: s.savedAt })), methods: chosen, recordsSheet: '_records' },
+  }));
+
+  const raw = await wb.xlsx.writeBuffer();
+  const bytes = await patchXlsx(raw as ArrayBuffer, { customProps: kdhcProps({ formId: schema.formId, formVersion: schema.formVersion, kind: 'aggregate' }) });
+  const title = schema.title.replace(/[\\/:*?"<>|]/g, '_').trim() || '양식';
+  return { fileName: `${title}_취합_${stamp(now)}.xlsx`, bytes, verify: vr };
+}
+
+/** 작성자가 단 엑셀 메모를 같은 틀 시트의 같은 칸에 옮긴다 (우리 [자동] 메모가 있으면 그 위에) */
+function copyAuthorNotes(ws: ExcelJS.Worksheet, schema: FormSchema, res: Resolved, frame: SameFrame) {
+  const add = (address: string, text: string) => {
+    const cell = ws.getCell(address);
+    const old = typeof cell.note === 'string' ? cell.note : '';
+    cell.note = old ? `${text}\n${old}` : text;
+  };
+  const byFile = new Map(res.included.map((s) => [s.fileId, s]));
+  for (const b of schema.blocks) {
+    const m = frame.model.cellMap.blocks[b.id];
+    if (b.kind === 'list' && m?.kind === 'list') {
+      frame.rowRefs.forEach((ref, i) => {
+        for (const n of byFile.get(ref.fileId)?.read.authorNotes ?? []) {
+          if (n.sourceRow === ref.sourceRow && n.fieldKey && m.columns[n.fieldKey]) add(`${m.columns[n.fieldKey]}${m.firstDataRow + i}`, `${byFile.get(ref.fileId)!.label}: ${n.text}`);
+        }
+      });
+    }
+    if (b.kind === 'matrix' && m?.kind === 'matrix') {
+      m.cells.forEach((row, r) => row.forEach((a, c) => { const t = frame.matrixNotes[`${r}:${c}`]; if (t) add(a, t); }));
+      for (const s of res.included) for (const n of s.read.authorNotes) {
+        const at = s.read.matrix?.flatMap((row, r) => row.map((cell, c) => ({ cell, r, c }))).find((x) => x.cell?.address === n.address);
+        if (at) add(m.cells[at.r][at.c], `${s.label}: ${n.text}`);
+      }
+    }
+    if (b.kind === 'grid' && m?.kind === 'grid') {
+      for (const s of res.included) for (const n of s.read.authorNotes) {
+        if (n.sourceRow === undefined && n.fieldKey && m.inputCells[n.fieldKey]) add(m.inputCells[n.fieldKey], `${s.label}: ${n.text}`);
+      }
+      frame.spareRefs.forEach((ref, i) => {
+        for (const n of byFile.get(ref.fileId)?.read.authorNotes ?? []) {
+          const col = n.fieldKey ? (b.spareColumns ?? []).findIndex((f) => f.key === n.fieldKey) : -1;
+          if (n.sourceRow === ref.sourceRow && col >= 0 && m.spare) add(`${m.columns[col]}${m.spare.firstRow + i}`, `${byFile.get(ref.fileId)!.label}: ${n.text}`);
+        }
+      });
+    }
+  }
+}
+
+function fileListTable(schema: FormSchema, res: Resolved): Table {
+  const rows: CellValue[][] = res.files.map((f) => {
+    const s = res.included.find((x) => x.fileId === f.fileId);
+    const r = f.parsed?.read;
+    const count = (reason: string) => (r?.excludedRows.filter((e) => e.reason === reason).length ?? 0) + (s?.removedRows.filter((e) => e.reason === reason).length ?? 0);
+    const kept = s ? s.rows.length + (s.gridSpareRows?.length ?? 0) : null;
+    const listy = schema.blocks.some((b) => b.kind === 'list');
+    return [
+      f.label, f.fileName, f.status === 'included' && kept === 0 && listy ? '제출 · 해당 없음' : STATUS_LABEL[f.status], f.reason ?? '', fmtTime(f.savedAt),
+      r?.readCount ?? null, kept, count('blank') || null, count('example') || null, count('total') || null, count('operator') || null, count('duplicate') || null,
+      [...(r?.unreadSheets ?? [])].join(', '), r?.collectSheets?.join(', ') ?? '', [...(f.parsed?.file.notes ?? [])].join(' / '),
+    ];
+  });
+  for (const o of res.missingOrgs) rows.push([o, '', '미제출', '', '', null, null, null, null, null, null, null, '', '', '']);
+  return table('파일목록', [orgLabel(schema), '파일명', '상태', '사유', '저장 시각', '읽은 줄', '반영 줄', '빈 줄', '예시 줄', '합계 줄', '운영자 제외', '중복 줄', '읽지 않은 시트', '모은 시트', '알림'], rows);
+}
+
+/** 시트 모으기: 원본 시트를 값·서식·합친 셀·열 너비·줄 높이 그대로 복사. collect 양식이면 맨 앞에 목차 */
+function writeCollectSheets(wb: ExcelJS.Workbook, schema: FormSchema, res: Resolved, workbooks: Map<string, ExcelJS.Workbook>, name: (s: string) => string, now: Date, withToc: boolean) {
+  const toc = withToc ? wb.addWorksheet(name('목차')) : undefined;
+  const entries: { s: FinalSubmission; sheets: string[] }[] = [];
+  for (const s of res.included) {
+    const src = workbooks.get(s.file.file.id);
+    if (!src) continue;
+    const want = s.read.collectSheets ?? [s.read.sheetName];
+    const made: string[] = [];
+    want.forEach((sheetName, i) => {
+      const from = src.getWorksheet(sheetName);
+      if (!from) return;
+      const to = wb.addWorksheet(name(i === 0 ? s.label : `${s.label}_${sheetName}`));
+      copySheet(from, to);
+      to.getCell('A1').note = `[자동] 원본: ${s.sourceFile} · 저장 ${fmtTime(s.savedAt)}`;
+      made.push(to.name);
+    });
+    entries.push({ s, sheets: made });
+  }
+  if (!toc) return;
+  const lbl = schema.org.mode !== 'none' ? orgLabel(schema) : '번호';
+  toc.getCell('A1').value = schema.title;
+  toc.getCell('A1').font = { bold: true, size: 14 };
+  toc.getCell('A2').value = `취합일 ${fmtTime(now.toISOString()).slice(0, 10)} · 파일 ${res.included.length}개 · 미제출 ${res.missingOrgs.length}`;
+  const head = toc.getRow(4);
+  head.values = [lbl, '상태', '원본 파일', '저장 시각', '모은 시트', '바로가기'];
+  head.font = { bold: true };
+  let r = 5;
+  entries.forEach(({ s, sheets }, i) => {
+    toc.getRow(r).values = [schema.org.mode !== 'none' ? s.label : i + 1, '제출', s.sourceFile, fmtTime(s.savedAt), sheets.join(', ')];
+    if (sheets[0]) toc.getCell(r, 6).value = { text: '열기', hyperlink: `#'${sheets[0].replace(/'/g, "''")}'!A1` };
+    r++;
+  });
+  for (const f of res.files.filter((x) => x.status !== 'included')) toc.getRow(r++).values = [f.label, '제외', f.fileName, fmtTime(f.savedAt), '', ''];
+  for (const o of res.missingOrgs) toc.getRow(r++).values = [o, '미제출'];
+  [12, 8, 30, 18, 24, 10].forEach((w, i) => { toc.getColumn(i + 1).width = w; });
+}
+
+export function copySheet(from: ExcelJS.Worksheet, to: ExcelJS.Worksheet) {
+  from.columns?.forEach((c, i) => { if (c.width) to.getColumn(i + 1).width = c.width; });
+  from.eachRow({ includeEmpty: true }, (row, r) => {
+    const t = to.getRow(r);
+    if (row.height) t.height = row.height;
+    row.eachCell({ includeEmpty: true }, (cell, c) => {
+      const d = t.getCell(c);
+      const v = cell.value;
+      // 수식은 결과 값으로 (다른 시트를 가리키는 수식이 깨지지 않게)
+      d.value = v && typeof v === 'object' && ('formula' in v || 'sharedFormula' in v) ? ((v as ExcelJS.CellFormulaValue).result ?? null) as ExcelJS.CellValue : v;
+      d.style = JSON.parse(JSON.stringify(cell.style ?? {}));
+      if (cell.note) d.note = cell.note;
+    });
+  });
+  for (const m of (from.model as { merges?: string[] }).merges ?? []) {
+    try { to.mergeCells(m); } catch { /* 겹치는 병합은 건너뜀 */ }
+  }
+}
+
