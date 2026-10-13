@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { GeneratorRoot } from '@gen/index';
+import { AggregatorRoot } from '@agg/index';
 
 type Tab = 'generator' | 'aggregator';
 
 export function App() {
   const [tab, setTab] = useState<Tab>('generator');
+  const [formId, setFormId] = useState<string>();
   // 양식 만들기 완료 화면의 [취합하기로 이동]
   useEffect(() => {
-    const on = (e: Event) => setTab((e as CustomEvent<{ tab: Tab }>).detail.tab);
+    const on = (e: Event) => {
+      const { tab: next, formId: id } = (e as CustomEvent<{ tab: Tab; formId?: string }>).detail;
+      setTab(next);
+      if (id) setFormId(id);
+    };
     window.addEventListener('hanan-moa:tab', on);
     return () => window.removeEventListener('hanan-moa:tab', on);
   }, []);
@@ -44,7 +50,7 @@ export function App() {
         {tab === 'generator' ? (
           <GeneratorRoot />
         ) : (
-          <div className="p-8 text-sub">취합하기 화면은 개발자 2가 만들고 있어요.</div>
+          <div className="h-full overflow-auto"><AggregatorRoot formId={formId} /></div>
         )}
       </main>
     </div>

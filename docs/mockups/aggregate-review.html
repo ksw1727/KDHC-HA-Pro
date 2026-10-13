@@ -125,6 +125,15 @@ tr.det td{background:var(--soft);font-size:13px;color:var(--sub)}
 
 <!-- 1. 파일 넣기 -->
 <section id="s-upload">
+  <!-- 양식 만들기 완료 화면의 [취합하기로 이동 →]으로 왔을 때 (02-generator.md 2.6 ③) -->
+  <div class="card" id="formCard" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px">
+      <div class="muted" style="font-size:12px">받는 중인 양식 · 양식 만들기에서 넘어왔어요</div>
+      <div style="font-size:16px;font-weight:700">2026 교육 참가자 조사 <span class="chip">v2</span> <span class="chip">혼합형</span></div>
+      <div class="muted">지사 15곳 · 제출 기한 11월 5일 · 이 양식의 회신 파일만 넣으면 돼요. 다른 양식 파일은 자동으로 빠져요.</div>
+    </div>
+    <button class="sm" id="formOther">다른 양식 회신 취합하기</button>
+  </div>
   <input type="file" id="pick" multiple hidden>
   <div class="drop" id="drop" role="button" tabindex="0" aria-label="파일 넣기">
     <div class="big" style="font-size:18px;font-weight:600">회신받은 엑셀 파일이나 zip을 여기에 끌어다 놓으세요</div>
@@ -581,6 +590,8 @@ $('#cFiles').addEventListener('click', (e) => {
   x.closest('tr').style.opacity = on ? 0.5 : 1;
 });
 $('#cGet').onclick = () => finish();
+// 양식 없이 열었을 때는 넣은 파일의 숨김 정보로 양식을 알아본다 (03-aggregator.md 3.2)
+$('#formOther').onclick = () => { $('#formCard').hidden = true; };
 
 // 파일 넣기: 끌어다 놓기 · 눌러서 고르기. 모형이라 내용은 읽지 않고 이름만 확인한다.
 // 화면 아무 데나 떨어뜨려도 브라우저가 파일을 열어 버리지 않게 막는다.
