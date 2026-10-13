@@ -195,9 +195,9 @@ FormSchema ─► contract/layout.layoutSheet(schema, input) ─► SheetModel �
 - 시트 보호: `worksheet.protect(PROTECT_PASSWORD, { selectLockedCells: true, selectUnlockedCells: true, formatCells: false, insertRows: false, deleteRows: false })`
 - 틀 고정: list·grid 블록 머리글 행 아래로 고정
 - 메타: `contract/metaIO.writeMeta()` 호출 (`kind: 'submission'`, `orgName`, `sheetName`, `cellMap`, checksum 포함)
-- 후처리: `contract/xlsxPatch` (파일 속성, 통합문서 구조 보호)
+- 후처리: `contract/xlsxPatch` (파일 속성). 통합문서 구조 보호는 넣지 않는다(작성자가 계산용 시트를 추가할 수 있게, `01-contract.md` 4.3)
 - 통합문서 속성: `creator = 'KDHC-HA-Pro'`
-- **시트 모으기형 예외**: 시트 보호·통합문서 구조 보호·입력 규칙·인쇄영역·틀 고정을 넣지 않는다(셀 합치기와 시트 추가를 막지 않기 위해, `01-contract.md` 4.3). 보고서 시트 이름은 `보고서`. `_meta`(veryHidden)와 파일 속성 이중 기록은 똑같이 넣는다. `cellMap`은 없다.
+- **시트 모으기형 예외**: 시트 보호·입력 규칙·인쇄영역·틀 고정을 넣지 않는다(셀 합치기와 시트 추가를 막지 않기 위해, `01-contract.md` 4.3). 보고서 시트 이름은 `보고서`. `_meta`(veryHidden)와 파일 속성 이중 기록은 똑같이 넣는다. `cellMap`은 없다.
 
 ## 5. 폴더 구조
 

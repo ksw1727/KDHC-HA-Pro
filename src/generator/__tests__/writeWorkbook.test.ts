@@ -55,11 +55,11 @@ describe('엑셀 파일 (writeWorkbook)', () => {
     expect((await readMeta(wb)).status).toBe('tampered');
   });
 
-  test('파일 속성과 통합문서 구조 보호', async () => {
+  test('파일 속성, 통합문서 구조 보호 없음 (작성자가 계산용 시트를 추가할 수 있게)', async () => {
     const bytes = await writeWorkbook(SAMPLE.list, { orgName: '서울', now });
     expect(await readCustomProps(bytes)).toEqual({ 'kdhc.formId': SAMPLE.list.formId, 'kdhc.formVersion': '1', 'kdhc.kind': 'submission', 'kdhc.org': '서울' });
     const zip = await JSZip.loadAsync(bytes);
-    expect(await zip.file('xl/workbook.xml')!.async('string')).toMatch(/<workbookProtection lockStructure="1" workbookPassword="[0-9A-F]{4}"\/>/);
+    expect(await zip.file('xl/workbook.xml')!.async('string')).not.toMatch(/workbookProtection/);
   });
 
   test('시트 모으기형: 보호·구조 보호 없음, 메타는 있음, cellMap 없음', async () => {
