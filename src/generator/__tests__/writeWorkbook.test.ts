@@ -75,6 +75,21 @@ describe('엑셀 파일 (writeWorkbook)', () => {
     expect(r.status === 'ok' && r.meta.cellMap).toBeUndefined();
   });
 
+  test('자유 제작형: 판 글자·입력 칸·숫자 표·줄 영역, 입력 칸만 풀림, 메타에 셀 지도', async () => {
+    const bytes = await writeWorkbook(SAMPLE.free, { orgName: '서울', now });
+    const wb = await open(bytes);
+    const ws = wb.worksheets[0];
+    expect(ws.getCell('A6').value).toBe('점검자');
+    expect(ws.getCell('B6').protection?.locked).toBe(false);
+    expect(ws.getCell('A6').protection?.locked).not.toBe(false);
+    expect(ws.getCell('B8').value).toBe('소화기');
+    expect(ws.getCell('B9').protection?.locked).toBe(false);
+    expect(ws.getCell('A11').value).toBe('항목 *');
+    expect(ws.getCell('C12').protection?.locked).toBe(false);
+    const r = await readMeta(wb);
+    expect(r.status === 'ok' && r.meta.cellMap?.blocks.b3).toMatchObject({ kind: 'list', headerRow: 11, firstDataRow: 12 });
+  });
+
   test('표형 합계·계산 열 수식', async () => {
     const s = clone(SAMPLE.matrix);
     const m = s.blocks[0];

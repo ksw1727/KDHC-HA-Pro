@@ -13,13 +13,14 @@ import { Button, Chip, Dialog, TextInput } from '../ui/ui';
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ');
 
 /** 구조 카드 순서와 설명 (02-generator.md 2.1) */
-const ORDER: Layout[] = ['list', 'matrix', 'header-list', 'fill-in', 'collect'];
+const ORDER: Layout[] = ['list', 'matrix', 'header-list', 'fill-in', 'collect', 'free'];
 const INFO: Record<Layout, { one: string; ex: string[] }> = {
   list: { one: '지사마다 여러 줄을 적어요', ex: ['교육 참가자 명단', '물품 구매 내역', '차량 운행 기록'] },
   matrix: { one: '칸 제목이 정해진 표에 숫자만 적어요', ex: ['학년×성별 인원표', '월별 실적표', '시설별 점검 수'] },
   'header-list': { one: '지사 정보는 한 번, 명단은 여러 줄 적어요', ex: ['담당자 + 참가자 명단', '기관 정보 + 구매 내역'] },
   'fill-in': { one: '본사가 만든 표의 빈칸만 지사가 채워요', ex: ['사업별 지사 예산 배분표', '지사별 목표 확인표'] },
   collect: { one: '모양이 제각각인 보고서를 시트째 모아요', ex: ['안전점검 결과 보고', '부서별 추진 실적'] },
+  free: { one: '표를 직접 그리고 입력할 곳을 지정해요', ex: ['쓰던 서식 그대로', '점검표·확인서'] },
 };
 /** "목록형으로", "시트 모으기형으로" — 모두 '형'으로 끝나 받침이 있다 */
 const withEuro = (l: Layout) => `${LAYOUT_LABELS[l]}으로`;
@@ -78,7 +79,7 @@ export function LandingPage({ onNew, onOpen }: { onNew: (layout: Layout) => void
 
         {quizOpen && <Quiz onPick={recommend} />}
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {ORDER.map((l) => (
             <button key={l} type="button" aria-label={`${LAYOUT_LABELS[l]} 크게 보기`} onClick={() => setPreview(l)}
               className={cx('flex flex-col overflow-hidden rounded-card border bg-white text-left outline-none transition-shadow hover:border-pri hover:shadow-[0_0_0_2px_#b9cff2] focus-visible:ring-3 focus-visible:ring-pri-bg',
@@ -156,11 +157,12 @@ function Quiz({ onPick }: { onPick: (l: Layout) => void }) {
     ['matrix', '정해진 표에 숫자만', '칸 제목이 미리 정해진 통계표', 'matrix'],
     ['fill', '우리가 만든 표의 빈칸만', '대부분 채워 두고 일부만 받기', 'fill-in'],
     ['collect', '모양이 제각각인 보고서', '칸 규칙 없이 시트째 모으기', 'collect'],
+    ['free', '쓰던 서식 모양 그대로', '표를 직접 그리고 입력할 곳 지정', 'free'],
   ];
   return (
     <section aria-label="질문으로 고르기" className="flex flex-col gap-3 rounded-card border border-line bg-white p-3.5">
       <b>지사·부서에서 무엇을 받나요?</b>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         {Q1.map(([id, t, sub, l]) => opt(q1 === id, t, sub, () => { setQ1(id); setQ2(null); if (l) onPick(l); }))}
       </div>
       {q1 === 'rows' && (

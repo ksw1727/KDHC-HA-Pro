@@ -6,7 +6,8 @@ import { FIELD_TYPES } from '../fieldTypes';
 import { parseFormula, printFormula, toExcel, type Node, type RefResolver } from '../formula/formula';
 import { computeGrid, computeListRow, computeMatrix, computeSpareRow } from '../formula/compute';
 import { gridNames, TOTAL_COL_NAME, TOTAL_ROW_NAME } from '../formula/context';
-import { addr, colLetter, range } from './address';
+import { addr, colLetter, parseAddr, range } from './address';
+import { freeRegions, freeSize, freeTop } from '../free';
 import type { AggregateFill, LayoutInput, ModelCell, SheetModel } from './sheetModel';
 
 /**
@@ -136,6 +137,11 @@ class Layouter {
   }
 
   private computeLastCol(): number {
+    if (this.schema.layout === 'free') {
+      // 판 열 수 + (취합본이면) 입력 줄 영역 오른쪽 자동 칸
+      const list = freeRegions(this.schema).find((r) => r.kind === 'list');
+      return Math.max(5, freeSize(this.schema).cols, list ? list.c2 + this.autoCount : 0);
+    }
     if (this.schema.layout === 'collect') {
       const w = Math.max(0, ...(this.schema.collect?.starter ?? []).map((r) => r.length));
       return Math.max(5, w);
@@ -148,7 +154,41 @@ class Layouter {
 
     const { schema } = this;
     const last = this.lastCol;
+    let row = this.putHeader(last);
+    if (schema.layout === 'free') {
+      this.placeFree(freeTop(schema));
+    } else {
+      schema.blocks.forEach((b, i) => {
+        if (i > 0) row += 1; // 블록 사이 빈 행
+        if (b.title?.trim()) {
+          this.put({ address: addr(1, row), value: b.title.trim(), role: 'label' });
+          this.merge(1, row, last);
+          row += 1;
+        }
+        row = this.placeBlock(b, row);
+      });
+    }
 
+    for (const job of this.jobs) job();
+
+    const printArea = range(1, 1, last, Math.max(this.lastInputRow, 2));
+    this.cellMap.printArea = printArea;
+
+    return {
+      sheetName: sheetNameOf(schema.title),
+      columns: this.columnWidths(),
+      cells: [...this.cells.values()].sort(cellOrder),
+      merges: this.merges,
+      validations: this.validations,
+      printArea,
+      freeze: this.freeze,
+      cellMap: this.cellMap,
+    };
+  }
+
+  /** 1행 제목, 2행 정보칸, 4행 제출처 줄. 블록을 놓기 시작할 행을 돌려준다 */
+  private putHeader(last: number): number {
+    const { schema } = this;
     // 1행 제목, 2행 정보칸
     this.put({ address: 'A1', value: schema.title, role: 'title' });
     this.merge(1, 1, last);
@@ -182,40 +222,71 @@ class Layouter {
       this.cellMap.orgCell = 'B4';
       row = 6;
     }
+    return row;
+  }
 
-    schema.blocks.forEach((b, i) => {
-      if (i > 0) row += 1; // 블록 사이 빈 행
-      if (b.title?.trim()) {
-        this.put({ address: addr(1, row), value: b.title.trim(), role: 'label' });
-        this.merge(1, row, last);
-        row += 1;
+  /**
+   * 자유 제작형 (01-contract.md 3.2절): 판 A1을 top행 A열에 놓고, 글자 칸·합친 칸·입력 영역을 그대로 옮긴다.
+   * 입력 칸은 fields 블록 지도에, 입력 줄 영역·숫자 표는 기존 블록 배치(위치만 다름)로 그린다.
+   */
+  private placeFree(top: number) {
+    const { schema } = this;
+    const free = schema.free!;
+    const at = (a: string) => { const p = parseAddr(a); return { row: top + p.row - 1, col: p.col }; };
+    const regions = freeRegions(schema);
+    const hasList = regions.some((r) => r.kind === 'list');
+    for (const [a, v] of Object.entries(free.texts)) {
+      const p = at(a);
+      if (v !== '') this.put({ address: addr(p.col, p.row), value: v, role: 'label' });
+    }
+    for (const m of free.merges) {
+      const [a, b = a] = m.split(':');
+      const p = at(a);
+      const q = at(b);
+      if (q.col > p.col || q.row > p.row) this.merges.push(range(p.col, p.row, q.col, q.row));
+    }
+    for (const b of schema.blocks) {
+      if (b.kind === 'fields') {
+        const map: FieldsBlockMap = { kind: 'fields', cells: {} };
+        for (const f of b.fields) {
+          const p = at(free.places[f.key]);
+          const valueCell = addr(p.col, p.row);
+          // 이름이 적힌 칸: 왼쪽 글자 칸, 없으면 위쪽 글자 칸, 둘 다 없으면 값 칸
+          const left = p.col > 1 ? this.cells.get(addr(p.col - 1, p.row)) : undefined;
+          const up = p.row > top ? this.cells.get(addr(p.col, p.row - 1)) : undefined;
+          const labelCell = left?.role === 'label' ? left.address : up?.role === 'label' ? up.address : valueCell;
+          this.headerAddr.set(f.label.trim(), valueCell);
+          if (this.isTemplate && f.type === 'calc') {
+            this.put({ address: valueCell, role: 'calc', numFmt: FIELD_TYPES.calc.excelNumFmt(f), fieldKey: f.key });
+            this.jobs.push(() => this.setFormula(valueCell, f, this.listResolver(null)));
+          } else if (this.isTemplate) {
+            this.put({ address: valueCell, role: 'input', required: f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), wrap: f.type === 'memo', fieldKey: f.key });
+            this.validate(valueCell, f);
+          } else {
+            const label = schema.org.mode === 'none' ? '파일' : orgLabel(schema);
+            this.put({ address: valueCell, value: hasList ? '(줄별 자동 칸 참고)' : `(${label}별 시트 참고)`, role: 'input', mark: 'muted', fieldKey: f.key });
+          }
+          map.cells[f.key] = { labelCell, valueCell };
+        }
+        this.cellMap.blocks[b.id] = map;
+      } else if (b.kind === 'list') {
+        const p = at(free.places[b.id]);
+        this.placeList(b, p.row, p.col, false);
+      } else if (b.kind === 'matrix') {
+        const p = at(free.places[b.id]);
+        this.placeMatrix(b, p.row, p.col);
       }
-      row = this.placeBlock(b, row);
-    });
-
-    for (const job of this.jobs) job();
-
-    const printArea = range(1, 1, last, Math.max(this.lastInputRow, 2));
-    this.cellMap.printArea = printArea;
-
-    return {
-      sheetName: sheetNameOf(schema.title),
-      columns: this.columnWidths(),
-      cells: [...this.cells.values()].sort(cellOrder),
-      merges: this.merges,
-      validations: this.validations,
-      printArea,
-      freeze: this.freeze,
-      cellMap: this.cellMap,
-    };
+    }
+    // 인쇄영역이 판 끝까지 오도록
+    this.lastInputRow = Math.max(this.lastInputRow, top + freeSize(schema).rows - 1);
   }
 
   /** 블록을 row부터 배치하고 다음 빈 행 번호를 돌려준다. */
   private placeBlock(b: Block, row: number): number {
     switch (b.kind) {
       case 'fields': return this.placeFields(b, row);
-      case 'list': return this.placeList(b, row);
-      case 'matrix': return this.placeMatrix(b, row);
+      case 'list': return this.placeList(b, row, 2, true);
+      case 'matrix': return this.placeMatrix(b, row, 1);
       case 'grid': return this.placeGrid(b, row);
     }
   }
@@ -244,34 +315,35 @@ class Layouter {
     return row;
   }
 
-  private placeList(b: ListBlock, row: number): number {
+  /** c0 = 첫 항목 열. numbered면 c0 왼쪽 열에 번호를 넣는다(자유 제작형은 번호 없음) */
+  private placeList(b: ListBlock, row: number, c0: number, numbered: boolean): number {
     const headerRow = row;
     const map: ListBlockMap = { kind: 'list', headerRow, firstDataRow: 0, lastDataRow: 0, columns: {} };
-    this.put({ address: addr(1, headerRow), value: '번호', role: 'header' });
+    if (numbered) this.put({ address: addr(c0 - 1, headerRow), value: '번호', role: 'header' });
     b.columns.forEach((f, i) => {
-      const col = 2 + i;
+      const col = c0 + i;
       this.put({ address: addr(col, headerRow), value: headerText(f), role: 'header', required: f.required, fieldKey: f.key });
       map.columns[f.key] = colLetter(col);
     });
-    const autoStart = 2 + b.columns.length;
+    const autoStart = c0 + b.columns.length;
     this.agg?.autoColumns.forEach((name, i) => this.put({ address: addr(autoStart + i, headerRow), value: name, role: 'auto-header' }));
-    this.freeze = { row: headerRow };
+    if (numbered) this.freeze = { row: headerRow };
 
     let r = headerRow + 1;
     if (this.isTemplate && b.exampleRow) {
       map.exampleRow = r;
-      this.put({ address: addr(1, r), value: '예시', role: 'row-number' });
-      b.columns.forEach((f, i) => this.put({ address: addr(2 + i, r), value: asCell(b.exampleRow?.[f.key]), role: 'example', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
+      if (numbered) this.put({ address: addr(c0 - 1, r), value: '예시', role: 'row-number' });
+      b.columns.forEach((f, i) => this.put({ address: addr(c0 + i, r), value: asCell(b.exampleRow?.[f.key]), role: 'example', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
       r += 1;
     }
     map.firstDataRow = r;
-    const cols = new Map(b.columns.map((f, i) => [f.label.trim(), colLetter(2 + i)]));
+    const cols = new Map(b.columns.map((f, i) => [f.label.trim(), colLetter(c0 + i)]));
 
     if (this.isTemplate) {
       for (let n = 1; n <= b.maxRows; n++, r++) {
-        this.put({ address: addr(1, r), value: n, role: 'row-number' });
+        if (numbered) this.put({ address: addr(c0 - 1, r), value: n, role: 'row-number' });
         b.columns.forEach((f, i) => {
-          const a = addr(2 + i, r);
+          const a = addr(c0 + i, r);
           if (f.type === 'calc') {
             this.put({ address: a, role: 'calc', numFmt: FIELD_TYPES.calc.excelNumFmt(f), fieldKey: f.key });
             const rr = r;
@@ -283,17 +355,17 @@ class Layouter {
       }
       map.lastDataRow = r - 1;
       this.listGeom = { first: map.firstDataRow, last: map.lastDataRow, cols };
-      b.columns.forEach((f, i) => f.type !== 'calc' && this.validate(range(2 + i, map.firstDataRow, 2 + i, map.lastDataRow), f));
+      b.columns.forEach((f, i) => f.type !== 'calc' && this.validate(range(c0 + i, map.firstDataRow, c0 + i, map.lastDataRow), f));
     } else {
       const rows = this.agg?.rows ?? [];
       rows.forEach((rec, n) => {
         const rowMark = rec.strike ? 'strike' : rec.muted ? 'muted' : undefined;
-        this.put({ address: addr(1, r), value: n + 1, role: 'row-number', mark: rowMark });
+        if (numbered) this.put({ address: addr(c0 - 1, r), value: n + 1, role: 'row-number', mark: rowMark });
         // 계산 칸 값이 없으면 같은 줄 값으로 다시 계산
         const vals = b.columns.some((f) => f.type === 'calc' && rec.values[f.key] === undefined) ? computeListRow(b, rec.values) : rec.values;
         b.columns.forEach((f, i) => {
           const m = rec.marks?.find((x) => x.key === f.key);
-          this.put({ address: addr(2 + i, r), value: asCell(vals[f.key]), role: f.type === 'calc' ? 'calc' : 'input', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), mark: m?.mark ?? rowMark, note: m?.note, fieldKey: f.key });
+          this.put({ address: addr(c0 + i, r), value: asCell(vals[f.key]), role: f.type === 'calc' ? 'calc' : 'input', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), mark: m?.mark ?? rowMark, note: m?.note, fieldKey: f.key });
         });
         rec.auto.forEach((v, i) => this.put({ address: addr(autoStart + i, r), value: asCell(v), role: 'auto-value', mark: rowMark }));
         r += 1;
@@ -306,7 +378,8 @@ class Layouter {
     return r;
   }
 
-  private placeMatrix(b: MatrixBlock, row: number): number {
+  /** c0 = 왼쪽 위 빈칸(행 제목 열) */
+  private placeMatrix(b: MatrixBlock, row: number, c0: number): number {
     const map: MatrixBlockMap = { kind: 'matrix', rowLabelCells: [], colLabelCells: [], cells: [] };
     const f = b.cell;
     const fmt = FIELD_TYPES.number.excelNumFmt(f);
@@ -314,7 +387,7 @@ class Layouter {
     const nR = b.rowLabels.length;
     const calcCols = b.calcCols ?? [];
     const calcRows = b.calcRows ?? [];
-    const firstCol = 2;
+    const firstCol = c0 + 1;
     const lastDataCol = firstCol + nC - 1;
     const totalColIdx = lastDataCol + 1;
     const calcColStart = lastDataCol + 1 + (b.totalCol ? 1 : 0);
@@ -334,7 +407,7 @@ class Layouter {
     calcRows.forEach((rf, k) => rowOf.set(rf.label.trim(), calcRowStart + k));
 
     // 머리글 행
-    this.put({ address: addr(1, row), role: 'header' });
+    this.put({ address: addr(c0, row), role: 'header' });
     b.colLabels.forEach((label, c) => {
       const a = addr(firstCol + c, row);
       this.put({ address: a, value: label, role: 'header', fieldKey: f.key });
@@ -343,7 +416,7 @@ class Layouter {
     if (b.totalCol) this.put({ address: addr(totalColIdx, row), value: TOTAL_COL_NAME, role: 'header' });
     calcCols.forEach((cf, k) => this.put({ address: addr(calcColStart + k, row), value: cf.label, role: 'header', fieldKey: cf.key }));
 
-    const full = this.isTemplate ? null : computeMatrix(b, this.agg?.matrixSums ?? []);
+    const full = this.isTemplate ? null : computeMatrix(b, this.agg?.matrixSumsBy?.[b.id] ?? this.agg?.matrixSums ?? []);
     const rowsAll = [...b.rowLabels.map((_, r) => firstRow + r), ...(b.totalRow ? [totalRowIdx] : []), ...calcRows.map((_, k) => calcRowStart + k)];
     const colsAll = [...b.colLabels.map((_, c) => firstCol + c), ...(b.totalCol ? [totalColIdx] : []), ...calcCols.map((_, k) => calcColStart + k)];
     const calcColField = (col: number) => calcCols[col - calcColStart];
@@ -354,7 +427,7 @@ class Layouter {
       const isTotal = b.totalRow && rr === totalRowIdx;
       const rowField = rr >= calcRowStart ? calcRowField(rr) : undefined;
       // 행 제목
-      const la = addr(1, rr);
+      const la = addr(c0, rr);
       this.put({ address: la, value: isData ? b.rowLabels[ri] : isTotal ? TOTAL_ROW_NAME : rowField!.label, role: 'header', fieldKey: rowField?.key });
       if (isData) map.rowLabelCells.push(la);
       const rowCells: string[] = [];

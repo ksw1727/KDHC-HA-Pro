@@ -1,5 +1,5 @@
-import type { Block, FormSchema, Layout } from '@contract/schema';
-import { AGGREGATION_REQUIRED, availableAggregations } from '@contract/aggregationIds';
+import type { Block, FormSchema, FreeSpec, Layout } from '@contract/schema';
+import { availableAggregations, requiredAggregations } from '@contract/aggregationIds';
 import { newField } from './fieldDefaults';
 
 export interface Ids {
@@ -38,13 +38,24 @@ export function defaultBlocks(layout: Layout, key: () => string): Block[] {
       }];
     case 'collect':
       return [];
+    case 'free':
+      return [
+        { kind: 'fields', id: 'b1', fields: [{ ...newField(key(), 'text', '담당자'), required: true }] },
+        { kind: 'list', id: 'b2', title: '입력 줄 영역 1', maxRows: 5, columns: [{ ...newField(key(), 'text', '항목'), required: true }, newField(key(), 'text', '내용')] },
+      ];
   }
 }
 
+/** 자유 제작형 기본 판: 1행 "담당자" + 입력 칸, 3행부터 입력 줄 영역 */
+export function defaultFree(blocks: Block[]): FreeSpec {
+  const fields = blocks[0]?.kind === 'fields' ? blocks[0].fields : [];
+  return { rows: 8, cols: 5, texts: { A1: '담당자' }, merges: [], places: { ...(fields[0] ? { [fields[0].key]: 'B1' } : {}), b2: 'A3' } };
+}
+
 /** 기본 취합 방식 = 필수 + (지사를 식별하면) 제출 현황표 */
-export function defaultAggregations(schema: Pick<FormSchema, 'layout' | 'org'>) {
+export function defaultAggregations(schema: Pick<FormSchema, 'layout' | 'org' | 'blocks'>) {
   const allowed = availableAggregations(schema);
-  const out = [...AGGREGATION_REQUIRED[schema.layout]];
+  const out = [...requiredAggregations(schema)];
   if (allowed.includes('submission-status')) out.push('submission-status');
   return out;
 }
@@ -52,15 +63,17 @@ export function defaultAggregations(schema: Pick<FormSchema, 'layout' | 'org'>) 
 export function newSchema(layout: Layout, now: Date, ids: Ids): FormSchema {
   const org: FormSchema['org'] = { mode: 'preset', orgs: [], label: '지사' };
   const at = now.toISOString();
+  const blocks = defaultBlocks(layout, ids.key);
   return {
     contractVersion: 1,
     formId: ids.formId,
     formVersion: 1,
     title: '',
     layout,
-    blocks: defaultBlocks(layout, ids.key),
+    blocks,
     ...(layout === 'collect' ? { collect: { scope: 'report' as const } } : {}),
-    aggregations: defaultAggregations({ layout, org }),
+    ...(layout === 'free' ? { free: defaultFree(blocks) } : {}),
+    aggregations: defaultAggregations({ layout, org, blocks }),
     org,
     createdAt: at,
     updatedAt: at,

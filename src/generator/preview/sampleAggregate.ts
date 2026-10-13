@@ -40,9 +40,11 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
       auto: [...(useOrg ? [orgs[o]] : []), ...header.map((f) => sampleValue(f, o)), files[o]],
     }));
   }
-  const matrix = schema.blocks.find((b) => b.kind === 'matrix');
-  if (matrix?.kind === 'matrix') {
-    data.matrixSums = matrix.rowLabels.map((_, r) => matrix.colLabels.map((__, c) => 30 + ((r * 7 + c * 5) % 17)));
+  for (const matrix of schema.blocks) {
+    if (matrix.kind !== 'matrix') continue;
+    const sums = matrix.rowLabels.map((_, r) => matrix.colLabels.map((__, c) => 30 + ((r * 7 + c * 5) % 17)));
+    data.matrixSums ??= sums;
+    (data.matrixSumsBy ??= {})[matrix.id] = sums;
   }
   const grid = schema.blocks.find((b) => b.kind === 'grid');
   if (grid?.kind === 'grid') {

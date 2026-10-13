@@ -17,7 +17,8 @@ export function structureKey(s: FormSchema): string {
       case 'grid': return ['grid', b.colLabels, b.rows.map((r) => r.map((c) => (c.kind === 'input' ? ['i', fieldKey(c.field)] : c.kind === 'fixed' ? ['f', c.value] : ['b']))), b.spareRows > 0, (b.spareColumns ?? []).map(fieldKey)];
     }
   };
-  return JSON.stringify([s.layout, s.blocks.map(blockKey), s.collect?.scope ?? null]);
+  // 자유 제작형은 칸 위치(놓인 자리·합친 칸)도 구조다: 바뀌면 이전 파일의 셀 지도와 맞지 않는다
+  return JSON.stringify([s.layout, s.blocks.map(blockKey), s.collect?.scope ?? null, ...(s.free ? [s.free.places, s.free.merges] : [])]);
 }
 
 /** 다음에 내보낼 버전 */
