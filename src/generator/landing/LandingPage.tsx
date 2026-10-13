@@ -33,19 +33,17 @@ function useHeaderSlot() {
 /** 양식 만들기 첫 화면: 구조 고르기 + 이미 만든 양식 열기 + 최근 양식 */
 export function LandingPage({ onNew, onOpen }: { onNew: (layout: Layout) => void; onOpen: (entry: StoredForm) => void }) {
   const slot = useHeaderSlot();
-  const [layout, setLayout] = useState<Layout>('list');
+  const [preview, setPreview] = useState<Layout | null>(null);
   const [reco, setReco] = useState<Layout | null>(null);
   const [quizOpen, setQuizOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [forms, setForms] = useState(() => listForms());
   const [all, setAll] = useState(false);
   const [err, setErr] = useState('');
-  const bigRef = useRef<HTMLDivElement>(null);
 
   const recommend = (l: Layout) => {
     setReco(l);
-    setLayout(l);
-    bigRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    setPreview(l);
   };
   const open = (r: OpenResult) => (r.ok ? onOpen(r.entry) : setErr(r.message));
   const refresh = () => setForms(listForms());
@@ -57,7 +55,7 @@ export function LandingPage({ onNew, onOpen }: { onNew: (layout: Layout) => void
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-0 flex-1">
             <h1 className="m-0 text-[22px] font-bold">어떤 모양의 양식을 만들까요?</h1>
-            <p className="m-0 mt-0.5 text-sub">카드를 누르면 지사가 작성하고 취합되는 과정을 아래에서 크게 보여드려요.</p>
+            <p className="m-0 mt-0.5 text-sub">카드를 누르면 지사가 작성하고 취합되는 과정을 크게 보여드려요.</p>
           </div>
           <Button variant="ghost" className="text-pri" aria-expanded={quizOpen} onClick={() => setQuizOpen((v) => !v)}>잘 모르겠어요 · 질문으로 고르기 {quizOpen ? '▴' : '▾'}</Button>
           <Button aria-expanded={drawerOpen} onClick={() => setDrawerOpen((v) => !v)}>이미 만든 양식 열기 {drawerOpen ? '▴' : '▾'}</Button>
@@ -80,17 +78,16 @@ export function LandingPage({ onNew, onOpen }: { onNew: (layout: Layout) => void
 
         {quizOpen && <Quiz onPick={recommend} />}
 
-        <div role="radiogroup" aria-label="양식 구조" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           {ORDER.map((l) => (
-            <button key={l} type="button" role="radio" aria-checked={layout === l} onClick={() => setLayout(l)}
-              className={cx('flex flex-col overflow-hidden rounded-card border bg-white text-left outline-none transition-shadow focus-visible:ring-3 focus-visible:ring-pri-bg',
-                layout === l ? 'border-pri shadow-[0_0_0_2px_#b9cff2]' : 'border-line hover:border-line-strong')}>
+            <button key={l} type="button" aria-label={`${LAYOUT_LABELS[l]} 크게 보기`} onClick={() => setPreview(l)}
+              className={cx('flex flex-col overflow-hidden rounded-card border bg-white text-left outline-none transition-shadow hover:border-pri hover:shadow-[0_0_0_2px_#b9cff2] focus-visible:ring-3 focus-visible:ring-pri-bg',
+                reco === l ? 'border-pri shadow-[0_0_0_2px_#b9cff2]' : 'border-line')}>
               <div className="pointer-events-none h-[78px] overflow-hidden border-b border-line bg-panel p-1.5" aria-hidden>
-                <div className="origin-top-left" style={{ width: '200%', transform: 'scale(.5)' }}><StructureStory layout={l} size="sm" /></div>
+                <div className="origin-top-left" style={{ width: '200%', transform: 'scale(.5)' }}><StructureStory layout={l} size="sm" still /></div>
               </div>
               <div className="flex flex-1 flex-col gap-1 p-2.5">
                 <div className="flex items-center gap-1.5 font-bold">
-                  <span className={cx('inline-block h-3.5 w-3.5 rounded-full border-2', layout === l ? 'border-pri bg-[radial-gradient(#1f5fbf_45%,#fff_50%)]' : 'border-line-strong')} />
                   {LAYOUT_LABELS[l]}
                   {reco === l && <Chip tone="pri">추천</Chip>}
                 </div>
@@ -101,14 +98,6 @@ export function LandingPage({ onNew, onOpen }: { onNew: (layout: Layout) => void
           ))}
         </div>
 
-        <BigStory key={layout} layout={layout} boxRef={bigRef} />
-
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-muted">구조는 만드는 중에도 ② 양식 구조에서 바꿀 수 있어요.</span>
-          <span className="flex-1" />
-          <Button variant="pri" className="px-4 py-2 text-[14px]" onClick={() => onNew(layout)}>{withEuro(layout)} 새 양식 만들기 →</Button>
-        </div>
-
         {forms.length > 0 && (
           <Recent forms={all ? forms : forms.slice(0, 4)} total={forms.length} all={all} onToggleAll={() => setAll((v) => !v)}
             onOpen={onOpen} onDuplicate={(e) => onOpen(duplicateForm(e.schema, new Date(), randomFormId()))}
@@ -116,6 +105,8 @@ export function LandingPage({ onNew, onOpen }: { onNew: (layout: Layout) => void
             onDelete={(e) => { removeForm(e.schema.formId); refresh(); }} />
         )}
       </div>
+
+      {preview && <StoryDialog layout={preview} onClose={() => setPreview(null)} onStart={() => onNew(preview)} />}
 
       {err && (
         <Dialog tone="err" title={err} onClose={() => setErr('')} footer={<><span className="flex-1" /><Button variant="pri" onClick={() => setErr('')}>확인</Button></>}>
@@ -126,15 +117,19 @@ export function LandingPage({ onNew, onOpen }: { onNew: (layout: Layout) => void
   );
 }
 
-/** 크게 보기: 3컷 이야기 + [다시 보기]·[멈춤] */
-function BigStory({ layout, boxRef }: { layout: Layout; boxRef: React.RefObject<HTMLDivElement | null> }) {
+/** 카드를 누르면 뜨는 크게 보기: 3컷 이야기 + [다시 보기]·[멈춤] + 시작 버튼 */
+function StoryDialog({ layout, onClose, onStart }: { layout: Layout; onClose: () => void; onStart: () => void }) {
   const [paused, setPaused] = useState(false);
   const [run, setRun] = useState(0);
   return (
-    <section ref={boxRef} aria-label={`${LAYOUT_LABELS[layout]} 크게 보기`} className="rounded-card border border-line bg-white p-3.5">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        <b className="text-[15px]">{LAYOUT_LABELS[layout]}은 이렇게 쓰여요</b>
-        <span className="text-xs text-muted">① 배포 양식 → ② 지사가 작성 → ③ 취합본</span>
+    <Dialog wide title={`${LAYOUT_LABELS[layout]}은 이렇게 쓰여요`} onClose={onClose}
+      footer={<>
+        <span className="text-xs text-muted">구조는 만드는 중에도 ② 양식 구조에서 바꿀 수 있어요.</span>
+        <span className="flex-1" />
+        <Button variant="pri" onClick={onStart}>{withEuro(layout)} 새 양식 만들기 →</Button>
+      </>}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sub">{INFO[layout].one}</span>
         <span className="flex-1" />
         <Button size="sm" onClick={() => { setRun((n) => n + 1); setPaused(false); }}>↻ 다시 보기</Button>
         <Button size="sm" aria-pressed={paused} onClick={() => setPaused((v) => !v)}>{paused ? '▶ 재생' : '❚❚ 멈춤'}</Button>
@@ -142,7 +137,7 @@ function BigStory({ layout, boxRef }: { layout: Layout; boxRef: React.RefObject<
       <div className="text-[13px] [&_table]:text-[12px] [&_td]:h-[22px]">
         <StructureStory key={run} layout={layout} paused={paused} />
       </div>
-    </section>
+    </Dialog>
   );
 }
 

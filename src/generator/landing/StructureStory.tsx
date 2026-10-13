@@ -109,9 +109,9 @@ function useReducedMotion() {
   return r;
 }
 
-/** 3컷 이야기. size='sm'은 작은 미리보기(설명 줄 없음) */
-export function StructureStory({ layout, size = 'md', paused = false }: { layout: Layout; size?: 'sm' | 'md'; paused?: boolean }) {
-  const reduce = useReducedMotion();
+/** 3컷 이야기. size='sm'은 작은 미리보기(설명 줄 없음), still은 움직이지 않고 다 그린 대표 화면 */
+export function StructureStory({ layout, size = 'md', paused = false, still = false }: { layout: Layout; size?: 'sm' | 'md'; paused?: boolean; still?: boolean }) {
+  const reduce = useReducedMotion() || still;
   const [p, setP] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);

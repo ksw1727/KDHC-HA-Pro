@@ -11,10 +11,14 @@ test('처음 온 사람: 안내 한 줄, 질문으로 고르면 추천 카드, �
   fireEvent.click(screen.getByRole('button', { name: /질문으로 고르기/ }));
   fireEvent.click(screen.getByText('여러 줄 명단이나 내역'));
   fireEvent.click(screen.getByText('네, 위쪽에 한 번 받아요'));
-  const card = screen.getByRole('radio', { name: /혼합형/ });
-  expect(card.getAttribute('aria-checked')).toBe('true');
+  const card = screen.getByRole('button', { name: '혼합형 크게 보기' });
   expect(within(card).getByText('추천')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: '혼합형으로 새 양식 만들기 →' }));
+  const dialog = screen.getByRole('dialog');
+  expect(within(dialog).getByText('혼합형은 이렇게 쓰여요')).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: '닫기' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  fireEvent.click(card);
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '혼합형으로 새 양식 만들기 →' }));
   expect(screen.getByRole('grid', { name: '엑셀 미리보기' })).toBeTruthy();
 });
 
