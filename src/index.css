@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* 공공 블루 디자인 토큰 (docs/mockups/generator-themes.html 시안 1) */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+
+  --color-pri: #1f5fbf;
+  --color-pri-ink: #174a96;
+  --color-pri-bg: #e8f0fc;
+  --color-pri-line: #b9cff2;
+
+  --color-ink: #18202b;
+  --color-sub: #56616e;
+  --color-muted: #8a95a2;
+  --color-line: #e2e7ee;
+  --color-line-strong: #cbd3dd;
+  --color-panel: #f6f8fb;
+  --color-chip: #f1f4f8;
+
+  --color-req: #fff5d1;
+  --color-req-line: #efd88a;
+  --color-req-ink: #7a5a00;
+  --color-auto: #e5f4ee;
+  --color-auto-head: #cfeadf;
+  --color-auto-ink: #0f6e56;
+  --color-warn: #fdf1e3;
+  --color-warn-ink: #9a4a07;
+  --color-err: #fdecea;
+  --color-err-ink: #b42318;
+
+  --radius-btn: 7px;
+  --radius-box: 8px;
+  --radius-card: 10px;
+}
+
+html, body, #root { height: 100%; }
+body { margin: 0; background: #fff; color: var(--color-ink); font-family: var(--font-sans); font-size: 13px; }

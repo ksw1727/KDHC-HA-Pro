@@ -199,6 +199,8 @@ interface Decisions {
 - matrix 블록: `cells[r][c]` 주소에서 읽는다. 행·열 제목이 다르면 제목 이름으로 위치를 다시 찾는다. 합계 행·열은 값으로 읽지 않고 `totalRowChecks`로만 쓴다.
 - grid 블록: `inputCells` 주소에서 읽는다. `fixedCells`와 다른 값이 있으면 `FIXED_CELL_CHANGED`(info, 값은 무시). 여유 줄 범위의 값 있는 행은 `gridSpareRows`.
 
+**계산 칸** (`01-contract.md` 3.1절): 계산 칸(`type: 'calc'`, 표형 계산 행·열, 빈칸채우기 계산 칸)은 **읽지 않는다**(검증·값 정리 대상 아님). 같은 틀 시트·지사별 펼치기에서는 `contract/formula`의 `compute*` 함수로 **합친 입력값에서 다시 계산**한다. 목록 계산 열은 각 줄의 입력값으로, 위쪽 정보 계산 항목은 그 제출의 값으로 계산해 자동 칸에 넣는다. `layoutSheet`의 aggregate 모드는 목록 줄 값에 계산 칸이 없으면 직접 계산한다.
+
 **모양 속 숨은 뜻**
 
 | 모양 | 처리 |

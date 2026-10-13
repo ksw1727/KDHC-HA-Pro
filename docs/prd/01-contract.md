@@ -39,7 +39,7 @@ src/contract/
 ## 3. 양식 정의 `FormSchema`
 
 ```ts
-export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern';
+export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern' | 'calc';
 
 export interface Field {
   key: string;            // 내부 식별자. 생성 시 자동 발급(예: "f_8k2m"), 이후 절대 변경하지 않음
@@ -58,6 +58,7 @@ export interface Field {
   minDate?: string; maxDate?: string;         // date. 'YYYY-MM-DD' 또는 상대값 'today', 'today+30', 'today-7'
   options?: string[];                         // select (1개 이상, 중복 불가)
   pattern?: 'phone' | 'mobile' | 'email' | 'bizno';   // pattern (필수)
+  formula?: string;                           // calc (필수). 칸 이름으로 쓴 계산식 (3.1절)
 }
 
 export interface FieldsBlock { kind: 'fields'; id: string; title?: string; fields: Field[]; }
@@ -76,12 +77,15 @@ export interface MatrixBlock {
   cell: Field;             // 모든 칸에 적용되는 규칙. type은 반드시 'number'
   totalRow: boolean;       // 합계 행 표시 여부 (빈 양식에는 수식, 취합본에는 값)
   totalCol: boolean;       // 합계 열(계) 표시 여부
+  calcRows?: Field[];      // 계산 행 (type 'calc'). 표 아래, 합계 행 다음
+  calcCols?: Field[];      // 계산 열 (type 'calc'). 표 오른쪽, 계 열 다음
 }
 
 /** 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내고 채운 칸을 겹쳐 합친다. */
 export type GridCell =
   | { kind: 'fixed'; value: string | number }   // 본사가 미리 채운 고정 내용 (잠금)
   | { kind: 'input'; field: Field }             // 작성자가 채우는 칸 (field.key는 블록 안에서 유일)
+  | { kind: 'calc'; field: Field }              // 계산 칸 (type 'calc', 잠금)
   | { kind: 'blank' };                          // 아무것도 아닌 빈칸 (잠금)
 
 export interface GridBlock {
@@ -94,12 +98,20 @@ export interface GridBlock {
 
 export type Block = FieldsBlock | ListBlock | MatrixBlock | GridBlock;
 
-export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect';
+export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect' | 'free';
+
+/** 자유 제작형 그리는 판 (3.2절). layout = 'free'일 때만 쓴다. 판 주소는 판 왼쪽 위가 A1 */
+export interface FreeSpec {
+  rows: number; cols: number;           // 판 크기 (영역이 더 크면 영역 끝까지)
+  texts: Record<string, string>;        // 판 주소 → 글자 칸 (잠김)
+  merges: string[];                     // 판 범위, 글자 칸끼리만 합친다
+  places: Record<string, string>;       // 놓인 자리: fields 항목 key → 판 주소, list·matrix 블록 id → 왼쪽 위 판 주소
+}
 
 /** 시트 모으기형 설정. layout = 'collect'일 때만 쓴다. */
 export interface CollectSpec {
   scope: 'report' | 'all';          // 취합 때 모을 시트. 'report'(기본) = 보고서 시트만, 'all' = 파일 안의 보이는 시트 전부
-  starter?: (string | number | null)[][];   // 시트 시작 모양: 4행부터 넣을 기본 틀(엑셀에서 붙여넣은 표). 없으면 빈 시트
+  starter?: (string | number | null)[][];   // 시트 시작 모양: 4행부터 넣을 제작한 양식(빌더에서 그린 표). 없으면 빈 시트. 글자 칸 = 제목 칸, null = 작성 자리
 }
 
 export interface FormSchema {
@@ -113,7 +125,8 @@ export interface FormSchema {
   layout: Layout;
   blocks: Block[];                 // collect는 빈 배열
   collect?: CollectSpec;           // layout = 'collect'일 때 필수
-  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 필수 방식(AGGREGATION_REQUIRED)은 항상 포함
+  free?: FreeSpec;                 // layout = 'free'일 때 필수
+  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 필수 방식(requiredAggregations)은 항상 포함
   org: {
     mode: 'preset' | 'input' | 'none';
     orgs?: string[];       // preset: 필수(1개 이상). input: 선택(있으면 지사명 칸이 드롭다운). none: 사용 안 함
@@ -133,6 +146,7 @@ export interface FormSchema {
 | `header-list` | 혼합형 | `[FieldsBlock, ListBlock]` (이 순서) |
 | `fill-in` | 빈칸채우기형 | `[GridBlock]` |
 | `collect` | 시트 모으기형 | `[]` (블록 없음, `collect` 설정 사용) |
+| `free` | 자유 제작형 | `fields`(0~1개, 맨 앞)·`list`·`matrix`를 개수 제한 없이. `free` 설정 필수, 모든 항목·블록에 놓인 자리(`places`) 필요 |
 
 - 블록 `id`는 `b1`, `b2`처럼 순서대로 부여한다.
 - `collect`는 `org.mode`로 `preset`·`none`만 쓸 수 있다(`input`은 지사명 칸을 읽어야 하는데 자유 서식이라 칸 위치가 보장되지 않음). `collect` 설정은 필수다.
@@ -140,6 +154,54 @@ export interface FormSchema {
 - 이 문서와 화면의 "지사"는 `org.label`로 바뀌어 보인다(예: "부서명", "부서별 시트").
 - 지사명 칸은 블록이 아니다. `org.mode`가 `preset`·`input`이면 생성 파트가 자동으로 넣고 위치를 `CellMap.orgCell`에 적는다. `none`이면 지사명 칸이 없다(파일 하나 = 응답 하나).
 - `fill-in`의 `input` 칸이 1개 이상이거나 `spareRows > 0`이어야 한다.
+
+### 3.2 자유 제작형 (`free.ts`)
+
+운영자가 판에 표 모양을 직접 그리고(글자 칸·합친 칸), 작성자가 채울 곳을 세 가지로 지정한다. **입력 영역은 기존 블록으로 저장**하므로 셀 지도(`CellMap`)는 다른 구조와 같은 모양이고, 취합 파트의 값 읽기·검산은 그대로 쓴다.
+
+| 판에서 지정 | 저장 | 셀 지도 | 판 위 크기 |
+|---|---|---|---|
+| 입력 칸 (한 칸에 값 하나) | `fields` 블록의 항목 | `FieldsBlockMap` (labelCell = 왼쪽 글자 칸, 없으면 위쪽, 없으면 값 칸) | 1칸 |
+| 입력 줄 영역 (머리글 + 여러 줄) | `list` 블록 (번호 열 없음) | `ListBlockMap` | 머리글 1행 + `maxRows`행 × 칸 수 |
+| 숫자 표 (열 제목 × 행 제목) | `matrix` 블록 | `MatrixBlockMap` | 기존 표형과 같음 (왼쪽 위 = 빈칸) |
+
+- **엑셀 배치**: 1~2행 제목·안내, 4행 제출처 줄은 다른 구조와 같다. 판 A1은 제출처 줄이 있으면 **6행**, 없으면 **4행**(`freeTop`)의 A열에 놓인다. 글자 칸은 `label` 스타일로 잠긴다. 판 영역 전체가 인쇄영역이다.
+- **영역 계산**: `freeRegions(schema)`가 영역마다 판 좌표 사각형을 돌려준다. 공통 문제(`freeProblems`): 영역 없음, 영역끼리 겹침, 영역 안 글자 칸, 영역에 걸친 합친 칸.
+- **취합 검사** (`freeAggregationChecks`, 화면 ④와 내보내기 전 검사가 같이 쓴다):
+
+| 방식 | 가능 조건 | 결과 모양 |
+|---|---|---|
+| 같은 틀 시트 (필수) | 입력 줄 영역 **0~1개**, 줄 영역의 **아래와 오른쪽**(머리글·입력 줄 행)에는 다른 영역·글자 칸이 없음 (늘어나는 줄·자동 칸이 덮어쓰기 때문) | 줄 영역이 있으면 혼합형 규칙: 줄이 이어지고 입력 칸 값·`지사`·출처가 줄마다 오른쪽 자동 칸. 없으면 입력 칸 자리에 "(지사별 시트 참고)"(흐리게). 숫자 표는 칸끼리 합계 |
+| 지사별 펼치기 | 입력 칸이나 숫자 표가 있음 | 제출당 1행: 입력 칸들 + 숫자 표 `{행제목} {열제목}` + (줄 영역 있으면) `목록 행 수` |
+| 시트 모으기·제출 현황표 | 항상 (현황표는 지사를 식별할 때) | 다른 구조와 같음 |
+
+- **필수 방식** (`requiredAggregations`): `same-frame` + 줄 영역이 없는데 입력 칸이나 숫자 표가 있으면 `spread`(입력 칸 값이 모이는 곳).
+- 숫자 표가 여러 개일 수 있으므로 `AggregateFill.matrixSumsBy`(블록 id → 칸별 합)를 쓴다. 없으면 `matrixSums`.
+- 버전: 놓인 자리·합친 칸이 바뀌면 칸 구조 변경으로 보고 `formVersion`을 올린다(셀 지도가 달라지므로). 글자 칸 내용만 바뀌면 유지.
+
+### 3.1 계산 칸 (`formula/`)
+
+계산 칸(`type: 'calc'`)은 작성자가 입력하지 않고 **엑셀 수식으로 계산**되는 잠긴 칸이다. 계산식 엔진은 `src/contract/formula/` 하나를 두 파트가 함께 쓴다.
+
+**계산식 문법** — 칸은 이름으로 쓴다: `[여] ÷ ([남] + [여]) × 100`
+- 연산: `+ - × ÷ ( )` (`* /`도 됨), 비교 `>= > <= < = <>`, 숫자, 글자 `"적합"`. 계산식 안에서는 천 단위 쉼표를 쓰지 않는다.
+- 함수(한글·영문 둘 다): `합계/SUM`, `평균/AVERAGE`, `최소/MIN`, `최대/MAX`(여러 값, 빈칸 건너뜀), `반올림/ROUND(값, 자릿수)`(엑셀처럼 0에서 먼 쪽), `조건/IF(비교, 맞을 때, 아닐 때)`
+- 저장은 사람이 읽는 글자 그대로. 항목 이름을 바꾸면 빌더가 계산식 안의 이름도 바꾼다.
+
+**쓸 수 있는 이름 (`scopeFor`)**
+
+| 계산 칸 위치 | 쓸 수 있는 이름 | 엑셀 수식 |
+|---|---|---|
+| 목록 열 | 같은 목록의 다른 칸(같은 줄), 위쪽 정보 항목(고정 칸) | 같은 줄 주소, 위쪽 정보는 `$B$6` |
+| 위쪽 정보 항목 | 다른 위쪽 정보 항목, 목록 칸(**합계·평균·최소·최대 안에서만**, 열 전체) | 목록 칸은 `D10:D109` 범위 |
+| 표형 계산 열 | 열 제목, `계`(합계 열), 다른 계산 열 | 행마다 같은 행 주소. 합계 행·계산 행에도 같은 식 |
+| 표형 계산 행 | 행 제목, `합계`(합계 행), 다른 계산 행 | 열마다 같은 열 주소 |
+| 빈칸채우기 계산 칸 | 입력·계산 칸 이름, 숫자 고정 칸 `{행 첫 칸} · {열 머리글}` | 그 칸 주소 |
+| 빈칸채우기 여유 줄 계산 열 | 다른 여유 줄 열 이름(같은 줄) | 같은 줄 주소 |
+
+- 엑셀 수식은 `IFERROR(…,"")`로 감싼다(0으로 나누기·빈칸이면 빈칸). 셀 메모에 `계산: {계산식}`을 단다.
+- 검사(`validateSchema`·`formulaErrors`): 문법, 없는 이름, 자기 자신, 계산 칸끼리 순환, 합계 안에서만 쓸 목록 칸.
+- **취합본은 계산 칸을 읽지 않고, 합친 입력값으로 다시 계산한다**(`computeListRow`, `computeHeader`, `computeMatrix`, `computeGrid`, `computeSpareRow`). 비율처럼 지사 값을 더하면 틀리는 값이 있기 때문이다. 표형 합계 행의 계산 열 값은 합계 행 값으로 다시 계산한다.
 
 ## 4. 파일 메타 `FileMeta`
 
@@ -221,9 +283,10 @@ ExcelJS는 사용자 지정 속성을 지원하지 않으므로 `xlsxPatch.ts`�
 
 ### 4.3 보호
 - 입력 시트: 시트 보호. 입력칸(목록 입력 줄, 값 칸, 표 칸, 빈칸채우기 입력칸·여유 줄)만 `locked = false`. 허용 동작: 셀 선택, 서식 없는 입력.
-- 통합문서 구조 보호(`<workbookProtection lockStructure="1"/>`): 시트 추가·삭제·숨기기 해제 차단. `xlsxPatch.ts`가 `xl/workbook.xml`에 삽입. **취합본에는 넣지 않는다.**
+- **통합문서 구조 보호는 넣지 않는다**(모든 구조, 2026-10-13 개발자 2 의견으로 결정). 작성자가 계산이 필요하면 새 시트를 추가해 쓸 수 있어야 하기 때문이다. 그래서 생기는 일은 취합 파트가 처리한다: 양식 시트 이름이 바뀌면 `_meta.sheetName` → 머리글 일치율 순으로 찾고, 추가한 시트는 "읽지 않은 시트"로 기록하며, 양식 시트를 지운 파일은 "양식 시트가 없어요"로 제외한다. `_meta`는 veryHidden이라 엑셀 메뉴로 숨김 해제가 안 된다. (`xlsxPatch.ts`의 `lockStructure` 옵션은 남겨 두되 쓰지 않는다.)
+- 시트 보호에서 `objects`(메모 등 개체)는 잠그지 않는다. 작성자가 입력칸에 엑셀 메모를 달 수 있어야 한다.
 - 보호 비밀번호: 미결정(D2). 기본안은 앱 고정 비밀번호 상수 `PROTECT_PASSWORD`를 `contract/version.ts`에 둔다.
-- **`collect`(시트 모으기형)는 시트 보호와 통합문서 구조 보호를 모두 넣지 않는다.** 엑셀은 보호된 시트에서 셀 합치기를 막고, 구조 보호는 시트 추가를 막기 때문이다(`scope: 'all'`이면 제출처가 시트를 추가할 수 있어야 함). 제출처 식별은 `_meta`(veryHidden이라 엑셀 메뉴에 보이지 않음)와 파일 속성으로만 한다. 1~2행의 제목·제출처명은 안내용이며 고쳐도 취합에 영향이 없다.
+- **`collect`(시트 모으기형)는 시트 보호도 넣지 않는다.** 엑셀은 보호된 시트에서 셀 합치기를 막기 때문이다(`scope: 'all'`이면 제출처가 시트를 추가해 쓴다). 제출처 식별은 `_meta`(veryHidden이라 엑셀 메뉴에 보이지 않음)와 파일 속성으로만 한다. 1~2행의 제목·제출처명은 안내용이며 고쳐도 취합에 영향이 없다.
 
 ### 4.4 체크섬
 - `computeChecksum(meta)` = `SHA-256( canonicalJSON({ kind, schema, orgName, sheetName, cellMap, aggregate }) )`의 16진수 앞 16자.
@@ -314,13 +377,14 @@ export type IssueCode =
 ```ts
 export type AggregationId =
   | 'same-frame'         // 같은 틀 시트        — collect를 뺀 모든 layout, 항상 포함
-  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in
+  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in, free(조건부 필수, 3.2)
   | 'collect-sheets'     // 시트 모으기         — 모든 layout. collect는 항상 포함(목차 시트 포함)
   | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
 export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]>;
-// list·header-list·fill-in: ['same-frame'] / matrix: ['same-frame', 'spread'] / collect: ['collect-sheets']
+// list·header-list·fill-in: ['same-frame'] / matrix: ['same-frame', 'spread'] / collect: ['collect-sheets'] / free: ['same-frame']
+export function requiredAggregations(schema): AggregationId[];   // free는 모양에 따라 spread 추가 (3.2). 필수 판단은 이 함수로 한다
 ```
 
 - 생성 파트는 빌더에서 해당 layout이 지원하는 방식만 보여주고, 필수 방식은 체크 해제할 수 없게 한다.
@@ -333,7 +397,7 @@ export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]>;
 
 ```ts
 // src/contract/layout/layoutEngine.ts — 순수 함수
-export function layoutSheet(schema: FormSchema, input: LayoutInput): SheetModel;
+export function layoutSheet(schema: FormSchema, input: LayoutInput, opts: { today: Date }): SheetModel;   // today: 상대 날짜 입력 규칙용
 
 type LayoutInput =
   | { mode: 'template'; orgName?: string }                    // 빈 양식
@@ -354,7 +418,7 @@ interface ModelCell {
   value?: string | number;
   formula?: string;                  // 합계 행·열 등
   role: 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
-      | 'example' | 'fixed' | 'auto-header' | 'auto-value';
+      | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc';
   required?: boolean;
   numFmt?: string;
   wrap?: boolean;
@@ -394,6 +458,7 @@ interface ModelCell {
 | matrix | 양식과 같은 표에 **모든 제출의 합계** | 없음 (지사별 값은 `spread` 시트, 항상 포함) |
 | fill-in | 양식과 같은 표에 **모든 제출을 겹쳐 채움**, 여유 줄 자리에 추가된 행 전부 | 여유 줄에만 `지사`, `출처 파일`, `원본 줄`. 입력칸 출처는 셀 메모 |
 | collect | 같은 틀 시트 없음. 첫 시트는 **목차**(`03-aggregator.md` 3.7) | — |
+| free | 판 모양 그대로. 줄 영역 자리에 모든 반영 행, 숫자 표는 합계, 입력 칸은 줄 영역이 있으면 "(줄별 자동 칸 참고)", 없으면 "(지사별 시트 참고)" (3.2) | 줄 영역이 있을 때만, **줄 영역 오른쪽**에: `지사`, 입력 칸 항목들, `출처 파일`, `원본 줄`, `상태` |
 
 **`collect` 빈 양식 배치**: 1행 제목, 2행 `{org.label}명`(값)·작성 안내·기한·문의처(org.mode = 'none'이면 제출처명 없이 안내만), 3행 빈 행, 4행부터 `starter` 표(없으면 빈칸). 잠금·입력 규칙·인쇄영역 없음. `layoutSheet(schema, { mode: 'template' })`가 이 모양을 돌려준다.
 
