@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Layout } from '@contract/schema';
 import { LAYOUT_LABELS, blockFields, orgLabel, validateSchema } from '@contract/schema';
 import { AGGREGATION_LABELS } from '@contract/aggregationIds';
 import { layoutSheet } from '@contract/layout';
@@ -18,6 +17,7 @@ import { OrgPanel } from '../builder/OrgPanel';
 import { CheckDialog } from '../builder/CheckDialog';
 import { ExportFlow } from '../builder/ExportFlow';
 import { Button, Chip, Dialog, Seg } from '../ui/ui';
+import type { StoredForm } from '../storage/localForms';
 
 function useHeaderSlot() {
   const [el, setEl] = useState<HTMLElement | null>(null);
@@ -25,15 +25,15 @@ function useHeaderSlot() {
   return el;
 }
 
-export function BuilderPage() {
-  const b = useBuilder();
+/** onHome: [← 처음 화면] (구조 고르기 첫 화면으로) */
+export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: () => void }) {
+  const b = useBuilder(start);
   const s = b.schema;
   const slot = useHeaderSlot();
   const [mode, setMode] = useState<'template' | 'aggregate'>('template');
   const [previewOrg, setPreviewOrg] = useState<string | undefined>();
   const [check, setCheck] = useState<ExportProblem[] | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [newOpen, setNewOpen] = useState(false);
   const [loadErr, setLoadErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const label = orgLabel(s);
@@ -64,11 +64,11 @@ export function BuilderPage() {
 
   const header = (
     <>
+      {onHome && <Button variant="ghost" onClick={() => { b.flush(); onHome(); }}>← 처음 화면</Button>}
       <span className="truncate text-sub">{s.title || '새 양식'}</span>
       <Chip>{LAYOUT_LABELS[s.layout]}</Chip>
       <Chip tone={b.saved === false ? 'warn' : 'gray'}>v{b.version} · {b.saved === false ? '이 브라우저에 자동 저장되지 않아요' : '자동 저장됨'}</Chip>
       <span className="flex-1" />
-      <Button variant="ghost" onClick={() => setNewOpen(true)}>새 양식</Button>
       <Button variant="ghost" onClick={() => fileRef.current?.click()}>양식 파일 열기</Button>
       <Button onClick={() => exportFormJson(s)}>양식 파일 저장</Button>
       <Button variant="pri" onClick={onExport}>엑셀 내보내기{s.org.mode === 'preset' && s.org.orgs?.length ? ` (${s.org.orgs.length}개 · zip)` : ''}</Button>
@@ -150,21 +150,7 @@ export function BuilderPage() {
       {check && <CheckDialog problems={check} onFix={onFix} onClose={() => setCheck(null)} />}
       {exporting && <ExportFlow schema={s} lastExported={b.lastExported} onClose={() => setExporting(false)} onExported={b.markExported} />}
       {loadErr && <Dialog tone="err" title={loadErr} onClose={() => setLoadErr('')} footer={<><span className="flex-1" /><Button variant="pri" onClick={() => setLoadErr('')}>확인</Button></>}><p className="m-0">한난MOA에서 저장한 .form.json 파일을 골라 주세요.</p></Dialog>}
-      {newOpen && <NewFormDialog onClose={() => setNewOpen(false)} onPick={(l) => { b.startNew(l); setNewOpen(false); }} />}
     </div>
-  );
-}
-
-function NewFormDialog({ onClose, onPick }: { onClose: () => void; onPick: (l: Layout) => void }) {
-  return (
-    <Dialog title="새 양식 만들기" onClose={onClose} footer={<><span className="text-xs text-muted">지금 양식은 이 브라우저에 저장돼 있어요.</span><span className="flex-1" /><Button onClick={onClose}>취소</Button></>}>
-      <p className="m-0 text-sub">어떤 구조로 시작할까요? (구조 고르기 첫 화면은 다음 단계에서 붙여요)</p>
-      <div className="grid grid-cols-2 gap-2">
-        {(['list', 'matrix', 'header-list', 'fill-in', 'collect'] as Layout[]).map((l) => (
-          <Button key={l} onClick={() => onPick(l)}>{LAYOUT_LABELS[l]}</Button>
-        ))}
-      </div>
-    </Dialog>
   );
 }
 
