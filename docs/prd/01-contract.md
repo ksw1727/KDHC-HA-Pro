@@ -94,7 +94,13 @@ export interface GridBlock {
 
 export type Block = FieldsBlock | ListBlock | MatrixBlock | GridBlock;
 
-export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in';
+export type Layout = 'list' | 'matrix' | 'header-list' | 'fill-in' | 'collect';
+
+/** 시트 모으기형 설정. layout = 'collect'일 때만 쓴다. */
+export interface CollectSpec {
+  scope: 'report' | 'all';          // 취합 때 모을 시트. 'report'(기본) = 보고서 시트만, 'all' = 파일 안의 보이는 시트 전부
+  starter?: (string | number | null)[][];   // 시트 시작 모양: 4행부터 넣을 기본 틀(엑셀에서 붙여넣은 표). 없으면 빈 시트
+}
 
 export interface FormSchema {
   contractVersion: 1;
@@ -105,11 +111,13 @@ export interface FormSchema {
   deadline?: string;       // 'YYYY-MM-DD'
   contact?: string;        // 문의처
   layout: Layout;
-  blocks: Block[];
-  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 'same-frame'은 항상 포함
+  blocks: Block[];                 // collect는 빈 배열
+  collect?: CollectSpec;           // layout = 'collect'일 때 필수
+  aggregations: AggregationId[];   // 기본 선택된 취합 방식. 필수 방식(AGGREGATION_REQUIRED)은 항상 포함
   org: {
     mode: 'preset' | 'input' | 'none';
     orgs?: string[];       // preset: 필수(1개 이상). input: 선택(있으면 지사명 칸이 드롭다운). none: 사용 안 함
+    label?: string;        // 제출처를 부르는 말. 기본 '지사'. 예: '부서', '기관'. 엑셀 칸 이름("부서명")·화면·결과 시트 머리글에 쓴다
   };
   createdAt: string;       // ISO 8601
   updatedAt: string;
@@ -124,8 +132,12 @@ export interface FormSchema {
 | `matrix` | 표형 | `[MatrixBlock]` |
 | `header-list` | 혼합형 | `[FieldsBlock, ListBlock]` (이 순서) |
 | `fill-in` | 빈칸채우기형 | `[GridBlock]` |
+| `collect` | 시트 모으기형 | `[]` (블록 없음, `collect` 설정 사용) |
 
 - 블록 `id`는 `b1`, `b2`처럼 순서대로 부여한다.
+- `collect`는 `org.mode`로 `preset`·`none`만 쓸 수 있다(`input`은 지사명 칸을 읽어야 하는데 자유 서식이라 칸 위치가 보장되지 않음). `collect` 설정은 필수다.
+- `collect`는 칸 규칙이 없는 자유 서식이다. 제출처마다 시트 모양이 달라도 되며, 취합은 시트를 그대로 복사해 한 파일에 모은다. 칸 단위 검증·값 정리·검산을 하지 않는다.
+- 이 문서와 화면의 "지사"는 `org.label`로 바뀌어 보인다(예: "부서명", "부서별 시트").
 - 지사명 칸은 블록이 아니다. `org.mode`가 `preset`·`input`이면 생성 파트가 자동으로 넣고 위치를 `CellMap.orgCell`에 적는다. `none`이면 지사명 칸이 없다(파일 하나 = 응답 하나).
 - `fill-in`의 `input` 칸이 1개 이상이거나 `spareRows > 0`이어야 한다.
 
@@ -141,8 +153,8 @@ export interface FileMeta {
 
   // kind = 'submission'일 때
   orgName?: string;             // preset 모드에서 미리 정해진 지사명. input·none 모드는 없음
-  sheetName?: string;           // 입력 시트 이름 (= 양식 제목, 31자 제한·금지문자 치환)
-  cellMap?: CellMap;
+  sheetName?: string;           // 입력 시트 이름 (= 양식 제목, 31자 제한·금지문자 치환). collect는 보고서 시트 이름
+  cellMap?: CellMap;            // collect는 없음
 
   // kind = 'aggregate'일 때
   aggregate?: {
@@ -211,6 +223,7 @@ ExcelJS는 사용자 지정 속성을 지원하지 않으므로 `xlsxPatch.ts`�
 - 입력 시트: 시트 보호. 입력칸(목록 입력 줄, 값 칸, 표 칸, 빈칸채우기 입력칸·여유 줄)만 `locked = false`. 허용 동작: 셀 선택, 서식 없는 입력.
 - 통합문서 구조 보호(`<workbookProtection lockStructure="1"/>`): 시트 추가·삭제·숨기기 해제 차단. `xlsxPatch.ts`가 `xl/workbook.xml`에 삽입. **취합본에는 넣지 않는다.**
 - 보호 비밀번호: 미결정(D2). 기본안은 앱 고정 비밀번호 상수 `PROTECT_PASSWORD`를 `contract/version.ts`에 둔다.
+- **`collect`(시트 모으기형)는 시트 보호와 통합문서 구조 보호를 모두 넣지 않는다.** 엑셀은 보호된 시트에서 셀 합치기를 막고, 구조 보호는 시트 추가를 막기 때문이다(`scope: 'all'`이면 제출처가 시트를 추가할 수 있어야 함). 제출처 식별은 `_meta`(veryHidden이라 엑셀 메뉴에 보이지 않음)와 파일 속성으로만 한다. 1~2행의 제목·제출처명은 안내용이며 고쳐도 취합에 영향이 없다.
 
 ### 4.4 체크섬
 - `computeChecksum(meta)` = `SHA-256( canonicalJSON({ kind, schema, orgName, sheetName, cellMap, aggregate }) )`의 16진수 앞 16자.
@@ -245,7 +258,7 @@ export interface NormalizedSubmission {
 }
 ```
 
-시트 모으기 결과는 `_records`로 복원하지 않는다. 취합본을 다시 취합할 때 시트 모으기를 고르면, 취합본 안의 지사별 시트를 그대로 복사한다.
+시트 모으기 결과는 `_records`로 복원하지 않는다. 취합본을 다시 취합할 때 시트 모으기를 고르면, 취합본 안의 지사별 시트를 그대로 복사한다. `collect` 양식의 취합본은 `_records`가 비어 있고(`[]`), 다시 취합하면 취합본 안의 제출처별 시트를 `aggregate.includedSources` 순서대로 복사한다.
 
 ## 5. 항목 타입과 서식 (`fieldTypes/`)
 
@@ -300,13 +313,14 @@ export type IssueCode =
 
 ```ts
 export type AggregationId =
-  | 'same-frame'         // 같은 틀 시트        — 모든 layout, 항상 포함
+  | 'same-frame'         // 같은 틀 시트        — collect를 뺀 모든 layout, 항상 포함
   | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in
-  | 'collect-sheets'     // 시트 모으기         — 모든 layout
+  | 'collect-sheets'     // 시트 모으기         — 모든 layout. collect는 항상 포함(목차 시트 포함)
   | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
-export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]>;  // same-frame, matrix는 spread도
+export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]>;
+// list·header-list·fill-in: ['same-frame'] / matrix: ['same-frame', 'spread'] / collect: ['collect-sheets']
 ```
 
 - 생성 파트는 빌더에서 해당 layout이 지원하는 방식만 보여주고, 필수 방식은 체크 해제할 수 없게 한다.
@@ -379,6 +393,9 @@ interface ModelCell {
 | header-list | 위쪽 머리정보 칸은 비우고 "(줄별 자동 칸 참고)", 목록 칸 위치는 양식 그대로 | `지사`, **머리정보 항목들**(줄마다 반복), `출처 파일`, `원본 줄`, `상태` |
 | matrix | 양식과 같은 표에 **모든 제출의 합계** | 없음 (지사별 값은 `spread` 시트, 항상 포함) |
 | fill-in | 양식과 같은 표에 **모든 제출을 겹쳐 채움**, 여유 줄 자리에 추가된 행 전부 | 여유 줄에만 `지사`, `출처 파일`, `원본 줄`. 입력칸 출처는 셀 메모 |
+| collect | 같은 틀 시트 없음. 첫 시트는 **목차**(`03-aggregator.md` 3.7) | — |
+
+**`collect` 빈 양식 배치**: 1행 제목, 2행 `{org.label}명`(값)·작성 안내·기한·문의처(org.mode = 'none'이면 제출처명 없이 안내만), 3행 빈 행, 4행부터 `starter` 표(없으면 빈칸). 잠금·입력 규칙·인쇄영역 없음. `layoutSheet(schema, { mode: 'template' })`가 이 모양을 돌려준다.
 
 - 자동 칸은 **양식 칸 오른쪽 끝**에 붙여 원래 열 위치를 유지한다. 머리글 색으로 자동 칸임을 구분한다(`auto-header`).
 - 같은 틀 시트는 시트 보호·입력 규칙을 넣지 않는다. 인쇄영역 = 제목 ~ 마지막 줄.
@@ -408,6 +425,9 @@ interface ModelCell {
 | `messy__total-example-memo.xlsx` | 예시 줄 미삭제, 합계 줄, 메모 줄, 인쇄영역 밖 메모, 인쇄영역 밖으로 이어진 표 |
 | `messy__extra-column.xlsx` | 양식에 없는 칸 추가, 칸 이름 공백 차이 |
 | `aggregate__north.xlsx`, `aggregate__south.xlsx` | 본부 취합본(다시 취합 테스트) |
+| `collect__ok_seoul.xlsx` 외 2개 | 시트 모으기형. 서로 다른 모양: 기본 틀에 줄 추가 / 셀 합치기·줄바꿈 문단 / 시트 추가("사진") + 파일 이름 변경 |
+| `collect__meta-deleted.xlsx` | 시트 모으기형, 새 파일에 복사(메타·속성 없음) → 제외되어야 함 |
+| `collect__not-moa.xlsx` | 한난MOA로 만들지 않은 일반 엑셀 → 제외되어야 함 |
 | `schema__header-list.json` 외 구조별 | 위 파일들의 양식 JSON |
 
 ## 9. 0단계 호환성 테스트 체크리스트 (D1)

@@ -1,4 +1,4 @@
-# KDHC-HA-Pro
+# 한난MOA (KDHC-HA-Pro)
 
 취합 해커톤 프로젝트 ('26.10.12). 기획 문서는 [`docs/prd/`](docs/prd/00-overview.md)에 있습니다.
 
