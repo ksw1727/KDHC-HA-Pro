@@ -78,6 +78,9 @@ function tokenize(src: string): Tok[] {
     }
     const two = src.slice(i, i + 2);
     if (['>=', '<=', '<>', '!='].includes(two)) { out.push({ k: 'op', v: two === '!=' ? '<>' : two, p: i }); i += 2; continue; }
+    // 화면에 보이는 기호(≥ ≤ ≠ −)도 그대로 받는다
+    const wide: Record<string, string> = { '≥': '>=', '≤': '<=', '≠': '<>', '−': '-', '–': '-' };
+    if (wide[ch]) { out.push({ k: 'op', v: wide[ch], p: i }); i++; continue; }
     if ('+-*/×÷()<>=,'.includes(ch)) {
       out.push({ k: 'op', v: ch === '×' ? '*' : ch === '÷' ? '/' : ch, p: i });
       i++;

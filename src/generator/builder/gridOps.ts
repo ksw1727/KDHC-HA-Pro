@@ -1,5 +1,5 @@
 import type { Field, GridBlock, GridCell } from '@contract/schema';
-import { newField } from '../state/fieldDefaults';
+import { newField, patchField } from '../state/fieldDefaults';
 
 export type GridData = Pick<GridBlock, 'colLabels' | 'rows' | 'spareRows' | 'spareColumns'>;
 export interface Range { r1: number; c1: number; r2: number; c2: number }
@@ -13,6 +13,47 @@ export function inputName(g: GridData, r: number, c: number): string {
   const rowName = first?.kind === 'fixed' ? String(first.value) : `${r + 1}행`;
   const colName = g.colLabels[c]?.trim() || `${c + 1}열`;
   return `${rowName} · ${colName}`;
+}
+
+/**
+ * 겹치지 않는 자동 이름. 행 첫 칸이 같아 이름이 겹치면(12/24 주간·야간 등) "(n행)"을, 그래도 겹치면 "(n행 m열)"을 붙인다.
+ */
+export function autoName(g: GridData, r: number, c: number): string {
+  const base = inputName(g, r, c);
+  const same: [number, number][] = [];
+  g.rows.forEach((row, ri) => row.forEach((cell, ci) => {
+    if ((cell.kind === 'input' || cell.kind === 'calc' || (ri === r && ci === c)) && inputName(g, ri, ci) === base) same.push([ri, ci]);
+  }));
+  if (same.length <= 1) return base;
+  return same.filter(([ri]) => ri === r).length > 1 ? `${base} (${r + 1}행 ${c + 1}열)` : `${base} (${r + 1}행)`;
+}
+
+/**
+ * 표가 바뀐 뒤 자동 이름을 맞춘다: 지금 이름이 바뀌기 전 자동 이름(또는 겹침 표시 없는 기본 이름)이면
+ * 새 자동 이름으로 바꾼다. 운영자가 직접 고친 이름은 그대로 둔다.
+ */
+export function relabel(prev: GridData, next: GridData): GridData {
+  return {
+    ...next,
+    rows: next.rows.map((row, r) => row.map((cell, c): GridCell => {
+      if (cell.kind !== 'input' && cell.kind !== 'calc') return cell;
+      const was = prev.rows[r]?.[c];
+      const sameField = (was?.kind === 'input' || was?.kind === 'calc') && was.field.key === cell.field.key;
+      const auto = new Set([inputName(next, r, c), ...(sameField ? [autoName(prev, r, c), inputName(prev, r, c)] : [])]);
+      const name = autoName(next, r, c);
+      return auto.has(cell.field.label) && cell.field.label !== name ? { ...cell, field: { ...cell.field, label: name } } : cell;
+    })),
+  };
+}
+
+/** 고른 범위의 입력칸 모두에 같은 설정 적용 (이름·key는 그대로) */
+export function applyToInputs(g: GridData, range: Range, patch: Partial<Field>): GridData {
+  const rg = norm(range);
+  const { key: _k, label: _l, ...rest } = patch;
+  return {
+    ...g,
+    rows: g.rows.map((row, r) => row.map((cell, c): GridCell => (inRange(rg, r, c) && cell.kind === 'input' ? { kind: 'input', field: patchField(cell.field, rest) } : cell))),
+  };
 }
 
 /** 범위를 입력칸으로. 같은 설정(template)을 모두에 적용. 이미 입력칸이면 이름·key 유지 */

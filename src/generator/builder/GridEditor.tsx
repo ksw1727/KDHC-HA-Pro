@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import type { FieldType, GridBlock } from '@contract/schema';
-import { FIELD_TYPES, FIELD_TYPE_ORDER } from '@contract/fieldTypes';
+import type { GridBlock } from '@contract/schema';
+import { FIELD_TYPES } from '@contract/fieldTypes';
 import type { Builder } from '../state/useBuilder';
 import { randomKey } from '../state/newSchema';
-import { Button, NumberInput, TextArea, TextInput, Toggle, cx } from '../ui/ui';
+import { Button, Chip, NumberInput, TextArea, TextInput, cx } from '../ui/ui';
 import { FieldEditor } from './FieldEditor';
 import { parsePastedTable } from './parsePastedTable';
-import { addCol, addRow, fromPaste, norm, removeCol, removeRow, setBlank, setCalc, setFixed, setInputs, setValue, syncSpare, type GridData, type Range } from './gridOps';
+import { addCol, addRow, applyToInputs, fromPaste, norm, relabel, removeCol, removeRow, setBlank, setCalc, setFixed, setInputs, setValue, syncSpare, type GridData, type Range } from './gridOps';
 import { scopeFor } from '@contract/formula';
-import { FormulaEditor } from './FormulaEditor';
 
 /** 빈칸채우기형 표 편집기 (02-generator.md 2.4) */
 export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
   const [sel, setSel] = useState<Range | null>(null);
   const [paste, setPaste] = useState(false);
+  const [spareOpen, setSpareOpen] = useState<string | null>(null);
   const g: GridData = { colLabels: block.colLabels, rows: block.rows, spareRows: block.spareRows, spareColumns: block.spareColumns };
-  const put = (next: GridData) => b.act({ type: 'grid/replace', blockId: block.id, grid: next });
+  /** 표를 바꿀 때마다 자동 이름(행 첫 칸 · 열 머리글)을 맞춘다 */
+  const put = (next: GridData) => b.act({ type: 'grid/replace', blockId: block.id, grid: relabel(g, next) });
   const rg = sel ? norm(sel) : null;
   const single = rg && rg.r1 === rg.r2 && rg.c1 === rg.c2 ? g.rows[rg.r1]?.[rg.c1] : null;
   const isSel = (r: number, c: number) => !!rg && r >= rg.r1 && r <= rg.r2 && c >= rg.c1 && c <= rg.c2;
+  const selInputs = rg ? g.rows.flatMap((row, r) => row.flatMap((cell, c) => (isSel(r, c) && cell.kind === 'input' ? [cell.field] : []))) : [];
 
   const click = (r: number, c: number, shift: boolean) => {
     setSel(shift && sel ? { ...sel, r2: r, c2: c } : { r1: r, c1: c, r2: r, c2: c });
@@ -98,6 +100,13 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
         </div>
       )}
 
+      {selInputs.length > 1 && rg && (
+        <div>
+          <div className="rounded-t-card border border-line bg-panel px-2.5 py-1 text-[11.5px] font-semibold text-muted">고른 입력칸 {selInputs.length}개에 한꺼번에 적용 · 이름은 칸마다 따로</div>
+          <FieldEditor f={selInputs[0]} hideLabel onPatch={(p) => put(applyToInputs(g, rg, p))} />
+        </div>
+      )}
+
       {paste ? (
         <div className="flex flex-col gap-1.5">
           <TextArea autoFocus className="min-h-24 font-mono text-xs" placeholder={'엑셀에서 표를 복사해 붙여넣으세요. 첫 줄은 머리글이 돼요.\n사업\t예산\t서울'}
@@ -114,23 +123,23 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
           <NumberInput className="w-16" aria-label="여유 줄 수" value={g.spareRows} onValue={(v) => put(syncSpare({ ...g, spareRows: Math.max(0, Math.min(500, Math.round(v ?? 0))) }, randomKey))} />
           <span className="text-xs text-muted">작성자가 줄을 더 적을 수 있는 영역</span>
         </div>
-        {g.spareRows > 0 && (g.spareColumns ?? []).map((f, i) => (
-          <div key={f.key} className="flex flex-wrap items-center gap-2">
-            <span className="w-24 truncate">{f.label}</span>
-            <select aria-label={`${f.label} 타입`} value={f.type} onChange={(e) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: { type: e.target.value as FieldType } })}
-              className="h-7 rounded-btn border border-line-strong bg-white px-1.5 text-xs">
-              {FIELD_TYPE_ORDER.map((t) => <option key={t} value={t}>{FIELD_TYPES[t].label}</option>)}
-            </select>
-            <span className="text-xs text-sub">필수</span>
-            <Toggle label={`${f.label} 필수`} checked={f.required} onChange={(v) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: { required: v } })} />
-            <span className="sr-only">{i}</span>
-            {f.type === 'calc' && (
-              <div className="basis-full pl-2">
-                <FormulaEditor value={f.formula ?? ''} scope={scopeFor(b.schema, block, f, 'spare')} onChange={(formula) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: { formula } })} />
-              </div>
+        {g.spareRows > 0 && (g.spareColumns ?? []).map((f) => (
+          <div key={f.key} className="overflow-hidden rounded-card border border-line bg-white">
+            <button type="button" aria-expanded={spareOpen === f.key} onClick={() => setSpareOpen(spareOpen === f.key ? null : f.key)}
+              className={cx('flex w-full items-center gap-2 px-2.5 py-1.5 text-left', spareOpen === f.key && 'bg-pri-bg')}>
+              <span className="truncate">{f.label}</span>
+              {f.required && <Chip tone="req">필수</Chip>}
+              <span className="flex-1" />
+              <Chip tone={spareOpen === f.key ? 'pri' : 'gray'}>{FIELD_TYPES[f.type].label}</Chip>
+              <span className="text-xs text-muted">{spareOpen === f.key ? '접기' : '서식'}</span>
+            </button>
+            {spareOpen === f.key && (
+              <FieldEditor f={f} hideLabel scope={scopeFor(b.schema, block, f, 'spare')}
+                onPatch={(p) => b.act({ type: 'field/update', blockId: block.id, key: f.key, patch: p })} />
             )}
           </div>
         ))}
+        {g.spareRows > 0 && <p className="m-0 text-xs text-muted">열 이름은 표 머리글을 따라가요. 누르면 타입·선택지·단위 같은 서식을 정해요.</p>}
       </div>
     </div>
   );
