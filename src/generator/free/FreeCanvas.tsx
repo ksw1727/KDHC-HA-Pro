@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import type { FormSchema } from '@contract/schema';
 import { cellStyle, colLetter, expandRange, parseAddr, addr, BORDER_COLOR, type ModelCell, type SheetModel } from '@contract/layout';
-import { freeRegions, freeSize, freeTop, type FreeRegion, type RegionKind } from '@contract/free';
-import { applyFreeOp, rectText, type FreeOp, type Rect } from '../state/freeEdit';
+import { freeRegions, freeSize, freeTop, sheetAddr, sheetRange, type FreeRegion, type RegionKind } from '@contract/free';
+import { josa } from '@contract/josa';
+import { applyFreeOp, type FreeOp, type Rect } from '../state/freeEdit';
 import { randomKey } from '../state/newSchema';
 import { Button, cx } from '../ui/ui';
 
@@ -44,8 +45,23 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
   const size = freeSize(schema);
   const regions = useMemo(() => freeRegions(schema), [schema]);
   const [drag, setDrag] = useState(false);
-  const [edit, setEdit] = useState<{ at: string; value: string } | null>(null);
+  /**
+   * 글자 쓰기: 고른 칸 안에 보이지 않는 입력칸을 늘 두고 포커스를 준다.
+   * 처음 누른 글자부터 그 입력칸에 들어가므로 한글 조합(IME)이 깨지지 않는다. 글자가 들어오면 보이게 바뀐다.
+   */
+  const [draft, setDraft] = useState<{ at: string; value: string; active: boolean } | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const typeRef = useRef<HTMLInputElement>(null);
+  const anchor = sel?.anchor;
+  useEffect(() => {
+    setDraft(anchor ? { at: anchor, value: '', active: false } : null);
+  }, [anchor]);
+  // 입력칸이 새 칸에 그려진 뒤 포커스 (판에서 칸을 고르면 — ④·검사 창의 [고치러 가기] 포함 — 바로 키보드를 쓸 수 있게)
+  const draftAt = draft?.at;
+  const draftActive = draft?.active;
+  useEffect(() => {
+    if (draftAt) typeRef.current?.focus({ preventScroll: true });
+  }, [draftAt, draftActive]);
 
   useEffect(() => {
     const up = () => setDrag(false);
@@ -77,7 +93,7 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
     const skip = new Map<number, string>();
     for (const g of regions) {
       if (g.kind !== 'list' || g.r2 - g.r1 <= SHOWN_ROWS + 1) continue;
-      for (let r = g.r1 + 1 + SHOWN_ROWS; r <= g.r2; r++) skip.set(r, r === g.r1 + 1 + SHOWN_ROWS ? `… 입력 줄 ${g.r2 - g.r1}줄 (판 ${g.r1 + 1}~${g.r2}행)` : '');
+      for (let r = g.r1 + 1 + SHOWN_ROWS; r <= g.r2; r++) skip.set(r, r === g.r1 + 1 + SHOWN_ROWS ? `… 입력 줄 ${g.r2 - g.r1}줄 (${g.r1 + top}~${g.r2 + top - 1}행)` : '');
     }
     const out: ({ kind: 'row'; r: number } | { kind: 'gap'; text: string })[] = [];
     for (let r = 1; r < top; r++) out.push({ kind: 'row', r });
@@ -100,11 +116,28 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
     return true;
   };
   const keys = () => Array.from({ length: 40 }, randomKey);
-  const commitEdit = () => {
-    if (edit) tryOp({ op: 'text', at: edit.at, value: edit.value });
-    setEdit(null);
-    boxRef.current?.focus();
+  // 늦게 오는 blur 등에서 옛 상태로 덮어쓰지 않도록 늘 최신 draft를 본다
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  /** at: 이 칸의 입력칸에서 온 요청일 때만 (다른 칸으로 옮긴 뒤의 blur는 무시) */
+  const commitEdit = (moveDown = false, at?: string) => {
+    const d = draftRef.current;
+    if (!d?.active || (at && d.at !== at)) return;
+    draftRef.current = { at: d.at, value: '', active: false };
+    tryOp({ op: 'text', at: d.at, value: d.value });
+    setDraft((cur) => (cur && cur.at === d.at ? { at: d.at, value: '', active: false } : cur));
+    if (moveDown) {
+      const p = parseAddr(d.at);
+      select(addr(p.col, Math.min(size.rows, p.row + 1)));
+    }
   };
+  /** 한 칸 고르기: 입력칸도 같은 순간에 옮긴다 (Enter 직후 바로 친 글자가 이전 칸으로 가지 않게) */
+  const select = (at: string, focusAt = at) => {
+    onSel({ anchor: at, focus: focusAt });
+    draftRef.current = { at, value: '', active: false };
+    setDraft({ at, value: '', active: false });
+  };
+  const cancelEdit = () => draft && setDraft({ at: draft.at, value: '', active: false });
 
   const down = (at: string) => {
     if (moving) {
@@ -115,8 +148,8 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
       onMoving(null);
       return;
     }
-    if (edit) commitEdit();
-    onSel({ anchor: at, focus: at });
+    commitEdit();
+    select(at);
     setDrag(true);
   };
   const up = (at: string) => {
@@ -127,14 +160,21 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
     }
   };
 
-  const onKey = (e: KeyboardEvent) => {
-    if (edit) return;
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    // 한글 조합 중에는 키를 가로채지 않는다 (Enter로 마지막 글자가 사라지는 문제)
+    if (e.nativeEvent.isComposing || e.key === 'Process' || e.keyCode === 229) return;
+    if (draft?.active) {
+      if (e.key === 'Enter') { e.preventDefault(); commitEdit(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+      return;
+    }
     if (e.key === 'Escape') { onSel(null); onMoving(null); return; }
     if (!sel) return;
     const p = parseAddr(sel.focus);
     const moveTo = (dc: number, dr: number) => {
       const n = addr(Math.max(1, Math.min(nCols, p.col + dc)), Math.max(1, Math.min(size.rows, p.row + dr)));
-      onSel(e.shiftKey ? { anchor: sel.anchor, focus: n } : { anchor: n, focus: n });
+      if (e.shiftKey) onSel({ anchor: sel.anchor, focus: n });
+      else select(n);
       e.preventDefault();
     };
     if (e.key === 'ArrowRight') return moveTo(1, 0);
@@ -142,13 +182,22 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
     if (e.key === 'ArrowDown') return moveTo(0, 1);
     if (e.key === 'ArrowUp') return moveTo(0, -1);
     if (e.key === 'Delete' || e.key === 'Backspace') { tryOp({ op: 'clear', rect: rect! }); e.preventDefault(); return; }
-    if (e.key === 'Enter' || e.key === 'F2') { startEdit(sel.anchor); e.preventDefault(); return; }
-    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) { startEdit(sel.anchor, e.key); e.preventDefault(); }
+    if (e.key === 'Enter' || e.key === 'F2') { startEdit(sel.anchor); e.preventDefault(); }
+    // 그 밖의 글자는 막지 않는다 → 보이지 않는 입력칸에 그대로 들어가 onType으로 쓰기 시작
   };
-  const startEdit = (at: string, initial?: string) => {
+  const regionMsg = (g: FreeRegion) => onMessage(`'${g.name}' 영역의 이름·서식은 왼쪽 ③에서 고쳐요.`);
+  /** 두 번 누르기·Enter·F2: 지금 글자를 고치기 시작 */
+  const startEdit = (at: string) => {
     const g = regionOf.get(at);
-    if (g) { onMessage(`'${g.name}' 영역의 이름·서식은 왼쪽 ③에서 고쳐요.`); return; }
-    setEdit({ at, value: initial ?? schema.free?.texts[at] ?? '' });
+    if (g) { regionMsg(g); return; }
+    setDraft({ at, value: schema.free?.texts[at] ?? '', active: true });
+  };
+  /** 보이지 않는 입력칸에 글자가 들어옴 → 쓰기 시작 (영역 칸이면 막고 안내) */
+  const onType = (value: string) => {
+    if (!draft) return;
+    const g = regionOf.get(draft.at);
+    if (g && !draft.active) { regionMsg(g); setDraft({ ...draft, value: '' }); return; }
+    setDraft({ at: draft.at, value, active: true });
   };
 
   const edges = (g: FreeRegion, r: number, c: number) => {
@@ -170,7 +219,7 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
   return (
     <div className="flex min-h-0 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-1.5 rounded-card border border-line bg-white px-2.5 py-1.5" role="toolbar" aria-label="그리기 도구">
-        <b className="text-xs text-sub">{rect ? `${rectText(rect)}을(를)` : '칸을 고르면'}</b>
+        <b className="text-xs text-sub">{rect ? josa(sheetRange(schema, rect), '을', '를') : '칸을 고르면'}</b>
         {tool('입력 칸', REGION_COLOR.fields, () => rect && tryOp({ op: 'mark', kind: 'fields', rect, keys: keys() }), !rect, '고른 칸마다 값 하나를 받아요. 왼쪽 글자 칸이 이름이 돼요')}
         {tool('입력 줄 영역', REGION_COLOR.list, () => rect && tryOp({ op: 'mark', kind: 'list', rect, keys: keys() }), !rect, '맨 윗줄 = 머리글, 아래 줄 수 = 입력 줄 수')}
         {tool('숫자 표', REGION_COLOR.matrix, () => rect && tryOp({ op: 'mark', kind: 'matrix', rect, keys: keys() }), !rect, '맨 윗줄 = 열 제목, 맨 왼쪽 열 = 행 제목, 안쪽 = 숫자 칸')}
@@ -186,10 +235,10 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
         {tool('− 열', null, () => tryOp({ op: 'resize', rows: schema.free?.rows ?? 1, cols: (schema.free?.cols ?? 1) - 1 }))}
       </div>
       <div className={cx('min-h-5 text-xs', message ? 'text-err-ink' : 'text-muted')} role="status">
-        {message || (moving ? `'${moving.name}'을(를) 옮길 왼쪽 위 칸을 누르세요. (Esc = 그만두기)` : '끌어서 여러 칸 고르기 · 두 번 누르거나 바로 타자 쳐서 글자 쓰기 · Delete = 글자 지우기 · 영역 칸을 누르면 영역 전체 선택')}
+        {message || (moving ? `${josa(`'${moving.name}'`, '을', '를')} 옮길 왼쪽 위 칸을 누르세요. (Esc = 그만두기)` : '끌어서 여러 칸 고르기 · 고른 칸에 바로 타자(한글 가능)·두 번 누르기로 글자 쓰기 · Enter = 다음 줄 · Delete = 글자 지우기 · 영역 칸을 누르면 영역 전체 선택')}
       </div>
 
-      <div ref={boxRef} tabIndex={0} onKeyDown={onKey} className="overflow-auto rounded-card border border-line bg-[#f1f3f6] p-2.5 outline-none focus-visible:ring-3 focus-visible:ring-pri-bg">
+      <div ref={boxRef} tabIndex={sel ? -1 : 0} onFocus={(e) => { if (e.target === boxRef.current) { if (sel) typeRef.current?.focus(); else onSel({ anchor: 'A1', focus: 'A1' }); } }} className="overflow-auto rounded-card border border-line bg-[#f1f3f6] p-2.5 outline-none focus-visible:ring-3 focus-visible:ring-pri-bg">
         <table role="grid" aria-label="그리는 판" className="select-none border-collapse bg-white text-xs" style={{ tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: 30 }} />
@@ -231,21 +280,22 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
                   const tag = g && cr === g.r1 && ci + 1 === g.c1 && (g.kind !== 'fields' || picked);
                   return (
                     <td key={a} colSpan={span?.colSpan} rowSpan={span?.rowSpan} style={style} className="relative h-6 p-0"
-                      aria-label={inCanvas ? `${fa}${g ? ` ${REGION_NAME[g.kind]} ${g.name}` : ''}` : undefined}
+                      aria-label={inCanvas ? `${sheetAddr(schema, fa)}${g ? ` ${REGION_NAME[g.kind]} ${g.name}` : ''}` : undefined}
                       aria-selected={picked || undefined}
-                      onMouseDown={inCanvas ? (e) => { e.preventDefault(); boxRef.current?.focus(); down(fa); } : undefined}
+                      onMouseDown={inCanvas ? (e) => { if (e.target === typeRef.current && draft?.active) return; e.preventDefault(); down(fa); typeRef.current?.focus({ preventScroll: true }); } : undefined}
                       onMouseEnter={inCanvas && drag && sel ? () => onSel({ anchor: sel.anchor, focus: fa }) : undefined}
                       onMouseUp={inCanvas ? () => up(fa) : undefined}
                       onDoubleClick={inCanvas ? () => startEdit(fa) : undefined}>
                       {tag && <span className="pointer-events-none absolute -top-2 left-0.5 z-10 whitespace-nowrap rounded px-1 text-[9.5px] font-bold leading-[14px] text-white" style={{ background: REGION_COLOR[g.kind] }}>{REGION_NAME[g.kind]} · {g.name}</span>}
-                      {edit?.at === fa ? (
-                        <input autoFocus aria-label={`${fa} 글자`} value={edit.value} className="h-full w-full border-0 bg-white px-1 text-xs outline-2 outline-pri"
-                          onChange={(e) => setEdit({ at: fa, value: e.target.value })}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setEdit(null); boxRef.current?.focus(); } e.stopPropagation(); }}
-                          onBlur={commitEdit} />
-                      ) : (
+                      {!(draft?.active && draft.at === fa) && (
                         <div className="overflow-hidden text-ellipsis whitespace-nowrap px-1.5 leading-6" style={{ fontStyle: c?.formula ? 'italic' : undefined, color: c?.formula ? '#9AA3AE' : undefined }}>{text}</div>
+                      )}
+                      {draft?.at === fa && !moving && (
+                        <input ref={typeRef} aria-label={`${sheetAddr(schema, fa)} 글자`} value={draft.value} autoComplete="off"
+                          className={draft.active ? 'absolute inset-0 z-20 h-full w-full border-0 bg-white px-1 text-xs outline-2 outline-pri' : 'pointer-events-none absolute inset-0 h-full w-full opacity-0'}
+                          onChange={(e) => onType(e.target.value)}
+                          onKeyDown={onKey}
+                          onBlur={() => commitEdit(false, fa)} />
                       )}
                     </td>
                   );

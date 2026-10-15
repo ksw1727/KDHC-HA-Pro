@@ -2,6 +2,9 @@ import type { Field } from '@contract/schema';
 import { DATE_EXAMPLE, PATTERN_INFO } from '@contract/fieldTypes';
 
 /** 숫자를 서식(쉼표·소수·단위)대로 글자로. 엑셀 numFmt와 같은 결과를 화면에서 보여주기 위함. */
+/** 정리 안내에 쓰는 '아무렇게나 들어온 값' 예시 (패턴마다 다름. 사업자번호에 휴대폰 번호가 나오던 것) */
+const RAW_EXAMPLE: Record<'phone' | 'mobile' | 'bizno', string> & Record<string, string> = { phone: '0212345678', mobile: '01012345678', bizno: '1234567890' };
+
 export function formatNumber(n: number, field: Pick<Field, 'decimals' | 'thousands' | 'unit'>): string {
   const d = Math.max(0, Math.min(4, field.decimals ?? 0));
   const s = n.toLocaleString('en-US', {
@@ -55,7 +58,7 @@ export function normalizeHint(field: Field): string {
     case 'pattern':
       return field.pattern === 'email'
         ? '앞뒤 공백과 대문자 도메인은 취합할 때 자동으로 정리돼요.'
-        : `"01012345678"처럼 들어와도 ${field.pattern ? PATTERN_INFO[field.pattern].example : ''} 모양으로 정리돼요.`;
+        : `"${RAW_EXAMPLE[field.pattern ?? 'mobile']}"처럼 들어와도 ${field.pattern ? PATTERN_INFO[field.pattern].example : ''} 모양으로 정리돼요.`;
     case 'calc':
       return '계산 칸은 잠겨 있고 엑셀이 자동으로 계산해요. 취합본에서는 합친 값으로 다시 계산해요(비율처럼 더하면 틀리는 값도 맞게).';
     default:

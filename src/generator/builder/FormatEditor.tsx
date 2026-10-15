@@ -37,6 +37,8 @@ function NumberFormat({ f, set }: { f: Field; set: Patch }) {
 }
 
 type DateRange = 'none' | 'future' | 'within30' | 'fixed';
+/** '날짜 지정'을 고르면 시작 날짜를 오늘로 채운다 (빈 글자면 '제한 없음'으로 보여 입력칸이 안 나왔음) */
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const rangeOf = (f: Field): DateRange =>
   !f.minDate && !f.maxDate ? 'none' : f.minDate === 'today' && !f.maxDate ? 'future' : f.minDate === 'today' && f.maxDate === 'today+30' ? 'within30' : 'fixed';
 
@@ -53,13 +55,13 @@ function DateFormat({ f, set }: { f: Field; set: Patch }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="w-14 text-sub">허용 범위</span>
         <Seg size="sm" label="허용 범위" value={r} options={[['none', '제한 없음'], ['future', '오늘 이후'], ['within30', '오늘부터 30일'], ['fixed', '날짜 지정']]}
-          onChange={(v) => set(v === 'none' ? { minDate: undefined, maxDate: undefined } : v === 'future' ? { minDate: 'today', maxDate: undefined } : v === 'within30' ? { minDate: 'today', maxDate: 'today+30' } : { minDate: '', maxDate: '' })} />
+          onChange={(v) => set(v === 'none' ? { minDate: undefined, maxDate: undefined } : v === 'future' ? { minDate: 'today', maxDate: undefined } : v === 'within30' ? { minDate: 'today', maxDate: 'today+30' } : { minDate: localToday(), maxDate: undefined })} />
       </div>
       {r === 'fixed' && (
         <div className="flex items-center gap-2 pl-16">
-          <TextInput type="date" aria-label="시작 날짜" value={f.minDate ?? ''} onChange={(e) => set({ minDate: e.target.value })} />
+          <TextInput type="date" aria-label="시작 날짜" value={f.minDate ?? ''} onChange={(e) => set({ minDate: e.target.value || undefined })} />
           <span>~</span>
-          <TextInput type="date" aria-label="끝 날짜" value={f.maxDate ?? ''} onChange={(e) => set({ maxDate: e.target.value })} />
+          <TextInput type="date" aria-label="끝 날짜" value={f.maxDate ?? ''} onChange={(e) => set({ maxDate: e.target.value || undefined })} />
         </div>
       )}
     </>

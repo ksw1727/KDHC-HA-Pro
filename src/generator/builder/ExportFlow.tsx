@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { FormSchema } from '@contract/schema';
-import { LAYOUT_LABELS, orgLabel } from '@contract/schema';
+import { LAYOUT_LABELS, blockFields, orgLabel } from '@contract/schema';
+import { layoutSheet } from '@contract/layout';
 import { diffSummary, nextVersion } from '../state/versioning';
 import { exportForm, exportNames, type ExportResult } from '../export/exportZip';
 import { downloadBlob, exportFormJson, safeFileName } from '../export/exportJson';
@@ -20,6 +21,7 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
   const orgs = schema.org.orgs ?? [];
   const count = names.preset ? orgs.length : 1;
   const collect = schema.layout === 'collect';
+  const contents = useMemo(() => fileContents(target, label), [target, label]);
 
   const [withJson, setWithJson] = useState(true);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -83,8 +85,8 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
         <div className="mb-1 text-xs text-muted">파일마다 들어가는 것</div>
         <ul className="m-0 grid grid-cols-2 gap-x-4 gap-y-0.5 pl-0 text-[13px]">
           {(collect
-            ? ['자유롭게 고칠 수 있는 보고서 시트', '숨김 시트 (양식·지사 정보)', '파일 속성 (양식 번호)', '잠금 없음 (셀 합치기·시트 추가 가능)']
-            : ['입력 규칙 (숫자·날짜·선택 목록)', `제목 줄·${label}명 잠금`, '작성 안내 메시지', '인쇄 영역', '숨김 시트 (양식·지사 정보)', '틀 고정']
+            ? ['자유롭게 고칠 수 있는 보고서 시트', `숨김 시트 (양식${schema.org.mode === 'none' ? '' : `·${label}`} 정보)`, '파일 속성 (양식 번호)', '잠금 없음 (셀 합치기·시트 추가 가능)']
+            : contents
           ).map((x) => <li key={x} className="list-none"><span className="font-bold text-auto-ink">✓ </span>{x}</li>)}
         </ul>
       </div>
@@ -170,4 +172,17 @@ function Step({ n, title, text, children, last }: { n: number; title: string; te
       <div className="min-w-0 flex-1"><b className="block">{title}</b><p className="m-0 text-[13px] text-sub">{text}</p>{children && <div className="mt-1.5 flex flex-col">{children}</div>}</div>
     </div>
   );
+}
+
+/** 확인 창의 "파일마다 들어가는 것": 실제로 만들 시트 모양에서 뽑는다 (구조·제출처 방식에 따라 다름) */
+function fileContents(s: FormSchema, label: string): string[] {
+  const m = layoutSheet(s, { mode: 'template', orgName: s.org.orgs?.[0] }, { today: new Date() });
+  const out: string[] = [];
+  if (m.validations.length) out.push('입력 규칙 (숫자·날짜·선택 목록)');
+  out.push(s.org.mode === 'preset' ? `제목 줄·${label}명 잠금` : s.org.mode === 'input' ? `제목 줄 잠금 · ${label}명은 작성자가 입력` : '제목 줄 잠금');
+  if (s.blocks.some((b) => blockFields(b).some((f) => f.help?.trim()))) out.push('작성 안내 메시지');
+  out.push('인쇄 영역');
+  out.push(`숨김 시트 (양식${s.org.mode === 'none' ? '' : `·${label}`} 정보)`);
+  if (m.freeze) out.push('틀 고정');
+  return out;
 }

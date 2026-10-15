@@ -19,14 +19,17 @@ function CalcFormat({ f, onPatch }: { f: Field; onPatch: (p: Partial<Field>) => 
   );
 }
 
-export function FieldEditor({ f, onPatch, lockType, hideRequired, scope }: { f: Field; onPatch: (p: Partial<Field>) => void; lockType?: boolean; hideRequired?: boolean; scope?: FormulaScope }) {
+/** hideLabel: 이름을 다른 곳에서 정할 때(여유 줄 열 = 머리글, 여러 칸 한꺼번에 설정) */
+export function FieldEditor({ f, onPatch, lockType, hideRequired, hideLabel, scope }: { f: Field; onPatch: (p: Partial<Field>) => void; lockType?: boolean; hideRequired?: boolean; hideLabel?: boolean; scope?: FormulaScope }) {
   if (f.type === 'calc') {
     return (
       <div className="flex flex-col gap-2.5 rounded-b-card border border-t-0 border-pri-line bg-white p-2.5">
         <div className="flex gap-2">
-          <F label="이름">
-            <TextInput value={f.label} autoFocus onChange={(e) => onPatch({ label: e.target.value })} />
-          </F>
+          {!hideLabel && (
+            <F label="이름">
+              <TextInput value={f.label} autoFocus onChange={(e) => onPatch({ label: e.target.value })} />
+            </F>
+          )}
           <F label="타입">
             <select disabled={lockType} value={f.type} onChange={(e) => onPatch({ type: e.target.value as FieldType })}
               className="h-8 w-32 rounded-btn border border-line-strong bg-white px-2 text-[13px] outline-none focus:border-pri disabled:bg-chip">
@@ -34,7 +37,7 @@ export function FieldEditor({ f, onPatch, lockType, hideRequired, scope }: { f: 
             </select>
           </F>
         </div>
-        <FormulaEditor value={f.formula ?? ''} onChange={(formula) => onPatch({ formula })} scope={scope ?? { names: [], aggregateOnly: [] }} />
+        <FormulaEditor value={f.formula ?? ''} decimals={f.decimals ?? 0} onChange={(formula) => onPatch({ formula })} scope={scope ?? { names: [], aggregateOnly: [] }} />
         <CalcFormat f={f} onPatch={onPatch} />
         <div className="rounded-btn bg-auto px-2.5 py-1.5 text-xs text-auto-ink">{normalizeHint(f)}</div>
       </div>
@@ -43,9 +46,11 @@ export function FieldEditor({ f, onPatch, lockType, hideRequired, scope }: { f: 
   return (
     <div className="flex flex-col gap-2.5 rounded-b-card border border-t-0 border-pri-line bg-white p-2.5">
       <div className="flex gap-2">
-        <F label="이름">
-          <TextInput value={f.label} autoFocus onChange={(e) => onPatch({ label: e.target.value })} />
-        </F>
+        {!hideLabel && (
+          <F label="이름">
+            <TextInput value={f.label} autoFocus onChange={(e) => onPatch({ label: e.target.value })} />
+          </F>
+        )}
         <F label="타입">
           <select disabled={lockType} value={f.type} onChange={(e) => onPatch({ type: e.target.value as FieldType })}
             className="h-8 w-32 rounded-btn border border-line-strong bg-white px-2 text-[13px] outline-none focus:border-pri disabled:bg-chip">

@@ -5,6 +5,7 @@ import { newField, patchField } from './fieldDefaults';
 import { changeLayout } from './changeLayout';
 import { defaultAggregations } from './newSchema';
 import { renameRef } from '@contract/formula';
+import { blockFields } from '@contract/schema';
 
 export type Action =
   | { type: 'meta/set'; patch: Partial<Pick<FormSchema, 'title' | 'guide' | 'deadline' | 'contact'>> }
@@ -155,13 +156,25 @@ function formReducerCore(s: FormSchema, a: Action): FormSchema {
     case 'matrix/set':
       return updateBlock(s, a.blockId, (b) => (b.kind === 'matrix' ? { ...b, ...a.patch } : b));
 
-    case 'grid/replace':
-      return updateBlock(s, a.blockId, (b) => {
+    case 'grid/replace': {
+      const old = s.blocks.find((b) => b.id === a.blockId);
+      let next = updateBlock(s, a.blockId, (b) => {
         if (b.kind !== 'grid') return b;
-        const next: GridBlock = { ...b, ...a.grid };
-        if (next.spareRows <= 0) delete next.spareColumns;
-        return next;
+        const g: GridBlock = { ...b, ...a.grid };
+        if (g.spareRows <= 0) delete g.spareColumns;
+        return g;
       });
+      // 자동 이름이 바뀐 칸은 계산식 안의 [이전 이름]도 바꾼다
+      const now = next.blocks.find((b) => b.id === a.blockId);
+      if (old?.kind === 'grid' && now?.kind === 'grid') {
+        const before = new Map(blockFields(old).map((f) => [f.key, f.label]));
+        for (const f of blockFields(now)) {
+          const was = before.get(f.key);
+          if (was !== undefined && was !== f.label) next = renameInFormulas(next, was, f.label);
+        }
+      }
+      return next;
+    }
 
     case 'collect/set':
       return { ...s, collect: { scope: 'report', ...s.collect, ...a.patch } };

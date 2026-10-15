@@ -106,8 +106,8 @@ describe('자유 제작형 취합 검사', () => {
     s.free!.merges = ['A4:B4'];
     const msgs = freeProblems(s).map((p) => p.message).join('\n');
     expect(msgs).toContain('겹쳐요');
-    expect(msgs).toContain('B9에 글자 칸');
-    expect(msgs).toContain('A4:B4');
+    expect(msgs).toContain('B14에 글자 칸');   // 화면(엑셀) 주소로 적는다: 판 B9 = 14행
+    expect(msgs).toContain('A9:B9');
     expect(freeProblems({ ...s, blocks: [], free: { rows: 3, cols: 3, texts: {}, merges: [], places: {} } })[0].message).toBe('입력 영역이 없어요.');
   });
 });

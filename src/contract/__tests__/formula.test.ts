@@ -138,6 +138,6 @@ describe('계산식 검사 (validateSchema)', () => {
     const h = s.blocks[0];
     if (h.kind !== 'fields') throw new Error();
     h.fields.push(f('x', '이상', { type: 'calc', formula: '[교육비] + 1' }));
-    expect(errs(s).join()).toMatch(/합계·평균·최소·최대 안에서만/);
+    expect(errs(s).join()).toMatch(/합계·평균·최소·최대·개수 안에서만/);
   });
 });

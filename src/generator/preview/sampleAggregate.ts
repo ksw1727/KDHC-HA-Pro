@@ -3,6 +3,7 @@ import { orgLabel } from '@contract/schema';
 import type { AggregateFill } from '@contract/layout';
 import type { CellValue } from '@contract/meta';
 import { formatSample } from './formatSample';
+import { computeHeader, computeListRow } from '@contract/formula';
 
 /** 미리보기 [취합본]용 가짜 데이터: 지사 3곳 (02-generator.md 2.2). */
 export function sampleOrgs(schema: FormSchema): string[] {
@@ -35,9 +36,15 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
   const list = schema.blocks.find((b) => b.kind === 'list');
   if (list?.kind === 'list') {
     const plan = [0, 0, 1, 2]; // 서울 2줄, 부산 1줄, 대구 1줄
+    // 계산 칸은 비워 둔다 → 레이아웃 엔진이 같은 줄 값으로 다시 계산 (채우면 가짜 값 1,235가 그대로 보였음)
+    // 위쪽 정보(입력값) → 목록 줄 계산 → 위쪽 정보 계산(목록 합계 등) 순서로, 실제 엑셀과 같은 값을 만든다
+    const rawHeaders = orgs.map((_, o) => Object.fromEntries(header.filter((f) => f.type !== 'calc').map((f) => [f.key, sampleValue(f, o)])));
+    const byLabel = (h: Record<string, CellValue>) => Object.fromEntries(header.filter((f) => f.key in h).map((f) => [f.label.trim(), h[f.key]]));
+    const rows = plan.map((o, i) => computeListRow(list, Object.fromEntries(list.columns.filter((f) => f.type !== 'calc').map((f) => [f.key, sampleValue(f, i)])), byLabel(rawHeaders[o])));
+    const headers = orgs.map((_, o) => computeHeader(schema, rawHeaders[o], rows.filter((__, i) => plan[i] === o)));
     data.rows = plan.map((o, i) => ({
-      values: Object.fromEntries(list.columns.map((f) => [f.key, sampleValue(f, i)])),
-      auto: [...(useOrg ? [orgs[o]] : []), ...header.map((f) => sampleValue(f, o)), files[o]],
+      values: rows[i],
+      auto: [...(useOrg ? [orgs[o]] : []), ...header.map((f) => headers[o][f.key] ?? null), files[o]],
     }));
   }
   for (const matrix of schema.blocks) {

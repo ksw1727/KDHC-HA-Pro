@@ -2,6 +2,7 @@ import type { FormSchema } from './schema';
 import { orgLabel } from './schema';
 import { availableAggregations, requiredAggregations, type AggregationId } from './aggregationIds';
 import { addr, parseAddr } from './layout/address';
+import { josa } from './josa';
 
 /**
  * 자유 제작형 (01-contract.md 3.2절): 판 위 영역 계산과 취합 가능 검사.
@@ -56,13 +57,19 @@ export function freeSize(s: FormSchema): { rows: number; cols: number } {
 
 export const inRegion = (g: Pick<FreeRegion, 'r1' | 'c1' | 'r2' | 'c2'>, row: number, col: number) => row >= g.r1 && row <= g.r2 && col >= g.c1 && col <= g.c2;
 const overlaps = (a: FreeRegion, b: FreeRegion) => a.r1 <= b.r2 && b.r1 <= a.r2 && a.c1 <= b.c2 && b.c1 <= a.c2;
-const rangeOf = (g: FreeRegion) => (g.r1 === g.r2 && g.c1 === g.c2 ? addr(g.c1, g.r1) : `${addr(g.c1, g.r1)}:${addr(g.c2, g.r2)}`);
-/** 받침 있으면 을/과/이, 없으면 를/와/가 */
-const josa = (w: string, a: string, b: string) => {
-  const ch = w.trim().at(-1) ?? '';
-  const code = ch.charCodeAt(0) - 0xac00;
-  return w + (code >= 0 && code < 11172 && code % 28 !== 0 ? a : b);
-};
+/**
+ * 화면·안내 문구에 쓰는 주소는 판 좌표가 아니라 **엑셀(미리보기) 행 번호**로 적는다.
+ * 판 A1 = 엑셀 freeTop행 A열. (판 좌표로 적으면 "F9"를 찾으러 화면 9행을 보게 되어 헷갈렸음)
+ */
+export function sheetRange(s: Pick<FormSchema, 'org'>, g: Pick<FreeRegion, 'r1' | 'c1' | 'r2' | 'c2'>): string {
+  const t = freeTop(s) - 1;
+  return g.r1 === g.r2 && g.c1 === g.c2 ? addr(g.c1, g.r1 + t) : `${addr(g.c1, g.r1 + t)}:${addr(g.c2, g.r2 + t)}`;
+}
+/** 판 주소('B3' 또는 'A1:C2') → 엑셀 주소 */
+export function sheetAddr(s: Pick<FormSchema, 'org'>, a: string): string {
+  const [p, q = p] = a.split(':').map(parseAddr);
+  return sheetRange(s, { r1: p.row, c1: p.col, r2: q.row, c2: q.col });
+}
 
 export interface FreeIssue {
   message: string;
@@ -78,12 +85,12 @@ export function freeProblems(s: FormSchema): FreeIssue[] {
   const out: FreeIssue[] = [];
   if (regions.length === 0) out.push({ message: '입력 영역이 없어요.', fix: '칸을 고르고 [입력 칸]·[입력 줄 영역]·[숫자 표] 중 하나로 지정해 주세요.' });
   regions.forEach((a, i) => regions.slice(i + 1).forEach((b) => {
-    if (overlaps(a, b)) out.push({ message: `${josa(`'${a.name}'`, '과', '와')} '${b.name}' 영역이 겹쳐요 (${rangeOf(a)} · ${rangeOf(b)}).`, fix: '한쪽 영역을 옮기거나 지정을 풀어 주세요.', blockId: b.blockId, key: b.key });
+    if (overlaps(a, b)) out.push({ message: `${josa(`'${a.name}'`, '과', '와')} '${b.name}' 영역이 겹쳐요 (${sheetRange(s, a)} · ${sheetRange(s, b)}).`, fix: '한쪽 영역을 옮기거나 지정을 풀어 주세요.', blockId: b.blockId, key: b.key });
   }));
   for (const a of Object.keys(s.free?.texts ?? {})) {
     const p = parseAddr(a);
     const g = regions.find((r) => inRegion(r, p.row, p.col));
-    if (g) out.push({ message: `'${g.name}' 영역 안 ${a}에 글자 칸이 있어요.`, fix: '글자를 지우거나 영역을 옮겨 주세요.', cell: a, blockId: g.blockId, key: g.key });
+    if (g) out.push({ message: `'${g.name}' 영역 안 ${sheetAddr(s, a)}에 글자 칸이 있어요.`, fix: '글자를 지우거나 영역을 옮겨 주세요.', cell: a, blockId: g.blockId, key: g.key });
   }
   for (const m of s.free?.merges ?? []) {
     const [a, b = a] = m.split(':');
@@ -91,7 +98,7 @@ export function freeProblems(s: FormSchema): FreeIssue[] {
     const q = parseAddr(b);
     const box = { kind: 'fields' as const, blockId: '', name: '', r1: p.row, c1: p.col, r2: q.row, c2: q.col };
     const g = regions.find((r) => overlaps(r, box));
-    if (g) out.push({ message: `${m} 합친 칸이 '${g.name}' 영역에 걸쳐 있어요.`, fix: '입력 영역은 합칠 수 없어요. 합치기를 풀어 주세요.', cell: a, blockId: g.blockId, key: g.key });
+    if (g) out.push({ message: `${sheetAddr(s, m)} 합친 칸이 '${g.name}' 영역에 걸쳐 있어요.`, fix: '입력 영역은 합칠 수 없어요. 합치기를 풀어 주세요.', cell: a, blockId: g.blockId, key: g.key });
   }
   return out;
 }
@@ -131,12 +138,12 @@ export function freeAggregationChecks(s: FormSchema): AggCheck[] {
           const other = regions.find((r) => r !== list && blocked(r.r1, r.c1));
           const text = Object.keys(s.free?.texts ?? {}).find((a) => { const p = parseAddr(a); return blocked(p.row, p.col); });
           if (other || text) {
-            const what = other ? `${rangeOf(other)} '${other.name}'` : `${text} 글자 칸`;
+            const what = other ? `${sheetRange(s, other)} '${other.name}'` : `${sheetAddr(s, text!)} 글자 칸`;
             const below = other ? other.r1 > list.r2 : parseAddr(text!).row > list.r2;
             return {
               id, required, status: 'fix',
               why: `취합하면 '${list.name}' ${below ? `줄이 제출 수만큼 늘어나 아래 ${josa(what, '을', '를')}` : `오른쪽에 ${label}·출처 칸이 붙어 ${josa(what, '을', '를')}`} 덮어써요.`,
-              fix: `${josa(other ? `'${other.name}'` : `${text} 글자 칸`, '을', '를')} 줄 영역 위로 옮기세요. 줄 영역의 아래와 오른쪽은 비워 둬야 해요.`,
+              fix: `${josa(other ? `'${other.name}'` : `${sheetAddr(s, text!)} 글자 칸`, '을', '를')} 줄 영역 위로 옮기세요. 줄 영역의 아래와 오른쪽은 비워 둬야 해요.`,
               at: other ? { message: '', blockId: other.blockId, key: other.key } : { message: '', cell: text },
             };
           }
@@ -154,7 +161,7 @@ export function freeAggregationChecks(s: FormSchema): AggCheck[] {
       case 'spread': {
         if (!inputs.length && !matrices.length) return { id, required, status: 'no', why: '입력 줄 영역만 있어 옆으로 펼칠 값이 없어요.', fix: '이 방식은 빼세요. 줄은 같은 틀 시트에 한 표로 모여요.' };
         const what = [inputs.length ? `입력 칸(${names(inputs)})` : '', matrices.length ? '숫자 표 칸' : '', list ? `'${list.name}' 줄 수` : ''].filter(Boolean).join(', ');
-        return { id, required, status: 'ok', why: `${label}마다 한 줄에 ${what}을 나란히 모아요.${required ? ' 입력 칸 값이 모이는 곳이라 꼭 넣어요.' : ''}` };
+        return { id, required, status: 'ok', why: `${label}마다 한 줄에 ${josa(what, '을', '를')} 나란히 모아요.${required ? ' 입력 칸 값이 모이는 곳이라 꼭 넣어요.' : ''}` };
       }
       case 'collect-sheets':
         return { id, required, status: 'ok', why: `어떤 모양이든 ${label}별 시트로 그대로 모아요.` };

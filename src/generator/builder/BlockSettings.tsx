@@ -22,9 +22,9 @@ export function ListSettings({ b, block }: { b: Builder; block: ListBlock }) {
       </div>
       {on && (
         <div className="grid grid-cols-2 gap-2">
-          {block.columns.map((c) => (
+          {block.columns.filter((c) => c.type !== 'calc').map((c) => (
             <F key={c.key} label={`${c.label} 예시`}>
-              <TextInput value={String(block.exampleRow?.[c.key] ?? '')} onChange={(e) => b.act({ type: 'list/set', blockId: block.id, patch: { exampleRow: { ...block.exampleRow, [c.key]: e.target.value } } })} />
+              <TextInput value={String(block.exampleRow?.[c.key] ?? '')} onChange={(e) => b.act({ type: 'list/set', blockId: block.id, patch: { exampleRow: { ...block.exampleRow, [c.key]: exampleValue(c, e.target.value) } } })} />
             </F>
           ))}
         </div>
@@ -32,6 +32,15 @@ export function ListSettings({ b, block }: { b: Builder; block: ListBlock }) {
       <p className="m-0 text-xs text-muted">작성자는 줄을 끼워 넣을 수 없어서, 넉넉하게 정해 두세요. 예시 줄은 회색 기울임 글자로 첫 줄에 보여요.</p>
     </div>
   );
+}
+
+/** 예시 값: 숫자 칸은 숫자로 저장(엑셀에서 서식이 적용되고, 취합의 예시 줄 비교도 맞게). 계산 칸은 엔진이 계산 */
+function exampleValue(f: Field, text: string): string | number {
+  if (f.type !== 'number') return text;
+  const unit = f.unit?.trim();
+  const clean = (unit ? text.split(unit).join('') : text).replace(/[,\s]/g, '');
+  // 다 친 숫자만 숫자로 ("1."처럼 치는 중인 값은 글자 그대로 두어 커서가 튀지 않게)
+  return clean !== '' && String(Number(clean)) === clean ? Number(clean) : text;
 }
 
 const lines = (t: string) => t.split('\n');

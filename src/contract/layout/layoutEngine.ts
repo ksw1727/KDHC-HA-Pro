@@ -333,7 +333,9 @@ class Layouter {
     if (this.isTemplate && b.exampleRow) {
       map.exampleRow = r;
       if (numbered) this.put({ address: addr(c0 - 1, r), value: '예시', role: 'row-number' });
-      b.columns.forEach((f, i) => this.put({ address: addr(c0 + i, r), value: asCell(b.exampleRow?.[f.key]), role: 'example', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
+      // 예시 줄의 계산 칸은 예시 값으로 계산해 보여 준다
+      const ex = b.columns.some((f) => f.type === 'calc') ? computeListRow(b, { ...b.exampleRow }) : b.exampleRow ?? {};
+      b.columns.forEach((f, i) => this.put({ address: addr(c0 + i, r), value: asCell(ex[f.key]), role: 'example', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
       r += 1;
     }
     map.firstDataRow = r;

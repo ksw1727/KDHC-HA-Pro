@@ -10,15 +10,46 @@ import { recommendLabel } from '../org/kdhcOrg';
 type Source = 'kdhc' | 'inst' | 'custom';
 export const orgSource = (label: string): Source => (label === '지사' || label === '부서' ? 'kdhc' : label === '기관' ? 'inst' : 'custom');
 
-/** 줄바꿈·탭으로 나뉜 목록 → 이름 배열 (중복·빈 줄 제거) */
+/**
+ * 줄마다 하나씩 적은 목록 → 이름 배열 (중복·빈 줄 제거).
+ * 엑셀에서 여러 열을 복사해 붙여넣으면 줄마다 첫 열만 쓴다 (옆 열 "비고" 등이 제출처가 되지 않게).
+ */
 export function parseOrgList(text: string): string[] {
-  return [...new Set(text.split(/[\n\t]/).map((x) => x.trim()).filter(Boolean))];
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  // 한 줄만 가로로 복사했으면(서울⇥부산⇥대구) 칸마다 하나
+  const cells = lines.length === 1 ? lines[0].split('\t') : lines.map((line) => line.split('\t')[0]);
+  return [...new Set(cells.map((x) => x.trim()).filter(Boolean))];
+}
+
+/** CSV 한 줄 → 칸들. 따옴표로 감싼 칸 안의 쉼표·"" 를 처리한다 */
+export function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let q = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (q) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') q = false;
+      else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ',') { out.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
+
+/** 첫 칸이 "기관명", "지사", "부서명" 같은 머리글이면 뺀다 */
+const HEADER = /^(제출처|기관|지사|부서|본부|소속|조직|이름|구분|업체)(명|이름)?$/;
+export function dropHeader(names: string[]): string[] {
+  return names.length > 1 && HEADER.test(names[0].replace(/\s/g, '')) ? names.slice(1) : names;
 }
 
 async function readFirstColumn(file: File): Promise<string[]> {
   if (/\.csv$/i.test(file.name)) {
-    const text = await file.text();
-    return parseOrgList(text.split(/\r?\n/).map((l) => l.split(',')[0]).join('\n'));
+    const text = (await file.text()).replace(/^\uFEFF/, '');
+    return dropHeader(parseOrgList(text.split(/\r?\n/).map((l) => parseCsvLine(l)[0] ?? '').join('\n')));
   }
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
@@ -26,7 +57,7 @@ async function readFirstColumn(file: File): Promise<string[]> {
   const ws = wb.worksheets[0];
   const out: string[] = [];
   ws?.getColumn(1).eachCell({ includeEmpty: false }, (c) => out.push(String(c.text ?? '').trim()));
-  return parseOrgList(out.join('\n'));
+  return dropHeader(parseOrgList(out.join('\n')));
 }
 
 /** ⑤ 제출처: 부르는 말, 식별 방식, 목록 */
