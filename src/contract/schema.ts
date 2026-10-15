@@ -1,6 +1,6 @@
 import { CONTRACT_VERSION } from './version';
 import { formulaErrors } from './formula/context';
-import { AGGREGATION_IDS, availableAggregations, requiredAggregations, type AggregationId } from './aggregationIds';
+import { AGGREGATION_IDS, AGGREGATION_LABELS, availableAggregations, requiredAggregations, type AggregationId } from './aggregationIds';
 
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern' | 'calc';
 
@@ -142,6 +142,16 @@ export const isCalc = (f: Pick<Field, 'type'>) => f.type === 'calc';
 
 export function orgLabel(schema: Pick<FormSchema, 'org'>): string {
   return schema.org.label?.trim() || '지사';
+}
+
+/** 취합 결과의 한 줄·한 시트 단위를 부르는 말. 제출처를 식별하지 않으면(none) 응답 파일 단위라 '파일' */
+export function unitLabel(schema: Pick<FormSchema, 'org'>): string {
+  return schema.org.mode === 'none' ? '파일' : orgLabel(schema);
+}
+
+/** 화면에 보일 취합 방식 이름. 예: '지사별 펼치기' → '부서별 펼치기' / '파일별 펼치기' */
+export function aggregationLabel(schema: Pick<FormSchema, 'org'>, id: AggregationId): string {
+  return AGGREGATION_LABELS[id].replace('지사', unitLabel(schema));
 }
 
 export type ValidateResult = { ok: true; schema: FormSchema } | { ok: false; errors: string[] };

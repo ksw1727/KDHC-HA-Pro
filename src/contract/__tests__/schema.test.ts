@@ -1,4 +1,4 @@
-import { validateSchema, blockFields, type FormSchema } from '../schema';
+import { validateSchema, blockFields, aggregationLabel, type FormSchema } from '../schema';
 import { availableAggregations } from '../aggregationIds';
 import { SAMPLE, f } from './fixtures';
 
@@ -106,4 +106,13 @@ describe('availableAggregations', () => {
 
 test('blockFields: 빈칸채우기형은 입력칸만', () => {
   expect(blockFields(SAMPLE['fill-in'].blocks[0]).map((x) => x.key)).toEqual(['g1', 'g2']);
+});
+
+describe('aggregationLabel', () => {
+  it('제출처를 부르는 말로 바꾸고, 식별 안 함이면 파일별', () => {
+    expect(aggregationLabel({ org: { mode: 'preset', orgs: ['A'] } }, 'spread')).toBe('지사별 펼치기');
+    expect(aggregationLabel({ org: { mode: 'input', label: '부서' } }, 'spread')).toBe('부서별 펼치기');
+    expect(aggregationLabel({ org: { mode: 'none', label: '부서' } }, 'spread')).toBe('파일별 펼치기');
+    expect(aggregationLabel({ org: { mode: 'none' } }, 'same-frame')).toBe('같은 틀 시트');
+  });
 });
