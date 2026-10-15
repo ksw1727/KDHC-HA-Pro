@@ -1,0 +1,3312 @@
+{
+  "version": 1,
+  "fetchedAt": "2026-10-13",
+  "source": "https://www.kdhc.co.kr 조직도(menuNo=200319)·임직원검색(menuNo=200320)",
+  "categories": [
+    {
+      "id": "hq",
+      "name": "본사"
+    },
+    {
+      "id": "branch",
+      "name": "지사"
+    }
+  ],
+  "tree": [
+    {
+      "id": "본사",
+      "name": "본사",
+      "type": "구분",
+      "category": "hq",
+      "selectable": false,
+      "level": 0,
+      "leaf": false,
+      "children": [
+        {
+          "id": "(사장 직속)",
+          "name": "사장 직속",
+          "type": "묶음",
+          "category": "hq",
+          "selectable": false,
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "임원실",
+              "name": "임원실",
+              "type": "실",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "비서부",
+              "name": "비서부",
+              "type": "부",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "(상임감사위원)",
+          "name": "상임감사위원",
+          "type": "묶음",
+          "category": "hq",
+          "selectable": false,
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "감사실",
+              "name": "감사실",
+              "type": "실",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "감사실 청렴감사부",
+                  "name": "청렴감사부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "감사실 감사운영부",
+                  "name": "감사운영부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "기획본부",
+          "name": "기획본부",
+          "type": "본부",
+          "category": "hq",
+          "selectable": true,
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "기획처",
+              "name": "기획처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "기획처 기획부",
+                  "name": "기획부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "기획처 예산분석부",
+                  "name": "예산분석부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "기획처 준법통제부",
+                  "name": "준법통제부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "경영관리처",
+              "name": "경영관리처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "경영관리처 경영관리부",
+                  "name": "경영관리부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "경영관리처 성과관리부",
+                  "name": "성과관리부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "경영관리처 동반성장부",
+                  "name": "동반성장부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "경영관리처 홍보부",
+                  "name": "홍보부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "열에너지정책실",
+              "name": "열에너지정책실",
+              "type": "실",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "열에너지정책실 열에너지정책부",
+                  "name": "열에너지정책부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "열에너지정책실 열에너지연구부",
+                  "name": "열에너지연구부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "경영지원본부",
+              "name": "경영지원본부",
+              "type": "본부",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "경영지원처",
+                  "name": "경영지원처",
+                  "type": "처",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": false,
+                  "children": [
+                    {
+                      "id": "경영지원처 총무부",
+                      "name": "총무부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "경영지원처 인사부",
+                      "name": "인사부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "경영지원처 역량강화부",
+                      "name": "역량강화부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "경영지원처 노무복지부",
+                      "name": "노무복지부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "재무처",
+                  "name": "재무처",
+                  "type": "처",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": false,
+                  "children": [
+                    {
+                      "id": "재무처 재무부",
+                      "name": "재무부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "재무처 계약부",
+                      "name": "계약부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "재무처 자금IR부",
+                      "name": "자금IR부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "재무처 자산관리부",
+                      "name": "자산관리부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "AX추진처",
+                  "name": "AX추진처",
+                  "type": "처",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": false,
+                  "children": [
+                    {
+                      "id": "AX추진처 AX기획부",
+                      "name": "AX기획부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "AX추진처 ICT운영부",
+                      "name": "ICT운영부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "AX추진처 AX구축TF",
+                      "name": "AX구축TF",
+                      "type": "TF",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "사이버보안센터",
+                  "name": "사이버보안센터",
+                  "type": "센터",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "GX본부",
+          "name": "GX본부",
+          "type": "본부",
+          "category": "hq",
+          "selectable": true,
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "에너지전환사업처",
+              "name": "에너지전환사업처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "에너지전환사업처 사업개발부",
+                  "name": "사업개발부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "에너지전환사업처 미활용열사업부",
+                  "name": "미활용열사업부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "에너지전환사업처 재생에너지사업부",
+                  "name": "재생에너지사업부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "에너지전환사업처 시스템개선부",
+                  "name": "시스템개선부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "사업지원처",
+              "name": "사업지원처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "사업지원처 요금제도부",
+                  "name": "요금제도부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "사업지원처 자원연료부",
+                  "name": "자원연료부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "사업지원처 전력정책부",
+                  "name": "전력정책부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "사업지원처 해외사업부",
+                  "name": "해외사업부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "고객서비스처",
+              "name": "고객서비스처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "고객서비스처 고객정책부",
+                  "name": "고객정책부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "고객서비스처 고객기술지원부",
+                  "name": "고객기술지원부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "고객서비스처 고객설비효율화부",
+                  "name": "고객설비효율화부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "고객서비스처 구역전기부",
+                  "name": "구역전기부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "안전기술본부",
+          "name": "안전기술본부",
+          "type": "본부",
+          "category": "hq",
+          "selectable": true,
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "플랜트기술처",
+              "name": "플랜트기술처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "플랜트기술처 플랜트관리·QC부",
+                  "name": "플랜트관리·QC부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "플랜트기술처 기계기술부",
+                  "name": "기계기술부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "플랜트기술처 전기기술부",
+                  "name": "전기기술부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "플랜트기술처 자동화추진TF",
+                  "name": "자동화추진TF",
+                  "type": "TF",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "안전처",
+              "name": "안전처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "안전처 재난안전부",
+                  "name": "재난안전부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "안전처 산업안전부",
+                  "name": "산업안전부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "안전처 건설안전부",
+                  "name": "건설안전부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "통합운영처",
+              "name": "통합운영처",
+              "type": "처",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "통합운영처 운영총괄부",
+                  "name": "운영총괄부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "통합운영처 통합운영부",
+                  "name": "통합운영부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": false,
+                  "children": [
+                    {
+                      "id": "통합운영처 통합운영부 운영1과",
+                      "name": "운영1과",
+                      "type": "과",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "통합운영처 통합운영부 운영2과",
+                      "name": "운영2과",
+                      "type": "과",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "통합운영처 통합운영부 운영3과",
+                      "name": "운영3과",
+                      "type": "과",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "통합운영처 통합운영부 운영4과",
+                      "name": "운영4과",
+                      "type": "과",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "통합운영처 통합운영부 운영지원과",
+                      "name": "운영지원과",
+                      "type": "과",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "통합운영처 기후환경부",
+                  "name": "기후환경부",
+                  "type": "부",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "건설본부",
+              "name": "건설본부",
+              "type": "본부",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "건설처",
+                  "name": "건설처",
+                  "type": "처",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": false,
+                  "children": [
+                    {
+                      "id": "건설처 건설관리부",
+                      "name": "건설관리부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "건설처 프로젝트1부",
+                      "name": "프로젝트1부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "건설처 프로젝트2부",
+                      "name": "프로젝트2부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "id": "열수송처",
+                  "name": "열수송처",
+                  "type": "처",
+                  "category": "hq",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": false,
+                  "children": [
+                    {
+                      "id": "열수송처 열수송관리부",
+                      "name": "열수송관리부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "열수송처 열수송공사부",
+                      "name": "열수송공사부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    },
+                    {
+                      "id": "열수송처 열수송진단부",
+                      "name": "열수송진단부",
+                      "type": "부",
+                      "category": "hq",
+                      "selectable": true,
+                      "level": 4,
+                      "leaf": true,
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "(기타)",
+          "name": "기타",
+          "type": "묶음",
+          "category": "hq",
+          "selectable": false,
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "교육팀",
+              "name": "교육팀",
+              "type": "팀",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "노동조합",
+              "name": "노동조합",
+              "type": "기타",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "경영전문위원",
+              "name": "경영전문위원",
+              "type": "기타",
+              "category": "hq",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "지사",
+      "name": "지사",
+      "type": "구분",
+      "category": "branch",
+      "selectable": false,
+      "level": 0,
+      "leaf": false,
+      "children": [
+        {
+          "id": "중앙지사",
+          "name": "중앙지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "중앙지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "중앙지사 공무1부",
+              "name": "공무1부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "중앙지사 공무2부",
+              "name": "공무2부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "중앙지사 운영1부",
+              "name": "운영1부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "중앙지사 운영1부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영1부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영1부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영1부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영1부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "중앙지사 운영2부",
+              "name": "운영2부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "중앙지사 운영2부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영2부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영2부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영2부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "중앙지사 운영2부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "중앙지사 열수송1부",
+              "name": "열수송1부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "중앙지사 열수송2부",
+              "name": "열수송2부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "중앙지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "동탄지사",
+          "name": "동탄지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "동탄지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "동탄지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "동탄지사 계전보안부",
+              "name": "계전보안부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "동탄지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "동탄지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "동탄지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "동탄지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "동탄지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "동탄지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "동탄지사 공무품질부",
+              "name": "공무품질부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "동탄지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "대구지사",
+          "name": "대구지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "대구지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "대구지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "대구지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "대구지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "대구지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "대구지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "대구지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "대구지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "대구지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "대구지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "강남지사",
+          "name": "강남지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "강남지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "강남지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "강남지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "강남지사 운영1부",
+              "name": "운영1부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "강남지사 운영1부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영1부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영1부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영1부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영1부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "강남지사 운영2부",
+              "name": "운영2부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "강남지사 운영2부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영2부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영2부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영2부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "강남지사 운영2부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "강남지사 공무부",
+              "name": "공무부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "강남지사 열수송1부",
+              "name": "열수송1부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "강남지사 열수송2부",
+              "name": "열수송2부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "강남지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "판교지사",
+          "name": "판교지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "판교지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "판교지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "판교지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "판교지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "판교지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "판교지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "판교지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "판교지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "판교지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "판교지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "청주지사",
+          "name": "청주지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "청주지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "청주지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "청주지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "청주지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "청주지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "청주지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "청주지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "청주지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "청주지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "청주지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "파주지사",
+          "name": "파주지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "파주지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "파주지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "파주지사 계전보안부",
+              "name": "계전보안부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "파주지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "파주지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "파주지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "파주지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "파주지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "파주지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "파주지사 공무품질부",
+              "name": "공무품질부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "파주지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "광교지사",
+          "name": "광교지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "광교지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "광교지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "광교지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "광교지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "광교지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광교지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광교지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광교지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광교지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "광교지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "광주전남지사",
+          "name": "광주전남지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "광주전남지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "광주전남지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "광주전남지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "광주전남지사 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "광주전남지사 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광주전남지사 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광주전남지사 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광주전남지사 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "광주전남지사 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "광주전남지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "삼송지사",
+          "name": "삼송지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "삼송지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "삼송지사 전기영업부",
+              "name": "전기영업부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "삼송지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "삼송지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "삼송지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "삼송지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "삼송지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "삼송지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "삼송지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "삼송지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "삼송지사 배전부",
+              "name": "배전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "삼송지사 열수송부",
+              "name": "열수송부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "삼송지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "용인지사",
+          "name": "용인지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "용인지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "용인지사 공무부",
+              "name": "공무부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "용인지사 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "용인지사 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "용인지사 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "용인지사 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "용인지사 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "용인지사 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "용인지사 열수송부",
+              "name": "열수송부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "용인지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "양산지사",
+          "name": "양산지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "양산지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "양산지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "양산지사 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "양산지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "양산지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "양산지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "양산지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "양산지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "양산지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "양산지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "고양사업소",
+          "name": "고양사업소",
+          "type": "사업소",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "고양사업소 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "고양사업소 공무부",
+              "name": "공무부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "고양사업소 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "고양사업소 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "고양사업소 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "고양사업소 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "고양사업소 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "고양사업소 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "고양사업소 열수송1부",
+              "name": "열수송1부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "고양사업소 열수송2부",
+              "name": "열수송2부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "고양사업소 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "분당사업소",
+          "name": "분당사업소",
+          "type": "사업소",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "분당사업소 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "분당사업소 공무부",
+              "name": "공무부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "분당사업소 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "분당사업소 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "분당사업소 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "분당사업소 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "분당사업소 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "분당사업소 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "분당사업소 열수송1부",
+              "name": "열수송1부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "분당사업소 열수송2부",
+              "name": "열수송2부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "분당사업소 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "세종지사",
+          "name": "세종지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "세종지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "세종지사 공무부",
+              "name": "공무부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "세종지사 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "세종지사 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "세종지사 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "세종지사 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "세종지사 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "세종지사 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "세종지사 열수송부",
+              "name": "열수송부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "세종지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "화성지사",
+          "name": "화성지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "화성지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "화성지사 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "화성지사 계전보안부",
+              "name": "계전보안부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "화성지사 복합운영부",
+              "name": "복합운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "화성지사 복합운영부 복합운영1과",
+                  "name": "복합운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "화성지사 복합운영부 복합운영2과",
+                  "name": "복합운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "화성지사 복합운영부 복합운영3과",
+                  "name": "복합운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "화성지사 복합운영부 복합운영4과",
+                  "name": "복합운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "화성지사 복합운영부 복합운영지원과",
+                  "name": "복합운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "화성지사 공무품질부",
+              "name": "공무품질부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "화성지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "평택지사",
+          "name": "평택지사",
+          "type": "지사",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "평택지사 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "평택지사 공무부",
+              "name": "공무부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "평택지사 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "평택지사 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "평택지사 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "평택지사 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "평택지사 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "평택지사 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "평택지사 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "김해사업소",
+          "name": "김해사업소",
+          "type": "사업소",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "안전기술본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "김해사업소 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "김해사업소 공무부",
+              "name": "공무부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "김해사업소 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "김해사업소 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "김해사업소 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "김해사업소 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "김해사업소 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "김해사업소 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "김해사업소 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        },
+        {
+          "id": "수원사업소",
+          "name": "수원사업소",
+          "type": "사업소",
+          "category": "branch",
+          "selectable": true,
+          "bonbu": "건설본부",
+          "level": 1,
+          "leaf": false,
+          "children": [
+            {
+              "id": "수원사업소 고객지원부",
+              "name": "고객지원부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "수원사업소 기계부",
+              "name": "기계부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "수원사업소 계전부",
+              "name": "계전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "수원사업소 운영부",
+              "name": "운영부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": false,
+              "children": [
+                {
+                  "id": "수원사업소 운영부 운영1과",
+                  "name": "운영1과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "수원사업소 운영부 운영2과",
+                  "name": "운영2과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "수원사업소 운영부 운영3과",
+                  "name": "운영3과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "수원사업소 운영부 운영4과",
+                  "name": "운영4과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                },
+                {
+                  "id": "수원사업소 운영부 운영지원과",
+                  "name": "운영지원과",
+                  "type": "과",
+                  "category": "branch",
+                  "selectable": true,
+                  "level": 3,
+                  "leaf": true,
+                  "children": []
+                }
+              ]
+            },
+            {
+              "id": "수원사업소 열수송부",
+              "name": "열수송부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "수원사업소 공사기전부",
+              "name": "공사기전부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "수원사업소 토건부",
+              "name": "토건부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
+              "id": "수원사업소 안전관리관",
+              "name": "안전관리관",
+              "type": "관",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -28,7 +28,7 @@ describe('새 양식 (C1)', () => {
   test('기본 취합 방식', () => {
     expect(make('matrix').aggregations).toEqual(['same-frame', 'spread', 'submission-status']);
     expect(make('collect').aggregations).toEqual(['collect-sheets', 'submission-status']);
-    expect(defaultAggregations({ layout: 'list', org: { mode: 'none' } })).toEqual(['same-frame']);
+    expect(defaultAggregations({ layout: 'list', org: { mode: 'none' }, blocks: [] })).toEqual(['same-frame']);
   });
   test('혼합형 기본 블록', () => {
     const s = make('header-list');
@@ -224,7 +224,7 @@ import { noticeText } from '../export/noticeText';
 describe('안내문', () => {
   test('기한·문의처·지사 파일 안내', () => {
     const s = { ...ready('list'), title: '교육 조사', deadline: '2026-11-05', contact: '인사부' };
-    expect(noticeText(s)).toBe('[교육 조사] 첨부 파일을 작성해 11월 5일까지 회신 부탁드립니다. MS Excel 또는 한셀로 작성해 주세요. 노란 칸은 꼭 채워 주시고, 칸 이름과 순서는 바꾸지 말아 주세요. 파일에 지사명이 미리 들어 있으니 자기 지사 파일을 써 주세요. 문의: 인사부');
+    expect(noticeText(s)).toBe('[교육 조사] 첨부 파일을 작성해 11월 5일까지 회신 부탁드립니다. MS Excel 또는 한셀로 작성해 주세요. 노란 칸은 꼭 채워 주시고, 칸 이름과 순서는 바꾸지 말아 주세요. 참고 사항은 칸에 엑셀 메모로 달아 주시고, 계산이 필요하면 새 시트를 추가해 써 주세요. 파일에 지사명이 미리 들어 있으니 자기 지사 파일을 써 주세요. 문의: 인사부');
   });
   test('기한·문의처 없음, 부서, 시트 모으기형', () => {
     const s = { ...ready('collect'), title: '보고', org: { mode: 'preset' as const, orgs: ['a'], label: '부서' } };

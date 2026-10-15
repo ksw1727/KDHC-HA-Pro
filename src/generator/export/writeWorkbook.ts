@@ -63,7 +63,8 @@ export interface WriteOptions {
 
 /**
  * 빈 양식 xlsx 한 개 (02-generator.md 4절).
- * 시트 모으기형은 잠금·입력 규칙·구조 보호 없이(셀 합치기·시트 추가를 막지 않음) 메타만 넣는다.
+ * 통합문서 구조 보호는 넣지 않는다: 작성자가 계산용 시트를 추가할 수 있게 (01-contract.md 4.3, 개발자 2 합의).
+ * 시트 모으기형은 시트 잠금·입력 규칙도 없이(셀 합치기를 막지 않음) 메타만 넣는다.
  */
 export async function writeWorkbook(schema: FormSchema, opts: WriteOptions): Promise<Uint8Array> {
   const model = layoutSheet(schema, { mode: 'template', orgName: opts.orgName }, { today: opts.now });
@@ -101,7 +102,6 @@ export async function writeWorkbook(schema: FormSchema, opts: WriteOptions): Pro
   const raw = await wb.xlsx.writeBuffer();
   return patchXlsx(raw as ArrayBuffer, {
     customProps: kdhcProps({ formId: schema.formId, formVersion: schema.formVersion, kind: 'submission', org: orgName }),
-    lockStructure: !collect,
-    password: PROTECT_PASSWORD,
+    lockStructure: false,
   });
 }

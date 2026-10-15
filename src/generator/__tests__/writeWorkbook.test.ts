@@ -55,11 +55,11 @@ describe('엑셀 파일 (writeWorkbook)', () => {
     expect((await readMeta(wb)).status).toBe('tampered');
   });
 
-  test('파일 속성과 통합문서 구조 보호', async () => {
+  test('파일 속성, 통합문서 구조 보호 없음 (작성자가 계산용 시트를 추가할 수 있게)', async () => {
     const bytes = await writeWorkbook(SAMPLE.list, { orgName: '서울', now });
     expect(await readCustomProps(bytes)).toEqual({ 'kdhc.formId': SAMPLE.list.formId, 'kdhc.formVersion': '1', 'kdhc.kind': 'submission', 'kdhc.org': '서울' });
     const zip = await JSZip.loadAsync(bytes);
-    expect(await zip.file('xl/workbook.xml')!.async('string')).toMatch(/<workbookProtection lockStructure="1" workbookPassword="[0-9A-F]{4}"\/>/);
+    expect(await zip.file('xl/workbook.xml')!.async('string')).not.toMatch(/workbookProtection/);
   });
 
   test('시트 모으기형: 보호·구조 보호 없음, 메타는 있음, cellMap 없음', async () => {
@@ -73,6 +73,21 @@ describe('엑셀 파일 (writeWorkbook)', () => {
     expect(await zip.file('xl/workbook.xml')!.async('string')).not.toMatch(/workbookProtection/);
     const r = await readMeta(wb);
     expect(r.status === 'ok' && r.meta.cellMap).toBeUndefined();
+  });
+
+  test('자유 제작형: 판 글자·입력 칸·숫자 표·줄 영역, 입력 칸만 풀림, 메타에 셀 지도', async () => {
+    const bytes = await writeWorkbook(SAMPLE.free, { orgName: '서울', now });
+    const wb = await open(bytes);
+    const ws = wb.worksheets[0];
+    expect(ws.getCell('A6').value).toBe('점검자');
+    expect(ws.getCell('B6').protection?.locked).toBe(false);
+    expect(ws.getCell('A6').protection?.locked).not.toBe(false);
+    expect(ws.getCell('B8').value).toBe('소화기');
+    expect(ws.getCell('B9').protection?.locked).toBe(false);
+    expect(ws.getCell('A11').value).toBe('항목 *');
+    expect(ws.getCell('C12').protection?.locked).toBe(false);
+    const r = await readMeta(wb);
+    expect(r.status === 'ok' && r.meta.cellMap?.blocks.b3).toMatchObject({ kind: 'list', headerRow: 11, firstDataRow: 12 });
   });
 
   test('표형 합계·계산 열 수식', async () => {

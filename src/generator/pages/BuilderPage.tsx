@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Layout } from '@contract/schema';
 import { LAYOUT_LABELS, blockFields, orgLabel, validateSchema } from '@contract/schema';
 import { AGGREGATION_LABELS } from '@contract/aggregationIds';
 import { layoutSheet } from '@contract/layout';
@@ -18,6 +17,10 @@ import { OrgPanel } from '../builder/OrgPanel';
 import { CheckDialog } from '../builder/CheckDialog';
 import { ExportFlow } from '../builder/ExportFlow';
 import { Button, Chip, Dialog, Seg } from '../ui/ui';
+import type { StoredForm } from '../storage/localForms';
+import { FreeCanvas, regionSel, type FreeSel } from '../free/FreeCanvas';
+import { FreePanel } from '../free/FreePanel';
+import { freeAggregationChecks, freeRegions, type AggCheck, type FreeRegion } from '@contract/free';
 
 function useHeaderSlot() {
   const [el, setEl] = useState<HTMLElement | null>(null);
@@ -25,18 +28,30 @@ function useHeaderSlot() {
   return el;
 }
 
-export function BuilderPage() {
-  const b = useBuilder();
+/** onHome: [← 처음 화면] (구조 고르기 첫 화면으로) */
+export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: () => void }) {
+  const b = useBuilder(start);
   const s = b.schema;
   const slot = useHeaderSlot();
   const [mode, setMode] = useState<'template' | 'aggregate'>('template');
   const [previewOrg, setPreviewOrg] = useState<string | undefined>();
   const [check, setCheck] = useState<ExportProblem[] | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [newOpen, setNewOpen] = useState(false);
   const [loadErr, setLoadErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const label = orgLabel(s);
+  const free = s.layout === 'free';
+  const [freeSel, setFreeSel] = useState<FreeSel | null>(null);
+  const [moving, setMoving] = useState<FreeRegion | null>(null);
+  const [freeMsg, setFreeMsg] = useState('');
+  /** ④·검사 창의 [고치러 가기]: 그 영역(또는 글자 칸)을 판에서 고른다 */
+  const gotoFree = (at?: { blockId?: string; key?: string; cell?: string }) => {
+    const g = freeRegions(s).find((x) => x.blockId === at?.blockId && x.key === at?.key);
+    if (g) setFreeSel(regionSel(g));
+    else if (at?.cell) setFreeSel({ anchor: at.cell, focus: at.cell });
+    setMode('template');
+    b.setOpenPanel('fields');
+  };
 
   const model = useMemo(() => {
     const today = new Date();
@@ -45,7 +60,8 @@ export function BuilderPage() {
     return layoutSheet(s, { mode: 'template', orgName }, { today });
   }, [s, mode, previewOrg, label]);
 
-  const bad = (w: PanelId) => b.problems.filter((p) => p.where === w).length;
+  const freeBad = free ? freeAggregationChecks(s).filter((c) => c.status !== 'ok' && s.aggregations.includes(c.id)).length : 0;
+  const bad = (w: PanelId) => b.problems.filter((p) => p.where === w).length || (w === 'aggregations' ? freeBad : 0);
   const toggle = (id: PanelId) => b.setOpenPanel(b.openPanel === id ? null : id);
   const exported = b.lastExported?.formVersion;
   const versionUp = exported != null && b.version > exported;
@@ -58,17 +74,18 @@ export function BuilderPage() {
   };
   const onFix = (p: ExportProblem) => {
     setCheck(null);
+    if (free && (p.blockId || p.key)) { gotoFree(p); return; }
     b.setOpenPanel(p.where);
     if (p.key && p.blockId) b.setSelected({ blockId: p.blockId, key: p.key });
   };
 
   const header = (
     <>
+      {onHome && <Button variant="ghost" onClick={() => { b.flush(); onHome(); }}>← 처음 화면</Button>}
       <span className="truncate text-sub">{s.title || '새 양식'}</span>
       <Chip>{LAYOUT_LABELS[s.layout]}</Chip>
       <Chip tone={b.saved === false ? 'warn' : 'gray'}>v{b.version} · {b.saved === false ? '이 브라우저에 자동 저장되지 않아요' : '자동 저장됨'}</Chip>
       <span className="flex-1" />
-      <Button variant="ghost" onClick={() => setNewOpen(true)}>새 양식</Button>
       <Button variant="ghost" onClick={() => fileRef.current?.click()}>양식 파일 열기</Button>
       <Button onClick={() => exportFormJson(s)}>양식 파일 저장</Button>
       <Button variant="pri" onClick={onExport}>엑셀 내보내기{s.org.mode === 'preset' && s.org.orgs?.length ? ` (${s.org.orgs.length}개 · zip)` : ''}</Button>
@@ -100,13 +117,13 @@ export function BuilderPage() {
         <Panel n={2} title="양식 구조" open={b.openPanel === 'layout'} onToggle={() => toggle('layout')} summary={LAYOUT_LABELS[s.layout]}>
           <LayoutPanel b={b} />
         </Panel>
-        <Panel n={3} title={s.layout === 'collect' ? '시트 시작 모양' : '항목·서식'} open={b.openPanel === 'fields'} onToggle={() => toggle('fields')} bad={bad('fields')}
-          summary={s.layout === 'collect' ? (s.collect?.scope === 'all' ? '모든 시트 모음' : '보고서 시트만') : s.layout === 'fill-in' ? `입력칸 ${s.blocks.reduce((n, x) => n + blockFields(x).length, 0)}개` : s.layout === 'matrix' ? '표 1개' : `${s.blocks.reduce((n, x) => n + blockFields(x).length, 0)}개`}>
-          <FieldsPanel b={b} />
+        <Panel n={3} title={s.layout === 'collect' ? '시트 시작 모양' : free ? '고른 영역' : '항목·서식'} open={b.openPanel === 'fields'} onToggle={() => toggle('fields')} bad={bad('fields')}
+          summary={free ? `영역 ${freeRegions(s).length}개` : s.layout === 'collect' ? (s.collect?.scope === 'all' ? '모든 시트 모음' : '보고서 시트만') : s.layout === 'fill-in' ? `입력칸 ${s.blocks.reduce((n, x) => n + blockFields(x).length, 0)}개` : s.layout === 'matrix' ? '표 1개' : `${s.blocks.reduce((n, x) => n + blockFields(x).length, 0)}개`}>
+          {free ? <FreePanel b={b} sel={freeSel} onSel={setFreeSel} onMove={(g) => { setMoving(g); setFreeMsg(''); }} /> : <FieldsPanel b={b} />}
         </Panel>
-        <Panel n={4} title="취합 방식" open={b.openPanel === 'aggregations'} onToggle={() => toggle('aggregations')}
+        <Panel n={4} title="취합 방식" open={b.openPanel === 'aggregations'} onToggle={() => toggle('aggregations')} bad={bad('aggregations')}
           summary={s.aggregations.map((a) => AGGREGATION_LABELS[a].replace('지사', label)).join(' · ')}>
-          <AggPanel b={b} />
+          <AggPanel b={b} onGoto={(c: AggCheck) => gotoFree(c.at)} />
         </Panel>
         <Panel n={5} title="제출처" open={b.openPanel === 'org'} onToggle={() => toggle('org')} bad={bad('org')}
           summary={s.org.mode === 'none' ? '식별 안 함' : s.org.mode === 'input' ? `${label}명 입력` : `목록 있음 · ${s.org.orgs?.length ?? 0}곳`}>
@@ -118,7 +135,7 @@ export function BuilderPage() {
         <div className="flex flex-wrap items-center gap-2.5">
           <b>미리보기</b>
           <Seg label="미리보기 모양" value={mode} options={[['template', '빈 양식'], ['aggregate', '취합본']]} onChange={setMode} />
-          {mode === 'template' ? <span className="text-xs text-muted">머리글을 누르면 왼쪽에서 서식을 고칠 수 있어요</span> : <span className="text-xs text-muted">가짜 데이터 3곳으로 그린 취합본 모양</span>}
+          {mode === 'template' ? <span className="text-xs text-muted">{free ? '여기서 바로 그려요' : '머리글을 누르면 왼쪽에서 서식을 고칠 수 있어요'}</span> : <span className="text-xs text-muted">가짜 데이터 3곳으로 그린 취합본 모양</span>}
           <span className="flex-1" />
           {mode === 'template' && s.org.mode === 'preset' && (s.org.orgs?.length ?? 0) > 0 && (
             <label className="flex items-center gap-1.5 text-sub">{label}
@@ -129,7 +146,10 @@ export function BuilderPage() {
           )}
         </div>
 
-        {mode === 'aggregate' && s.layout === 'collect' ? (
+        {free && mode === 'template' ? (
+          <FreeCanvas schema={s} model={model} sel={freeSel} onSel={(x) => { setFreeSel(x); if (x) b.setOpenPanel('fields'); }}
+            onOp={(op) => b.act({ type: 'free/op', op })} moving={moving} onMoving={setMoving} message={freeMsg} onMessage={setFreeMsg} />
+        ) : mode === 'aggregate' && s.layout === 'collect' ? (
           <CollectAggregatePreview orgs={sampleOrgs(s)} label={label} title={s.title} />
         ) : (
           <PreviewGrid model={model} schema={s} selectedKey={b.selected?.key} onSelect={b.selectKey} showSampleForSelected={mode === 'template'} />
@@ -150,21 +170,7 @@ export function BuilderPage() {
       {check && <CheckDialog problems={check} onFix={onFix} onClose={() => setCheck(null)} />}
       {exporting && <ExportFlow schema={s} lastExported={b.lastExported} onClose={() => setExporting(false)} onExported={b.markExported} />}
       {loadErr && <Dialog tone="err" title={loadErr} onClose={() => setLoadErr('')} footer={<><span className="flex-1" /><Button variant="pri" onClick={() => setLoadErr('')}>확인</Button></>}><p className="m-0">한난MOA에서 저장한 .form.json 파일을 골라 주세요.</p></Dialog>}
-      {newOpen && <NewFormDialog onClose={() => setNewOpen(false)} onPick={(l) => { b.startNew(l); setNewOpen(false); }} />}
     </div>
-  );
-}
-
-function NewFormDialog({ onClose, onPick }: { onClose: () => void; onPick: (l: Layout) => void }) {
-  return (
-    <Dialog title="새 양식 만들기" onClose={onClose} footer={<><span className="text-xs text-muted">지금 양식은 이 브라우저에 저장돼 있어요.</span><span className="flex-1" /><Button onClick={onClose}>취소</Button></>}>
-      <p className="m-0 text-sub">어떤 구조로 시작할까요? (구조 고르기 첫 화면은 다음 단계에서 붙여요)</p>
-      <div className="grid grid-cols-2 gap-2">
-        {(['list', 'matrix', 'header-list', 'fill-in', 'collect'] as Layout[]).map((l) => (
-          <Button key={l} onClick={() => onPick(l)}>{LAYOUT_LABELS[l]}</Button>
-        ))}
-      </div>
-    </Dialog>
   );
 }
 
