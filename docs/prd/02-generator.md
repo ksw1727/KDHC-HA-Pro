@@ -62,7 +62,7 @@
 
 | 영역 | 내용 |
 |---|---|
-| ① 기본 정보 | 제목(필수), 작성 안내(예: "11월 5일까지 회신"), 제출 기한(날짜), 문의처 |
+| ① 기본 정보 | 제목(필수), 작성 안내(예: "11월 5일까지 회신"), 제출 기한(날짜), 문의처. 작성 안내 아래에 **고정 안내** "입력칸만 쓸 수 있어요. 참고 사항은 칸에 엑셀 메모로 달고, 계산이 필요하면 새 시트를 추가해 쓰세요."가 항상 붙는다(지울 수 없음, 시트 모으기형 제외) |
 | ② 양식 구조 | 목록형 / 표형 / 혼합형 / 빈칸채우기형 / 시트 모으기형. 바꾸면 블록을 해당 구조로 재구성하고, 기존 항목은 가능한 한 유지(이동 불가한 항목은 확인 창) |
 | ③ 항목·서식 | 블록별 항목 목록. 추가·삭제·끌어서 순서 변경(dnd-kit). 항목을 누르면 편집 패널(2.3). 목록 블록은 **입력 줄 수**(기본 100)와 **예시 줄**(선택). 표형은 행 제목·열 제목 목록, 합계 행·합계 열 여부. 빈칸채우기형은 표 편집기(2.4). 시트 모으기형은 이 영역이 "시트 시작 모양"으로 바뀐다(2.5) |
 | ④ 취합 방식 | `AGGREGATION_SUPPORT`에서 현재 layout·지사 방식이 지원하는 방식만 체크박스로. `AGGREGATION_REQUIRED`는 체크 고정(같은 틀 시트, 표형의 지사별 펼치기, 시트 모으기형의 시트 모으기). 기본값: 필수 + 제출 현황표(지사 사용 시) |
@@ -214,7 +214,7 @@ FormSchema ─► contract/layout.layoutSheet(schema, input) ─► SheetModel �
 - 오류 메시지: `showErrorMessage: true`, 스타일 `stop`, 메시지 "{항목명}: {규칙 설명}" (예: "참가일: 날짜를 입력하세요 (예: 2026-10-20)", "수량: 0 이상 999 이하의 정수를 입력하세요")
 - 표형 합계 행·열: `SUM` 수식(잠금). 작성자 화면에서 바로 합계가 보인다.
 - **인쇄영역**: `SheetModel.printArea`(제목 ~ 입력 영역 끝)를 `worksheet.pageSetup.printArea`로 설정. 가로 방향, 너비 1페이지 맞춤.
-- 시트 보호: `worksheet.protect(PROTECT_PASSWORD, { selectLockedCells: true, selectUnlockedCells: true, formatCells: false, insertRows: false, deleteRows: false })`
+- 시트 보호: `worksheet.protect(PROTECT_PASSWORD, { selectLockedCells: true, selectUnlockedCells: true, formatCells: false, insertRows: false, deleteRows: false })` — 입력칸만 편집 가능. `objects`는 `false`로 주지 않는다(작성자가 **엑셀 메모**를 넣을 수 있어야 함, `01-contract.md` 4.3)
 - 틀 고정: list·grid 블록 머리글 행 아래로 고정
 - 메타: `contract/metaIO.writeMeta()` 호출 (`kind: 'submission'`, `orgName`, `sheetName`, `cellMap`, checksum 포함)
 - 후처리: `contract/xlsxPatch` (파일 속성). 통합문서 구조 보호는 넣지 않는다(작성자가 계산용 시트를 추가할 수 있게, `01-contract.md` 4.3)
@@ -247,7 +247,7 @@ scripts/
 
 1. 여섯 가지 구조 각각으로 양식을 만들어 내보낼 수 있다. 시트 모으기형 파일은 엑셀에서 셀 합치기·시트 추가가 막히지 않는다.
 2. 미리보기의 칸 배치와 내보낸 파일의 칸 배치가 같다(테스트로 확인).
-3. 내보낸 파일을 MS Excel에서 열면: 입력칸만 편집 가능, 드롭다운·숫자·날짜 제한 동작, 숫자 서식(쉼표·단위) 표시, 안내 메시지 표시, 인쇄영역 설정됨, `_meta` 시트가 보이지 않음.
+3. 내보낸 파일을 MS Excel에서 열면: 입력칸만 편집 가능(인쇄영역 밖 포함 나머지는 잠김), 입력칸에 엑셀 메모 넣기 가능, 새 시트 추가 가능, 드롭다운·숫자·날짜 제한 동작, 숫자 서식(쉼표·단위) 표시, 안내 메시지 표시, 인쇄영역 설정됨, `_meta` 시트가 보이지 않음.
 4. preset 15개 지사 → zip 안에 파일 15개, 각 파일의 지사명 칸과 메타 `orgName`이 일치.
 5. 양식 파일 저장 → 불러오기 → 같은 파일이 생성된다. 빈 양식 xlsx에서 되살리기 → 같은 `FormSchema`.
 6. 빈칸채우기형: 엑셀에서 복사한 표를 붙여넣고 입력칸·여유 줄을 지정해 내보낼 수 있다.
@@ -258,7 +258,7 @@ scripts/
 | 대상 | 내용 |
 |---|---|
 | `layoutSheet` | 구조 4종 × (preset/input/none) × (template/aggregate) + 시트 모으기형 × (preset/none) × (빈 시트/기본 틀) 스냅샷. `cellMap`의 모든 주소가 `cells`에 존재. `printArea`가 입력 영역을 모두 포함 |
-| `writeWorkbook` | 생성한 버퍼를 ExcelJS로 다시 열어: 입력칸 unlocked, 머리글 locked, 유효성 검사 범위, 숫자 서식, 인쇄영역, `readMeta()` 왕복, veryHidden |
+| `writeWorkbook` | 생성한 버퍼를 ExcelJS로 다시 열어: 입력칸 unlocked, 머리글·인쇄영역 밖 locked, 시트 보호에 `objects` 잠금 없음, 통합문서 구조 보호 없음, 고정 안내 문구, 유효성 검사 범위, 숫자 서식, 인쇄영역, `readMeta()` 왕복, veryHidden |
 | `FIELD_TYPES.excelValidation` | 타입·서식 조합별 규칙, 상대 날짜 계산 |
 | `validateForExport` | 2.2의 오류 조건 각각 |
 | `GridEditor` | 붙여넣기 파싱(탭·줄바꿈·빈 칸), 범위 입력칸 지정 |
