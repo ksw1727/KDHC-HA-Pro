@@ -223,19 +223,32 @@ FormSchema ─► contract/layout.layoutSheet(schema, input) ─► SheetModel �
 
 ## 5. 폴더 구조
 
+2026-10-15 실제 코드 기준. 테스트는 `src/generator/__tests__/`에 모여 있다.
+
 ```
 src/generator/
-  pages/LandingPage.tsx (구조 고르기 + 최근 양식), BuilderPage.tsx
-  landing/            StructurePicker.tsx, StructureStory.tsx, structureStories.ts, StructureQuiz.tsx, OpenExisting.tsx, RecentForms.tsx
-  builder/            ① ~ ⑤ 패널 컴포넌트, FieldEditor.tsx, FormatEditor.tsx, GridEditor.tsx, CollectSettings.tsx
-  state/              formReducer.ts (useReducer), actions.ts, validateForExport.ts, versioning.ts
-  storage/            localForms.ts (localStorage 목록), restoreFromXlsx.ts
-  preview/            PreviewGrid.tsx, sampleAggregate.ts (취합본 미리보기용 가짜 데이터)
-  export/             CheckDialog.tsx, ExportDialog.tsx, ExportDone.tsx, noticeText.ts (안내문), writeWorkbook.ts, exportZip.ts, exportJson.ts, fileName.ts
-  __tests__/
-src/contract/layout/  layoutEngine.ts, sheetModel.ts, styles.ts   (1단계 작성)
+  index.tsx           생성 파트 진입점
+  pages/              BuilderPage.tsx (2단 빌더: 왼쪽 ①~⑤, 오른쪽 미리보기)
+  landing/            LandingPage.tsx (구조 카드 6개 + 최근 양식), StructureStory.tsx (크게 보기 팝업),
+                      openForm.ts (양식 파일 .form.json 불러오기)
+  builder/            ① MetaPanel.tsx  ② LayoutPanel.tsx  ③ FieldsPanel.tsx · FieldList.tsx · FieldEditor.tsx ·
+                      FormatEditor.tsx · FormulaEditor.tsx · BlockSettings.tsx · GridEditor.tsx · CollectSettings.tsx
+                      ④ AggPanel.tsx  ⑤ OrgPanel.tsx, Panel.tsx (접는 칸 틀),
+                      CheckDialog.tsx · ExportFlow.tsx (내보내기 확인 → 진행 → 완료),
+                      gridOps.ts (빈칸채우기 표 편집), parsePastedTable.ts (엑셀에서 붙여넣기)
+  free/               FreeCanvas.tsx (자유 제작형 그리는 판), FreePanel.tsx (③ 고른 영역)
+  org/                OrgTree.tsx (⑤ 한난 조직 트리 체크 고르기), kdhcOrg.ts (조직 데이터 읽기)
+  state/              formReducer.ts (useReducer), useBuilder.ts, newSchema.ts, fieldDefaults.ts,
+                      changeLayout.ts (구조 바꾸기), freeEdit.ts (판 편집), validateForExport.ts, versioning.ts
+  storage/            localForms.ts (이 브라우저에 저장한 양식 목록)
+  preview/            PreviewGrid.tsx, formatSample.ts (서식대로 보이기), sampleAggregate.ts (취합본 미리보기용 가짜 데이터)
+  export/             writeWorkbook.ts, exportZip.ts, exportJson.ts, noticeText.ts (안내문)
+  ui/                 ui.tsx (버튼·체크박스 등 공통 부품)
+src/contract/layout/  layoutEngine.ts, sheetModel.ts, styles.ts, address.ts   (1단계 작성)
 scripts/
-  make-fixtures.ts    fixtures/ 생성 (01-contract.md 8절 목록)
+  fetch-kdhc-org.py   한난 조직 트리 → data/kdhc-org/ (⑤ 제출처 트리용)
+  setup-hooks.sh      git 훅 설치 (main 직접 커밋 막기)
+  make-fixtures.ts    (아직 없음) fixtures/ 생성 — 6절
 ```
 
 ## 6. fixtures 생성 스크립트
