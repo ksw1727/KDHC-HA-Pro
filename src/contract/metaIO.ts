@@ -1,4 +1,4 @@
-import type { Workbook } from 'exceljs';
+import type { CellValue, Workbook } from 'exceljs';
 import type { FileMeta } from './meta';
 import { computeChecksum } from './checksum';
 import { CONTRACT_VERSION } from './version';
@@ -22,14 +22,18 @@ export function writeChunkSheet(wb: Workbook, name: string, mark: string, json: 
   for (let i = 0, row = 1; i < json.length || row === 1; i += CHUNK, row++) ws.getCell(`B${row}`).value = json.slice(i, i + CHUNK);
 }
 
+/** 칸 글자. LibreOffice·한셀 등이 다시 저장하면 글꼴(영문/한글)별로 나뉜 서식 있는 글자(richText)가 될 수 있다 */
+const cellString = (v: CellValue): string =>
+  v !== null && typeof v === 'object' && 'richText' in v ? v.richText.map((r) => r.text).join('') : v === null || v === undefined ? '' : String(v);
+
 export function readChunkSheet(wb: Workbook, name: string, mark: string): string | null {
   const ws = wb.getWorksheet(name);
-  if (!ws || ws.getCell('A1').value !== mark) return null;
+  if (!ws || cellString(ws.getCell('A1').value) !== mark) return null;
   let s = '';
   for (let row = 1; ; row++) {
-    const v = ws.getCell(`B${row}`).value;
-    if (v === null || v === undefined || v === '') break;
-    s += String(v);
+    const v = cellString(ws.getCell(`B${row}`).value);
+    if (v === '') break;
+    s += v;
   }
   return s || null;
 }
