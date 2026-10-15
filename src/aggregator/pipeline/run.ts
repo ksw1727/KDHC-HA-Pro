@@ -71,7 +71,7 @@ export async function analyze(files: LoadedFile[], schemas: FormSchema[], fallba
   const parsed: ParsedSubmission[] = [];
   for (const f of identified) {
     if (f.status !== 'ok' || !base) continue;
-    if (f.kind === 'aggregate') { parsed.push(...expandAggregate(f)); continue; }
+    if (f.kind === 'aggregate') { parsed.push(...expandAggregate(f, base.schema)); continue; }
     parsed.push(parseSubmission(f, readSubmission(f, base), base.schema, ctx));
   }
   return { base, identified, parsed };
@@ -120,6 +120,6 @@ function slotValue(s: Resolved['included'][number], slot: NonNullable<Resolved['
     case 'grid': return s.grid?.[slot.key] ?? null;
     case 'row': return s.rows.find((r) => r.sourceRow === slot.sourceRow)?.values[slot.key] ?? null;
     case 'spare': return s.gridSpareRows?.find((r) => r.sourceRow === slot.sourceRow)?.values[slot.key] ?? null;
-    case 'matrix': return s.matrix?.[slot.r]?.[slot.c] ?? null;
+    case 'matrix': return s.matrices?.[slot.blockId]?.[slot.r]?.[slot.c] ?? null;
   }
 }

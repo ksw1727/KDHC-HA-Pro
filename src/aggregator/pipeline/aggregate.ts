@@ -73,15 +73,16 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
     }
   }
 
-  const matrix = schema.blocks.find((b) => b.kind === 'matrix');
-  if (matrix?.kind === 'matrix') {
-    data.matrixSums = matrix.rowLabels.map((_, r) => matrix.colLabels.map((__, c) => {
+  // 숫자 표마다 칸끼리 합 (자유 제작형은 표가 여러 개라 블록 id별로)
+  for (const m of schema.blocks) {
+    if (m.kind !== 'matrix') continue;
+    (data.matrixSumsBy ??= {})[m.id] = m.rowLabels.map((_, r) => m.colLabels.map((__, c) => {
       let sum = 0, skipped = 0, any = false;
       for (const s of res.included) {
-        const v = s.matrix?.[r]?.[c];
+        const v = s.matrices?.[m.id]?.[r]?.[c];
         if (typeof v === 'number') { sum += v; any = true; } else if (v !== null && v !== undefined) skipped++;
       }
-      if (skipped) matrixNotes[`${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
+      if (skipped) matrixNotes[`${m.id}:${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
       return any ? sum : null;
     }));
   }
@@ -102,29 +103,39 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
   return { model, rowRefs, spareRefs, matrixNotes };
 }
 
-/** 지사별 펼치기 (spread): 제출당 1행 */
+/** 지사별 시트 이름: 제출처를 식별하지 않으면(none) 응답 파일 단위라 '파일별' */
+export const spreadName = (schema: FormSchema) => (schema.org.mode === 'none' ? '파일별' : `${orgLabel(schema)}별`);
+
+/** 지사별 펼치기 (spread): 제출당 1행 = 위쪽 정보·입력 칸 + 숫자 표 {행제목} {열제목} + 빈칸채우기 입력칸 + (목록 있으면) 목록 행 수 */
 export function spreadTable(schema: FormSchema, res: Resolved): Table {
-  const first = schema.org.mode !== 'none' ? orgLabel(schema) : '출처 파일';
-  const lead = (s: FinalSubmission) => (schema.org.mode !== 'none' ? s.label : s.sourceFile);
-  const b = schema.blocks.find((x) => x.kind === 'matrix');
-  if (b?.kind === 'matrix') {
-    const cols = b.rowLabels.flatMap((r) => b.colLabels.map((c) => `${r} ${c}`));
-    const rows = res.included.map((s) => [lead(s), ...b.rowLabels.flatMap((_, r) => b.colLabels.map((__, c) => s.matrix?.[r]?.[c] ?? null))]);
-    const total = cols.map((_, i) => rows.reduce((sum, row) => sum + (typeof row[i + 1] === 'number' ? (row[i + 1] as number) : 0), 0));
-    return { name: '지사별', columns: [first, ...cols].map((header) => ({ header })), rows: [...rows, ['합계', ...total]] };
-  }
-  const g = schema.blocks.find((x) => x.kind === 'grid');
-  if (g?.kind === 'grid') {
-    const inputs = g.rows.flat().flatMap((c) => (c.kind === 'input' ? [c.field] : []));
-    return { name: '지사별', columns: [first, ...inputs.map((f) => f.label)].map((header) => ({ header })), rows: res.included.map((s) => [lead(s), ...inputs.map((f) => s.grid?.[f.key] ?? null)]) };
-  }
+  const useOrg = schema.org.mode !== 'none';
   const fb = schema.blocks.find((x) => x.kind === 'fields');
   const hf = fb?.kind === 'fields' ? fb.fields : [];
-  return {
-    name: '지사별',
-    columns: [first, ...hf.map((f) => f.label), '목록 행 수'].map((header) => ({ header })),
-    rows: res.included.map((s) => { const h = computeHeader(schema, s.header, s.rows.map((r) => r.values)); return [lead(s), ...hf.map((f) => h[f.key] ?? null), s.rows.length]; }),
-  };
+  const mats = schema.blocks.flatMap((b) => (b.kind === 'matrix' ? [b] : []));
+  const grid = schema.blocks.find((x) => x.kind === 'grid');
+  const inputs = grid?.kind === 'grid' ? grid.rows.flat().flatMap((c) => (c.kind === 'input' ? [c.field] : [])) : [];
+  const hasList = schema.blocks.some((b) => b.kind === 'list');
+  const prefix = (m: (typeof mats)[number]) => (mats.length > 1 ? `${m.title?.trim() || m.id} ` : '');
+  const columns = [
+    useOrg ? orgLabel(schema) : '출처 파일', ...hf.map((f) => f.label),
+    ...mats.flatMap((m) => m.rowLabels.flatMap((r) => m.colLabels.map((c) => `${prefix(m)}${r} ${c}`))),
+    ...inputs.map((f) => f.label), ...(hasList ? ['목록 행 수'] : []),
+  ];
+  const rows: CellValue[][] = res.included.map((s) => {
+    const h = computeHeader(schema, s.header, s.rows.map((r) => r.values));
+    return [
+      useOrg ? s.label : s.sourceFile, ...hf.map((f) => h[f.key] ?? null),
+      ...mats.flatMap((m) => m.rowLabels.flatMap((_, r) => m.colLabels.map((__, c) => s.matrices?.[m.id]?.[r]?.[c] ?? null))),
+      ...inputs.map((f) => s.grid?.[f.key] ?? null), ...(hasList ? [s.rows.length] : []),
+    ];
+  });
+  // 숫자 표가 있으면 마지막에 합계 줄 (숫자 칸만 더함)
+  if (mats.length) {
+    const start = 1 + hf.length;
+    const end = start + mats.reduce((n, m) => n + m.rowLabels.length * m.colLabels.length, 0);
+    rows.push(columns.map((_, i) => (i === 0 ? '합계' : i >= start && i < end ? rows.reduce((t, r) => t + (typeof r[i] === 'number' ? (r[i] as number) : 0), 0) : null)));
+  }
+  return { name: spreadName(schema), columns: columns.map((header) => ({ header })), rows };
 }
 
 /** 제출 현황 (submission-status): 지사 목록 전체 + 목록 밖 지사 */

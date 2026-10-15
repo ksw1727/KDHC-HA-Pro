@@ -66,16 +66,16 @@ export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): V
       lines.push({ check: `숫자 합계 · ${f.label}`, detail: `원본 ${round(source)}${diffs.length ? ` (${diffs.join(', ')})` : ''} → 같은 틀 시트 ${round(sheet)}`, ok: round(sheet) === expected });
     }
   }
-  const matrix = schema.blocks.find((b) => b.kind === 'matrix');
-  if (matrix?.kind === 'matrix' && model) {
+  for (const matrix of schema.blocks) {
+    if (matrix.kind !== 'matrix' || !model) continue;
     const mm = model.cellMap.blocks[matrix.id];
-    const source = res.included.reduce((s, x) => s + (x.matrix ?? []).flat().reduce<number>((a, v) => a + n(v), 0), 0);
+    const source = res.included.reduce((s, x) => s + (x.matrices?.[matrix.id] ?? []).flat().reduce<number>((a, v) => a + n(v), 0), 0);
     let sheet = 0;
     if (mm?.kind === 'matrix') {
       const addrs = new Set(mm.cells.flat());
       for (const c of model.cells) if (addrs.has(c.address)) sheet += n(c.value);
     }
-    lines.push({ check: '숫자 합계 · 표', detail: `제출 값 합 ${round(source)} → 같은 틀 시트 ${round(sheet)}`, ok: round(source) === round(sheet) });
+    lines.push({ check: `숫자 합계 · ${matrix.title?.trim() || '표'}`, detail: `제출 값 합 ${round(source)} → 같은 틀 시트 ${round(sheet)}`, ok: round(source) === round(sheet) });
   }
 
   // 4. 원본 파일에 적힌 합계와 대조 (합계 줄·합계 행·계 열)

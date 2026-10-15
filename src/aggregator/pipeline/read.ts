@@ -84,7 +84,7 @@ export function readSubmission(f: IdentifiedFile, base: BaseForm): ReadResult {
 
   for (const b of schema.blocks) {
     const m = cellMap.blocks[b.id];
-    if (b.kind === 'fields' && m?.kind === 'fields') readFields(ws, b, m, fileSchema, out);
+    if (b.kind === 'fields' && m?.kind === 'fields') readFields(ws, b, m, fileSchema, out, schema.layout === 'free');
     if (b.kind === 'list' && m?.kind === 'list') readList(ws, b, m, fileSchema, out, !!(ws as unknown as { sheetProtection?: object }).sheetProtection);
     if (b.kind === 'matrix' && m?.kind === 'matrix') readMatrix(ws, b, m, out);
     if (b.kind === 'grid' && m?.kind === 'grid') readGrid(ws, b, m, out);
@@ -135,7 +135,7 @@ function readMatrix(ws: ExcelJS.Worksheet, b: MatrixBlock, m: MatrixBlockMap, ou
   const rowOf = locate(b.rowLabels, m.rowLabelCells, '행', 'row');
   const colOf = locate(b.colLabels, m.colLabelCells, '열', 'col');
   const matrix = rowOf.map((r) => colOf.map((c) => (r && c ? cellAt(ws, addr(c, r)) : undefined)));
-  out.matrix = matrix;
+  (out.matrices ??= {})[b.id] = matrix;
   for (const row of matrix) for (const cell of row) if (cell?.comment) out.authorNotes.push({ address: cell.address, fieldKey: b.cell.key, text: cell.comment });
 
   // 원본 파일에 적힌 합계 행·계 열 값 = 칸들의 합인지 대조 (값으로는 읽지 않음)
@@ -150,7 +150,6 @@ function readMatrix(ws: ExcelJS.Worksheet, b: MatrixBlock, m: MatrixBlockMap, ou
   const lastRow = Math.max(0, ...rowOf.map((r) => r ?? 0));
   if (b.totalCol && lastCol) matrix.forEach((row, r) => { if (rowOf[r]) check(addr(lastCol + 1, rowOf[r]!), row.reduce((s, c) => s + num(c?.raw), 0), `${b.rowLabels[r]} 계`); });
   if (b.totalRow && lastRow) colOf.forEach((c, i) => { if (c) check(addr(c, lastRow + 1), matrix.reduce((s, row) => s + num(row[i]?.raw), 0), `합계 ${b.colLabels[i]}`); });
-  out.readCount += b.rowLabels.length;
 }
 
 /** 빈칸채우기형: 입력칸 주소에서 읽고, 고정 칸이 바뀌었으면 알려만 준다. 여유 줄은 글이 있는 줄만 */
@@ -201,13 +200,14 @@ function readGrid(ws: ExcelJS.Worksheet, b: GridBlock, m: GridBlockMap, out: Rea
 }
 
 
-function readFields(ws: ExcelJS.Worksheet, b: FieldsBlock, m: FieldsBlockMap, fileSchema: FormSchema | undefined, out: ReadResult) {
+function readFields(ws: ExcelJS.Worksheet, b: FieldsBlock, m: FieldsBlockMap, fileSchema: FormSchema | undefined, out: ReadResult, trustMap = false) {
   for (const field of b.fields) {
     if (isCalc(field)) continue;
     const at = m.cells[field.key];
     const names = labelsOf(field, fileSchema);
     let valueAddr: string | undefined = at?.valueCell;
-    if (!at || !names.includes(normLabel(cellText(ws.getCell(at.labelCell).value)))) {
+    // 자유 제작형은 왼쪽(위쪽) 글자 칸이 항목 이름과 다를 수 있어 칸 지도를 그대로 믿는다
+    if (!at || (!trustMap && !names.includes(normLabel(cellText(ws.getCell(at.labelCell).value))))) {
       // 라벨이 제자리에 없으면 같은 시트에서 라벨을 찾아 바로 오른쪽 칸을 읽는다
       valueAddr = undefined;
       ws.eachRow({ includeEmpty: false }, (row, r) => row.eachCell({ includeEmpty: false }, (c, col) => {

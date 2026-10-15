@@ -4,7 +4,7 @@ import type { CellValue, NormalizedSubmission } from '@contract/meta';
 import { buildMeta, writeChunkSheet, writeMeta } from '@contract/metaIO';
 import { kdhcProps, patchXlsx } from '@contract/xlsxPatch';
 import { CONTRACT_VERSION } from '@contract/version';
-import { AGGREGATION_REQUIRED, type AggregationId } from '@contract/aggregationIds';
+import { requiredAggregations, type AggregationId } from '@contract/aggregationIds';
 import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
 import { buildSameFrame, fmtTime, spreadTable, statusTable, type SameFrame, type Table } from './aggregate';
 import { RECORDS_MARK, RECORDS_SHEET } from './parse';
@@ -103,7 +103,7 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
   const name = sheetNamer();
   const fieldOf = new Map<string, Field>();
   for (const b of schema.blocks) for (const f of blockFields(b)) fieldOf.set(f.key, f);
-  const chosen = [...new Set([...AGGREGATION_REQUIRED[schema.layout], ...methods])];
+  const chosen = [...new Set([...requiredAggregations(schema), ...methods])];
   const collect = schema.layout === 'collect';
   let vr: VerifyResult;
 
@@ -122,7 +122,7 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
     copyAuthorNotes(ws, schema, res, frame);
 
     // 2. 선택한 방식 (METHODS 순서)
-    if (chosen.includes('spread')) writeTable(wb.addWorksheet(name('지사별')), spreadTable(schema, res));
+    if (chosen.includes('spread')) { const t = spreadTable(schema, res); writeTable(wb.addWorksheet(name(t.name)), t); }
     if (chosen.includes('collect-sheets')) writeCollectSheets(wb, schema, res, workbooks, name, now, false);
   }
   if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
@@ -153,7 +153,7 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
   // 9. _records (다시 취합용 원자료), 10. _meta
   const records: NormalizedSubmission[] = collect ? [] : res.included.map((s) => ({
     ...(s.org ? { org: s.org } : {}), sourceFile: s.sourceFile, savedAt: s.savedAt, header: s.header, rows: s.rows,
-    ...(s.matrix ? { matrix: s.matrix } : {}), ...(s.grid ? { grid: s.grid } : {}), ...(s.gridSpareRows ? { gridSpareRows: s.gridSpareRows } : {}),
+    ...matrixRecord(schema, s.matrices), ...(s.grid ? { grid: s.grid } : {}), ...(s.gridSpareRows ? { gridSpareRows: s.gridSpareRows } : {}),
   }));
   writeChunkSheet(wb, RECORDS_SHEET, RECORDS_MARK, JSON.stringify(records));
   writeMeta(wb, await buildMeta({
@@ -185,9 +185,9 @@ function copyAuthorNotes(ws: ExcelJS.Worksheet, schema: FormSchema, res: Resolve
       });
     }
     if (b.kind === 'matrix' && m?.kind === 'matrix') {
-      m.cells.forEach((row, r) => row.forEach((a, c) => { const t = frame.matrixNotes[`${r}:${c}`]; if (t) add(a, t); }));
+      m.cells.forEach((row, r) => row.forEach((a, c) => { const t = frame.matrixNotes[`${b.id}:${r}:${c}`]; if (t) add(a, t); }));
       for (const s of res.included) for (const n of s.read.authorNotes) {
-        const at = s.read.matrix?.flatMap((row, r) => row.map((cell, c) => ({ cell, r, c }))).find((x) => x.cell?.address === n.address);
+        const at = s.read.matrices?.[b.id]?.flatMap((row, r) => row.map((cell, c) => ({ cell, r, c }))).find((x) => x.cell?.address === n.address);
         if (at) add(m.cells[at.r][at.c], `${s.label}: ${n.text}`);
       }
     }
@@ -279,3 +279,11 @@ export function copySheet(from: ExcelJS.Worksheet, to: ExcelJS.Worksheet) {
   }
 }
 
+
+/** _records의 숫자 표: 계약대로 첫 표는 matrix에. 표가 여러 개면(자유 제작형) 전부를 matrixBy에도 (계약 보완 제안 중) */
+function matrixRecord(schema: FormSchema, matrices?: Record<string, CellValue[][]>) {
+  if (!matrices) return {};
+  const ids = schema.blocks.filter((b) => b.kind === 'matrix').map((b) => b.id);
+  const first = ids[0] ? matrices[ids[0]] : undefined;
+  return { ...(first ? { matrix: first } : {}), ...(ids.length > 1 ? { matrixBy: matrices } : {}) };
+}

@@ -36,9 +36,11 @@ export function parseSubmission(f: IdentifiedFile, read: ReadResult, schema: For
       for (const field of b.fields) if (field.type !== 'calc') out.header[field.key] = take(read.header[field.key], field, { part: 'header', key: field.key }, `위쪽 정보 · ${field.label}`);
     }
     if (b.kind === 'list') out.rows = rowsOf(read.rows, b.columns, 'row', '목록', take);
-    if (b.kind === 'matrix' && read.matrix) {
-      out.matrix = b.rowLabels.map((rl, r) => b.colLabels.map((cl, c) =>
-        take(read.matrix![r]?.[c], b.cell, { part: 'matrix', key: b.cell.key, r, c }, `표 · ${rl} ${cl}`)));
+    if (b.kind === 'matrix' && read.matrices?.[b.id]) {
+      const m = read.matrices[b.id];
+      const where = b.title?.trim() || '표';
+      (out.matrices ??= {})[b.id] = b.rowLabels.map((rl, r) => b.colLabels.map((cl, c) =>
+        take(m[r]?.[c], b.cell, { part: 'matrix', key: b.cell.key, blockId: b.id, r, c }, `${where} · ${rl} ${cl}`)));
     }
     if (b.kind === 'grid') {
       out.grid = {};
@@ -74,7 +76,7 @@ export function slotId(s: Slot): string {
   switch (s.part) {
     case 'header': case 'grid': return `${s.part}:${s.key}`;
     case 'row': case 'spare': return `${s.part}:${s.sourceRow}:${s.key}`;
-    case 'matrix': return `matrix:${s.r}:${s.c}`;
+    case 'matrix': return `matrix:${s.blockId}:${s.r}:${s.c}`;
   }
 }
 
@@ -97,7 +99,8 @@ function sameRowTwice(rows: RowRecord[], fileId: string): Question[] {
 }
 
 /** 본부 취합본: _records를 풀어 제출본 여러 개로 (②~④ 건너뜀, 3.2 마지막 문단) */
-export function expandAggregate(f: IdentifiedFile): ParsedSubmission[] {
+export function expandAggregate(f: IdentifiedFile, schema: FormSchema): ParsedSubmission[] {
+  const firstMatrix = schema.blocks.find((b) => b.kind === 'matrix')?.id;
   const json = f.workbook ? readChunkSheet(f.workbook, RECORDS_SHEET, RECORDS_MARK) : null;
   let recs: NormalizedSubmission[] = [];
   try { recs = json ? (JSON.parse(json) as NormalizedSubmission[]) : []; } catch { recs = []; }
@@ -107,6 +110,9 @@ export function expandAggregate(f: IdentifiedFile): ParsedSubmission[] {
       fileId, sheetName: '', org: r.org, header: {}, rows: [], excludedRows: [], extraColumns: [], authorNotes: [],
       unreadSheets: [], totalRowChecks: [], infos: [], questions: [], readCount: r.rows.length,
     };
-    return { ...r, fileId, file: f, read, sourceFile: `${f.file.fileName} › ${r.sourceFile}`, issues: [], autoFixed: [], fromAggregate: true };
+    // 계약의 matrix는 숫자 표 하나. 자유 제작형처럼 여러 개면 우리가 덧붙인 matrixBy를 쓴다
+    const by = (r as NormalizedSubmission & { matrixBy?: Record<string, CellValue[][]> }).matrixBy;
+    const matrices = by ?? (r.matrix && firstMatrix ? { [firstMatrix]: r.matrix } : undefined);
+    return { ...r, ...(matrices ? { matrices } : {}), fileId, file: f, read, sourceFile: `${f.file.fileName} › ${r.sourceFile}`, issues: [], autoFixed: [], fromAggregate: true };
   });
 }

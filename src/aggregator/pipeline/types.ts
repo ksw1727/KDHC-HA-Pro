@@ -82,7 +82,7 @@ export interface ReadResult {
   org?: string;
   header: Record<string, RawCell>;
   rows: ReadRow[];
-  matrix?: (RawCell | undefined)[][];   // 표형 [row][col]
+  matrices?: Record<string, (RawCell | undefined)[][]>;   // 숫자 표: 블록 id → [row][col] (자유 제작형은 여러 개)
   grid?: Record<string, RawCell>;       // 빈칸채우기 입력칸
   gridSpareRows?: ReadRow[];            // 빈칸채우기 여유 줄
   collectSheets?: string[];             // 시트 모으기: 모을 시트 이름
@@ -101,7 +101,7 @@ export interface ReadResult {
 export type Slot =
   | { part: 'header' | 'grid'; key: string }
   | { part: 'row' | 'spare'; key: string; sourceRow: number }
-  | { part: 'matrix'; key: string; r: number; c: number };
+  | { part: 'matrix'; key: string; blockId: string; r: number; c: number };
 
 export interface Issue {
   id: string;
@@ -127,6 +127,7 @@ export interface ParsedSubmission extends NormalizedSubmission {
   read: ReadResult;
   issues: Issue[];
   autoFixed: AutoFix[];
+  matrices?: Record<string, CellValue[][]>;   // 숫자 표 값: 블록 id → [row][col]
   fromAggregate?: boolean;         // 본부 취합본에서 풀어낸 제출 (②~④ 건너뜀)
 }
 

@@ -109,7 +109,7 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
     const p = s.parsed;
     const fin: FinalSubmission = {
       ...p, org: s.org, label: s.label, before: p.rows, header: { ...p.header }, rows: p.rows.map(copyRow),
-      matrix: p.matrix?.map((r) => [...r]), grid: p.grid ? { ...p.grid } : undefined, gridSpareRows: p.gridSpareRows?.map(copyRow),
+      matrices: p.matrices ? Object.fromEntries(Object.entries(p.matrices).map(([id, m]) => [id, m.map((r) => [...r])])) : undefined, grid: p.grid ? { ...p.grid } : undefined, gridSpareRows: p.gridSpareRows?.map(copyRow),
       marks: new Map(), removedRows: [], extraFromAlias: [],
     };
     let issues = p.issues.filter((i) => i.severity === 'value');
@@ -219,7 +219,7 @@ function getSlot(s: FinalSubmission, slot: Slot): CellValue {
     case 'grid': return s.grid?.[slot.key] ?? null;
     case 'row': return s.rows.find((r) => r.sourceRow === slot.sourceRow)?.values[slot.key] ?? null;
     case 'spare': return s.gridSpareRows?.find((r) => r.sourceRow === slot.sourceRow)?.values[slot.key] ?? null;
-    case 'matrix': return s.matrix?.[slot.r]?.[slot.c] ?? null;
+    case 'matrix': return s.matrices?.[slot.blockId]?.[slot.r]?.[slot.c] ?? null;
   }
 }
 
@@ -229,7 +229,7 @@ function setSlot(s: FinalSubmission, slot: Slot, v: CellValue) {
     case 'grid': (s.grid ??= {})[slot.key] = v; break;
     case 'row': { const r = s.rows.find((x) => x.sourceRow === slot.sourceRow); if (r) r.values[slot.key] = v; break; }
     case 'spare': { const r = s.gridSpareRows?.find((x) => x.sourceRow === slot.sourceRow); if (r) r.values[slot.key] = v; break; }
-    case 'matrix': if (s.matrix?.[slot.r]) s.matrix[slot.r][slot.c] = v; break;
+    case 'matrix': { const m = s.matrices?.[slot.blockId]; if (m?.[slot.r]) m[slot.r][slot.c] = v; break; }
   }
 }
 

@@ -169,3 +169,38 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
 });
 
 function firstRowOf(a: Awaited<ReturnType<typeof analyze>>, i: number) { return a.parsed[i].rows[0].sourceRow; }
+
+describe('자유 제작형', () => {
+  test('입력 칸·숫자 표·입력 줄을 칸 지도대로 읽고, 같은 틀·지사별 시트로 모으고, 다시 취합해도 같다', async () => {
+    const s = SAMPLE.free;   // 입력 칸 2(점검자·점검일) · 숫자 표 b2 · 입력 줄 영역 b3, 제출처 preset
+    const fill = (who: string, nums: number[], items: [string, string, number][]) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
+      const fm = model.cellMap.blocks.b1, mm = model.cellMap.blocks.b2, lm = model.cellMap.blocks.b3;
+      if (fm.kind === 'fields') ws.getCell(fm.cells.insp.valueCell).value = who;
+      if (mm.kind === 'matrix') nums.forEach((v, c) => { ws.getCell(mm.cells[0][c]).value = v; });
+      if (lm.kind === 'list') items.forEach(([item, res, cost], i) => {
+        ws.getCell(`${lm.columns.item}${lm.firstDataRow + i}`).value = item;
+        ws.getCell(`${lm.columns.res}${lm.firstDataRow + i}`).value = res;
+        ws.getCell(`${lm.columns.cost}${lm.firstDataRow + i}`).value = cost;
+      });
+    };
+    const orgs = s.org.orgs!;
+    const files = [
+      await makeFile(s, `${orgs[0]}.xlsx`, { orgName: orgs[0], fill: fill('홍길동', [1, 2], [['소화기', '적합', 1000]]) }),
+      await makeFile(s, `${orgs[1]}.xlsx`, { orgName: orgs[1], fill: fill('김철수', [3, 4], [['소화전', '부적합', 2000], ['비상등', '적합', 500]]) }),
+    ];
+    const { res, out, wb } = await runAll(files, emptyDecisions(), s.aggregations);
+    expect(res.included.map((x) => x.header.insp)).toEqual(['홍길동', '김철수']);
+    expect(res.included[1].matrices?.b2).toEqual([[3, 4]]);
+    expect(out.verify.lines.filter((l) => !l.ok)).toEqual([]);
+    const frame = wb.worksheets[0];
+    expect(frame.getCell('B9').value).toBe(4);   // 숫자 표 칸 합 1+3
+    expect(frame.getCell('C9').value).toBe(6);
+    const spread = wb.getWorksheet('지사별');
+    if (spread) expect((spread.getRow(1).values as unknown[]).slice(1, 3)).toEqual([orgLabelOf(s), '점검자']);
+
+    const again = await runAll([{ id: 'agg', fileName: '취합본.xlsx', bytes: out.bytes, lastModified: NOW.getTime() }]);
+    expect(again.res.included.map((x) => [x.org, x.header.insp, x.matrices?.b2, x.rows.length])).toEqual(res.included.map((x) => [x.org, x.header.insp, x.matrices?.b2, x.rows.length]));
+  });
+});
+
+function orgLabelOf(s: FormSchema) { return s.org.label?.trim() || '지사'; }

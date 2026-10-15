@@ -1,10 +1,10 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { AGGREGATION_LABELS, AGGREGATION_REQUIRED, availableAggregations, type AggregationId } from '@contract/aggregationIds';
+import { AGGREGATION_LABELS, availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
 import { blockFields, LAYOUT_LABELS, orgLabel, type Field, type FormSchema } from '@contract/schema';
 import { analyze, loadInputs, patchCopies, type Analysis, type InputFile } from './pipeline/run';
 import { resolve, STATUS_LABEL, type FileState, type Resolved } from './pipeline/resolve';
 import { preview, writeResult } from './pipeline/write';
-import { fmtTime } from './pipeline/aggregate';
+import { fmtTime, spreadName } from './pipeline/aggregate';
 import { normalize } from './pipeline/normalize';
 import { emptyDecisions, type Decisions, type Issue, type Question } from './pipeline/types';
 
@@ -152,7 +152,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const orgsTotal = schema.org.mode === 'preset' || (schema.org.orgs?.length ?? 0) > 0 ? (schema.org.orgs?.length ?? 0) : 0;
   const noMeta = analysis.identified.filter((f) => f.status === 'unreadable' && f.skipReason?.startsWith('한난MOA 양식 파일이 아니거나')).length;
   const available = availableAggregations(schema);
-  const required = AGGREGATION_REQUIRED[schema.layout];
+  const required = requiredAggregations(schema);
 
   const set = (patch: (x: Decisions) => Decisions) => setD((x) => patch(structuredClone(x)));
   const applyAll = () => set((x) => { for (const i of visibleIssues) if (!x.cellFix[i.id] && !rowOut(i)) x.cellFix[i.id] = { mode: i.proposal !== undefined ? 'proposal' : 'keep' }; return x; });
@@ -242,7 +242,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
         <div className="flex flex-wrap gap-4">
           {available.map((m) => {
             const req = required.includes(m);
-            const label = collect && m === 'collect-sheets' ? `목차 + ${L}별 시트` : m === 'spread' ? `${L}별 펼치기` : AGGREGATION_LABELS[m];
+            const label = collect && m === 'collect-sheets' ? `목차 + ${L}별 시트` : m === 'spread' ? `${spreadName(schema)} 펼치기` : AGGREGATION_LABELS[m];
             return (
               <label key={m} className="flex items-center gap-1.5">
                 <input type="checkbox" checked={req || methods.includes(m)} disabled={req} onChange={(e) => setMethods((x) => (e.target.checked ? [...x, m] : x.filter((y) => y !== m)))} />
