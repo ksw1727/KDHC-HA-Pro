@@ -1,5 +1,5 @@
-import { AGGREGATION_LABELS, availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
-import { orgLabel } from '@contract/schema';
+import { availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
+import { aggregationLabel, unitLabel } from '@contract/schema';
 import { freeAggregationChecks, type AggCheck } from '@contract/free';
 import type { Builder } from '../state/useBuilder';
 import { Button, Checkbox, cx } from '../ui/ui';
@@ -21,7 +21,7 @@ const STATUS: Record<AggCheck['status'], { icon: string; text: string; cls: stri
 export function AggPanel({ b, onGoto }: { b: Builder; onGoto?: (c: AggCheck) => void }) {
   const s = b.schema;
   const req = requiredAggregations(s);
-  const label = orgLabel(s);
+  const label = unitLabel(s);
   const checks = s.layout === 'free' ? new Map(freeAggregationChecks(s).map((c) => [c.id, c])) : null;
   return (
     <div className="flex flex-col gap-2">
@@ -32,7 +32,7 @@ export function AggPanel({ b, onGoto }: { b: Builder; onGoto?: (c: AggCheck) => 
           <div key={id} className={cx(c && on && c.status === 'fix' && 'rounded-box border border-[#f1d2ac] bg-[#fffcf7] p-1.5', c && on && c.status === 'no' && 'rounded-box border border-[#f3c2bd] bg-[#fffafa] p-1.5')}>
             <div className="flex items-center gap-2">
               <Checkbox checked={on} disabled={req.includes(id)} locked={req.includes(id)}
-                label={<b className="font-semibold">{AGGREGATION_LABELS[id].replace('지사', label)}</b>}
+                label={<b className="font-semibold">{aggregationLabel(s, id)}</b>}
                 onChange={() => b.act({ type: 'agg/toggle', id })} />
               {c && <span className={cx('ml-auto text-xs font-bold', STATUS[c.status].cls)}>{STATUS[c.status].icon} {STATUS[c.status].text}</span>}
             </div>

@@ -1,9 +1,8 @@
 import type { Block, Field, FormSchema } from '@contract/schema';
-import { orgLabel, validateSchema } from '@contract/schema';
+import { aggregationLabel, orgLabel, validateSchema } from '@contract/schema';
 import { resolveDate } from '@contract/fieldTypes';
 import { calcEntries, calcProblem, formulaErrors, scopeFor } from '@contract/formula';
 import { freeAggregationChecks, freeProblems } from '@contract/free';
-import { AGGREGATION_LABELS } from '@contract/aggregationIds';
 
 export type Where = 'meta' | 'layout' | 'fields' | 'aggregations' | 'org';
 
@@ -92,7 +91,7 @@ export function validateForExport(s: FormSchema): ExportProblem[] {
     for (const p of freeProblems(s)) out.push({ where: 'fields', blockId: p.blockId, key: p.key, message: [p.message, p.fix].filter(Boolean).join(' ') });
     for (const c of freeAggregationChecks(s)) {
       if (c.status === 'ok' || !s.aggregations.includes(c.id)) continue;
-      out.push({ where: 'aggregations', blockId: c.at?.blockId, key: c.at?.key, message: `${AGGREGATION_LABELS[c.id].replace('지사', orgLabel(s))}: ${c.why} ${c.fix ?? ''}`.trim() });
+      out.push({ where: 'aggregations', blockId: c.at?.blockId, key: c.at?.key, message: `${aggregationLabel(s, c.id)}: ${c.why} ${c.fix ?? ''}`.trim() });
     }
   }
   if (s.org.mode === 'preset' && !(s.org.orgs?.length)) {

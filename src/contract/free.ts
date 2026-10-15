@@ -1,5 +1,5 @@
 import type { FormSchema } from './schema';
-import { orgLabel } from './schema';
+import { unitLabel } from './schema';
 import { availableAggregations, requiredAggregations, type AggregationId } from './aggregationIds';
 import { addr, parseAddr } from './layout/address';
 import { josa } from './josa';
@@ -121,7 +121,7 @@ export function freeAggregationChecks(s: FormSchema): AggCheck[] {
   const inputs = regions.filter((r) => r.kind === 'fields');
   const matrices = regions.filter((r) => r.kind === 'matrix');
   const list = lists[0];
-  const label = s.org.mode === 'none' ? '파일' : orgLabel(s);
+  const label = unitLabel(s);
   const req = requiredAggregations(s);
   const names = (rs: FreeRegion[]) => rs.map((r) => r.name).join('·');
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LAYOUT_LABELS, blockFields, orgLabel, validateSchema } from '@contract/schema';
-import { AGGREGATION_LABELS } from '@contract/aggregationIds';
+import { LAYOUT_LABELS, aggregationLabel, blockFields, orgLabel, validateSchema } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
 import { useBuilder, type PanelId } from '../state/useBuilder';
 import { validateForExport, type ExportProblem } from '../state/validateForExport';
@@ -122,7 +121,7 @@ export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: ()
           {free ? <FreePanel b={b} sel={freeSel} onSel={setFreeSel} onMove={(g) => { setMoving(g); setFreeMsg(''); }} /> : <FieldsPanel b={b} />}
         </Panel>
         <Panel n={4} title="취합 방식" open={b.openPanel === 'aggregations'} onToggle={() => toggle('aggregations')} bad={bad('aggregations')}
-          summary={s.aggregations.map((a) => AGGREGATION_LABELS[a].replace('지사', label)).join(' · ')}>
+          summary={s.aggregations.map((a) => aggregationLabel(s, a)).join(' · ')}>
           <AggPanel b={b} onGoto={(c: AggCheck) => gotoFree(c.at)} />
         </Panel>
         <Panel n={5} title="제출처" open={b.openPanel === 'org'} onToggle={() => toggle('org')} bad={bad('org')}
