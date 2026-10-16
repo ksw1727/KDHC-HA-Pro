@@ -25,6 +25,18 @@ describe('③ 값 정리 (01-contract.md 5절 표)', () => {
     expect(run({ error: '#REF!' }, n)).toMatchObject({ status: 'invalid', issue: 'FORMULA_ERROR', value: null });
   });
 
+  test('number: 한글 자릿수 단위 (만·천·억)', () => {
+    const won = f('w', '교육비', { type: 'number', unit: '원' });
+    expect(run('3만원', won)).toMatchObject({ status: 'auto', value: 30000 });
+    expect(run('6만 5천원', won)).toMatchObject({ status: 'auto', value: 65000 });
+    expect(run('2.5만', won)).toMatchObject({ status: 'auto', value: 25000 });
+    expect(run('1억 2천만원', won)).toMatchObject({ status: 'auto', value: 120000000 });
+    expect(run('-3만', won)).toMatchObject({ status: 'auto', value: -30000 });
+    expect(run('약 6만', won)).toMatchObject({ status: 'proposal', proposal: 60000, issue: 'NOT_NUMBER' });
+    expect(run('10명 정도', f('n', '인원', { type: 'number' }))).toMatchObject({ status: 'proposal', proposal: 10 });
+    expect(run('3만~4만', won)).toMatchObject({ status: 'invalid', issue: 'NOT_NUMBER' });
+  });
+
   test('date', () => {
     const d = f('d', '참가일', { type: 'date' });
     expect(run(new Date(Date.UTC(2026, 10, 1)), d)).toEqual({ status: 'ok', value: '2026-11-01' });

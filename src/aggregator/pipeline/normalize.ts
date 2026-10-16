@@ -38,6 +38,22 @@ function text(raw: unknown, field: Field): NormalizeResult {
 const KO_NUM: Record<string, number> = { 하나: 1, 한: 1, 둘: 2, 두: 2, 셋: 3, 세: 3, 넷: 4, 네: 4, 다섯: 5, 여섯: 6, 일곱: 7, 여덟: 8, 아홉: 9, 열: 10 };
 const UNITS = ['개', '명', '건', '회', '원', '곳', '대', '권', '일', '시간', '%', 'kg', 'km', 'm'];
 const NUM_RE = /^[-+]?\d+(\.\d+)?$/;
+const APPROX_RE = /^약|(정도|쯤|가량|여)$/;
+const KO_SMALL: Record<string, number> = { 십: 10, 백: 100, 천: 1000 };
+const KO_BIG: Record<string, number> = { 만: 1e4, 억: 1e8 };
+
+/** 한글 자릿수 단위: "3만" 30000, "6만5천" 65000, "2.5만" 25000, "1억2천만" 120000000. 아니면 null */
+function koreanUnits(t: string): number | null {
+  if (!/^[-+]?(\d+(\.\d+)?|[십백천만억])+$/.test(t) || !/\d/.test(t) || !/[십백천만억]/.test(t)) return null;
+  const sign = t.startsWith('-') ? -1 : 1;
+  let total = 0, sec = 0, pending: number | null = null;
+  for (const [tok] of t.replace(/^[-+]/, '').matchAll(/\d+(?:\.\d+)?|[십백천만억]/g)) {
+    if (tok in KO_SMALL) { sec += (pending ?? 1) * KO_SMALL[tok]; pending = null; }
+    else if (tok in KO_BIG) { total += (sec + (pending ?? 0) || 1) * KO_BIG[tok]; sec = 0; pending = null; }
+    else pending = Number(tok);
+  }
+  return sign * Math.round((total + sec + (pending ?? 0)) * 1e6) / 1e6;
+}
 
 function number(raw: unknown, field: Field): NormalizeResult {
   let n: number;
@@ -46,8 +62,12 @@ function number(raw: unknown, field: Field): NormalizeResult {
   else {
     const s = String(raw).trim();
     let t = s.replace(/[,\s₩$]/g, '');
+    const approx = APPROX_RE.test(t);   // "약 6만", "10명 정도": 대략 적은 값이라 고친 값은 제안으로만
+    t = t.replace(/^약/, '').replace(/(정도|쯤|가량|여)$/, '');
     for (const u of [field.unit?.trim(), ...UNITS].filter(Boolean) as string[]) if (t.endsWith(u)) { t = t.slice(0, -u.length); break; }
-    if (NUM_RE.test(t)) { n = Number(t); status = 'auto'; }
+    const ko = NUM_RE.test(t) ? Number(t) : koreanUnits(t);
+    if (ko !== null && approx) return proposal(raw, ko, 'NOT_NUMBER');
+    if (ko !== null) { n = ko; status = 'auto'; }
     else {
       const words = s.replace(/^약\s*/, '').replace(/\s*(정도|여|쯤|가량|이상|이하|개|명|건)$/g, '').trim();
       if (words in KO_NUM) return proposal(raw, KO_NUM[words], 'NOT_NUMBER');
