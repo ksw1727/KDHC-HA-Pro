@@ -86,7 +86,10 @@ export interface ResultInput {
   now: Date;
 }
 
-export interface ResultFile { fileName: string; bytes: Uint8Array; verify: VerifyResult }
+export interface ResultFile {
+  fileName: string; bytes: Uint8Array; verify: VerifyResult;
+  review?: { fileName: string; bytes: Uint8Array };   // 검토 파일 (시트 모으기형이 아닐 때): 출처·상태가 붙은 같은 틀 시트 + 오류·파일목록·검산·판단 기록·메모
+}
 
 /** 검토 화면용: 같은 틀 시트를 만들어 검산까지 (내려받기 전) */
 export function preview(schema: FormSchema, res: Resolved, now: Date): { frame?: SameFrame; verify: VerifyResult } {
@@ -95,40 +98,81 @@ export function preview(schema: FormSchema, res: Resolved, now: Date): { frame?:
   return { frame, verify: verify(schema, res, frame.model) };
 }
 
-export async function writeResult({ schema, res, methods, workbooks, now }: ResultInput): Promise<ResultFile> {
+const newBook = (now: Date) => {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'KDHC-HA-Pro';
   wb.created = now;
   wb.modified = now;
+  return wb;
+};
+
+/**
+ * 취합 결과. 시트 모으기형이 아니면 파일 두 개:
+ * - 결과 파일: 같은 틀 시트(자동 칸은 제출처만, 값만) + 고른 방식(펼치기·제출 현황) + 다시 취합용 숨김 시트
+ * - 검토 파일: 같은 틀 시트(출처 파일·원본 줄·상태, 표시·메모) + 오류·파일목록·검산·판단 기록·메모·추가 칸
+ * 시트 모으기형은 지금처럼 한 파일(목차·제출처별 시트·제출 현황·파일목록·판단 기록).
+ */
+export async function writeResult({ schema, res, methods, workbooks, now }: ResultInput): Promise<ResultFile> {
+  const wb = newBook(now);
   const name = sheetNamer();
   const fieldOf = new Map<string, Field>();
   for (const b of schema.blocks) for (const f of blockFields(b)) fieldOf.set(f.key, f);
   const allowed = availableAggregations(schema);
   const chosen = [...new Set([...requiredAggregations(schema), ...methods])].filter((m) => allowed.includes(m));
   const collect = schema.layout === 'collect';
+  const title = schema.title.replace(/[\\/:*?"<>|]/g, '_').trim() || '양식';
+  const day = fmtTime(now.toISOString()).slice(0, 10);
   let vr: VerifyResult;
+  let review: ResultFile['review'];
 
   if (collect) {
     vr = verify(schema, res);
     writeCollectSheets(wb, schema, res, workbooks, name, now, true);
+    if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
+    writeReviewSheets(wb, name, schema, res, vr, fieldOf);
   } else {
-    // 1. 같은 틀 시트 (정보칸에 검산 결과를 넣으려고 한 번 만들어 검산한 뒤 다시 만든다)
+    // 검산은 출처가 다 붙은 같은 틀 시트로 한다
     const first = buildSameFrame(schema, res, '', now);
     vr = verify(schema, res, first.model);
+
+    // 결과 파일: 값만
+    const who = schema.org.mode === 'none' ? `파일 ${res.included.length}개` : `${orgLabel(schema)} ${res.included.length}곳${res.missingOrgs.length ? ` (미제출 ${res.missingOrgs.length}곳)` : ''}`;
+    const clean = buildSameFrame(schema, res, `취합일 ${day} · ${who}`, now, true);
+    writeModel(wb.addWorksheet(name(clean.model.sheetName)), clean.model, fieldOf);
+    if (chosen.includes('spread')) { const t = spreadTable(schema, res); writeTable(wb.addWorksheet(name(t.name)), t); }
+    if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
+
+    // 검토 파일
+    const rb = newBook(now);
+    const rname = sheetNamer();
     const errors = res.valueIssues.filter((i) => i.choice === '적혀 있던 값 그대로').length + res.crossIssues.length;
-    const info = `취합일 ${fmtTime(now.toISOString()).slice(0, 10)} · 파일 ${res.included.length}개 · 오류 ${errors} · 검산 ${vr.ok ? '일치' : '불일치'}`;
-    const frame = buildSameFrame(schema, res, info, now);
-    const ws = wb.addWorksheet(name(frame.model.sheetName));
+    const frame = buildSameFrame(schema, res, `취합일 ${day} · 파일 ${res.included.length}개 · 오류 ${errors} · 검산 ${vr.ok ? '일치' : '불일치'}`, now);
+    const ws = rb.addWorksheet(rname(frame.model.sheetName));
     writeModel(ws, frame.model, fieldOf);
     copyAuthorNotes(ws, schema, res, frame);
-
-    // 2. 선택한 방식 (METHODS 순서)
-    if (chosen.includes('spread')) { const t = spreadTable(schema, res); writeTable(wb.addWorksheet(name(t.name)), t); }
-    if (chosen.includes('collect-sheets')) writeCollectSheets(wb, schema, res, workbooks, name, now, false);
+    writeReviewSheets(rb, rname, schema, res, vr, fieldOf);
+    review = { fileName: `${title}_검토_${stamp(now)}.xlsx`, bytes: new Uint8Array(await rb.xlsx.writeBuffer()) };
   }
-  if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
 
-  // 3~8. 오류 · 파일목록 · 검산 · 판단 기록 · 메모 · 추가 칸
+  // _records (다시 취합용 원자료), _meta
+  const records: NormalizedSubmission[] = collect ? [] : res.included.map((s) => ({
+    ...(s.org ? { org: s.org } : {}), sourceFile: s.sourceFile, savedAt: s.savedAt, header: s.header, rows: s.rows,
+    ...matrixRecord(schema, s.matrices), ...(s.grid ? { grid: s.grid } : {}), ...(s.gridSpareRows ? { gridSpareRows: s.gridSpareRows } : {}),
+  }));
+  writeChunkSheet(wb, RECORDS_SHEET, RECORDS_MARK, JSON.stringify(records));
+  writeMeta(wb, await buildMeta({
+    contractVersion: CONTRACT_VERSION, kind: 'aggregate', schema, generatedAt: now.toISOString(),
+    aggregate: { includedSources: res.included.map((s) => ({ ...(s.org ? { org: s.org } : {}), sourceFile: s.sourceFile, savedAt: s.savedAt })), methods: chosen, recordsSheet: '_records' },
+  }));
+
+  const raw = await wb.xlsx.writeBuffer();
+  const bytes = await patchXlsx(raw as ArrayBuffer, { customProps: kdhcProps({ formId: schema.formId, formVersion: schema.formVersion, kind: 'aggregate' }) });
+  return { fileName: `${title}_취합_${stamp(now)}.xlsx`, bytes, verify: vr, ...(review ? { review } : {}) };
+}
+
+/** 오류 · 파일목록 · 검산 · 판단 기록 · 메모 · 추가 칸 */
+function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, schema: FormSchema, res: Resolved, vr: VerifyResult, fieldOf: Map<string, Field>) {
+  const collect = schema.layout === 'collect';
   const lbl = orgLabel(schema);
   const labelOf = (fileId: string) => res.files.find((f) => f.fileId === fileId)?.label ?? '';
   const nameOf = (fileId: string) => res.files.find((f) => f.fileId === fileId)?.fileName ?? '';
@@ -150,22 +194,6 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
     const extra = res.included.flatMap((s) => [...s.read.extraColumns, ...s.extraFromAlias].flatMap((e) => e.values.map((v) => [s.label, s.sourceFile, v.sourceRow, e.header, show(v.value)])));
     if (extra.length) writeTable(wb.addWorksheet(name('추가 칸')), table('추가 칸', [lbl, '파일명', '원본 줄', '칸 이름', '값'], extra));
   }
-
-  // 9. _records (다시 취합용 원자료), 10. _meta
-  const records: NormalizedSubmission[] = collect ? [] : res.included.map((s) => ({
-    ...(s.org ? { org: s.org } : {}), sourceFile: s.sourceFile, savedAt: s.savedAt, header: s.header, rows: s.rows,
-    ...matrixRecord(schema, s.matrices), ...(s.grid ? { grid: s.grid } : {}), ...(s.gridSpareRows ? { gridSpareRows: s.gridSpareRows } : {}),
-  }));
-  writeChunkSheet(wb, RECORDS_SHEET, RECORDS_MARK, JSON.stringify(records));
-  writeMeta(wb, await buildMeta({
-    contractVersion: CONTRACT_VERSION, kind: 'aggregate', schema, generatedAt: now.toISOString(),
-    aggregate: { includedSources: res.included.map((s) => ({ ...(s.org ? { org: s.org } : {}), sourceFile: s.sourceFile, savedAt: s.savedAt })), methods: chosen, recordsSheet: '_records' },
-  }));
-
-  const raw = await wb.xlsx.writeBuffer();
-  const bytes = await patchXlsx(raw as ArrayBuffer, { customProps: kdhcProps({ formId: schema.formId, formVersion: schema.formVersion, kind: 'aggregate' }) });
-  const title = schema.title.replace(/[\\/:*?"<>|]/g, '_').trim() || '양식';
-  return { fileName: `${title}_취합_${stamp(now)}.xlsx`, bytes, verify: vr };
 }
 
 /** 작성자가 단 엑셀 메모를 같은 틀 시트의 같은 칸에 옮긴다 (우리 [자동] 메모가 있으면 그 위에) */

@@ -99,8 +99,9 @@ describe('availableAggregations', () => {
   test('시트 모으기형은 같은 틀 시트 없음', () => {
     expect(availableAggregations(SAMPLE.collect)).toEqual(['collect-sheets', 'submission-status']);
   });
-  test('표형은 네 가지 모두', () => {
-    expect(availableAggregations(SAMPLE.matrix)).toEqual(['same-frame', 'spread', 'collect-sheets', 'submission-status']);
+  test('표형: 시트 모으기는 시트 모으기형에만', () => {
+    expect(availableAggregations(SAMPLE.matrix)).toEqual(['same-frame', 'spread', 'submission-status']);
+    expect(availableAggregations(SAMPLE.collect)).toEqual(['collect-sheets', 'submission-status']);
   });
 });
 

@@ -37,8 +37,14 @@ const statusOf = (s: FinalSubmission, sourceRow: number, keys: string[], flags: 
   return [...words].join(', ');
 };
 
-export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, today: Date): SameFrame {
+/**
+ * 같은 틀 시트. clean = 결과 파일용: 자동 칸은 제출처(식별 안 함이면 출처 파일)만, 표시·[자동] 메모 없이 값만.
+ * clean이 아니면 검토 파일용: 출처 파일·원본 줄·상태와 표시·메모까지.
+ */
+export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, today: Date, clean = false): SameFrame {
   const useOrg = schema.org.mode !== 'none';
+  // 결과 파일에 남길 자동 칸: 제출처 + 위쪽 정보 (식별 안 함이면 누가 냈는지 알 수 있게 출처 파일)
+  const keepSource = !clean || !useOrg;
   const fieldsBlock = schema.blocks.find((b) => b.kind === 'fields');
   const headerFields = fieldsBlock?.kind === 'fields' ? fieldsBlock.fields : [];
   const list = schema.blocks.find((b) => b.kind === 'list') as ListBlock | undefined;
@@ -48,7 +54,7 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
   const matrixNotes: Record<string, string> = {};
 
   if (list) {
-    data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...headerFields.map((f) => f.label), '출처 파일', '원본 줄', '상태'];
+    data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...headerFields.map((f) => f.label), ...(keepSource ? ['출처 파일'] : []), ...(clean ? [] : ['원본 줄', '상태'])];
     data.rows = [];
     const keys = list.columns.map((c) => c.key);
     for (const s of res.included) {
@@ -57,14 +63,14 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
       const head = headerFields.map((f) => headerAll[f.key] ?? null);
       const lead = useOrg ? [s.label] : [];
       if (!s.rows.length && headerFields.length) {
-        data.rows.push({ values: {}, auto: [...lead, ...head, s.sourceFile, null, '목록 없음'] });
+        data.rows.push({ values: {}, auto: [...lead, ...head, ...(keepSource ? [s.sourceFile] : []), ...(clean ? [] : [null, '목록 없음'])] });
         rowRefs.push({ fileId: s.fileId, sourceRow: -1 });
       }
       for (const r of s.rows) {
         data.rows.push({
           values: computeListRow(list, r.values, headerByName),
-          auto: [...lead, ...head, s.sourceFile, r.sourceRow, statusOf(s, r.sourceRow, keys, r.flags) || null],
-          marks: keys.flatMap((k) => { const m = s.marks.get(slotId({ part: 'row', key: k, sourceRow: r.sourceRow })); return m ? [{ key: k, mark: m.mark, note: m.note }] : []; }),
+          auto: [...lead, ...head, ...(keepSource ? [s.sourceFile] : []), ...(clean ? [] : [r.sourceRow, statusOf(s, r.sourceRow, keys, r.flags) || null])],
+          marks: clean ? [] : keys.flatMap((k) => { const m = s.marks.get(slotId({ part: 'row', key: k, sourceRow: r.sourceRow })); return m ? [{ key: k, mark: m.mark, note: m.note }] : []; }),
           muted: r.flags?.includes('hidden'),
           strike: r.flags?.includes('strike'),
         });
@@ -82,19 +88,19 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
         const v = s.matrices?.[m.id]?.[r]?.[c];
         if (typeof v === 'number') { sum += v; any = true; } else if (v !== null && v !== undefined) skipped++;
       }
-      if (skipped) matrixNotes[`${m.id}:${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
+      if (skipped && !clean) matrixNotes[`${m.id}:${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
       return any ? sum : null;
     }));
   }
 
   const grid = schema.blocks.find((b) => b.kind === 'grid');
   if (grid?.kind === 'grid') {
-    data.grid = res.gridOverlay;
+    data.grid = clean ? Object.fromEntries(Object.entries(res.gridOverlay).map(([k, v]) => [k, { value: v.value, note: '' }])) : res.gridOverlay;
     if (grid.spareRows > 0) {
-      data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), '출처 파일', '원본 줄'];
+      data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...(keepSource ? ['출처 파일'] : []), ...(clean ? [] : ['원본 줄'])];
       data.gridSpare = res.included.flatMap((s) => (s.gridSpareRows ?? []).map((r) => {
         spareRefs.push({ fileId: s.fileId, sourceRow: r.sourceRow });
-        return { values: (grid.spareColumns ?? []).map((f) => r.values[f.key] ?? null), auto: [...(useOrg ? [s.label] : []), s.sourceFile, r.sourceRow] };
+        return { values: (grid.spareColumns ?? []).map((f) => r.values[f.key] ?? null), auto: [...(useOrg ? [s.label] : []), ...(keepSource ? [s.sourceFile] : []), ...(clean ? [] : [r.sourceRow])] };
       }));
     }
   }

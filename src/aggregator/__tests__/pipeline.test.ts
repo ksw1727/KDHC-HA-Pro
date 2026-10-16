@@ -18,7 +18,9 @@ async function runAll(files: LoadedFile[], d: Decisions = emptyDecisions(), meth
   const out = await writeResult({ schema: a.base!.schema, res, methods, workbooks: new Map(a.identified.filter((x) => x.workbook).map((x) => [x.file.id, x.workbook!])), now: NOW });
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(out.bytes as unknown as ArrayBuffer);
-  return { a, res, out, wb };
+  const rb = new ExcelJS.Workbook();
+  if (out.review) await rb.xlsx.load(out.review.bytes as unknown as ArrayBuffer);
+  return { a, res, out, wb, rb };
 }
 
 const sheetNames = (wb: ExcelJS.Workbook) => wb.worksheets.filter((w) => w.state === 'visible').map((w) => w.name);
@@ -38,7 +40,7 @@ describe('목록형 전체 흐름', () => {
       await makeFile(list, '부산_옛.xlsx', { orgName: '부산', savedAt: new Date('2026-10-12T00:00:00Z'), fill: put([{ name: '박', qty: 1 }]) }),
       await makeFile(list, '부산_새.xlsx', { orgName: '부산', savedAt: new Date('2026-10-14T00:00:00Z'), fill: put([{ name: '최', qty: 2 }, { rank: '사원', qty: 3 }]) }),
     ];
-    const { res, out, wb } = await runAll(files, emptyDecisions(), ['same-frame', 'submission-status']);
+    const { res, out, wb, rb } = await runAll(files, emptyDecisions(), ['same-frame', 'submission-status']);
 
     expect(res.files.find((s) => s.fileName === '부산_옛.xlsx')?.status).toBe('duplicate');
     expect(res.missingOrgs).toEqual(['대구']);
@@ -47,14 +49,19 @@ describe('목록형 전체 흐름', () => {
     expect(out.verify.ok).toBe(true);
     expect(out.verify.lines.find((l) => l.check === '숫자 합계 · 수량')?.detail).toContain('같은 틀 시트 1015');
 
-    expect(sheetNames(wb)).toEqual([wb.worksheets[0].name, '제출 현황', '오류', '파일목록', '검산', '판단 기록']);
-    const ws = wb.worksheets[0];
+    // 결과 파일: 취합한 표 + 고른 시트만, 자동 칸은 제출처만 / 검토 파일: 출처·상태가 붙은 표 + 오류·파일목록·검산·판단 기록
+    expect(sheetNames(wb)).toEqual([wb.worksheets[0].name, '제출 현황']);
+    expect(sheetNames(rb)).toEqual([wb.worksheets[0].name, '오류', '파일목록', '검산', '판단 기록']);
+    expect(out.review?.fileName).toMatch(/_검토_/);
+    const headers = (b: ExcelJS.Workbook) => b.worksheets[0].getSheetValues().flat().filter((v) => v === '출처 파일' || v === '원본 줄' || v === '상태' || v === '지사');
+    expect(headers(wb)).toEqual(['지사']);
+    expect(headers(rb)).toEqual(['지사', '출처 파일', '원본 줄', '상태']);
     const meta = await readMeta(wb);
     expect(meta.status === 'ok' && meta.meta.kind).toBe('aggregate');
-    // 같은 틀 시트: 서울 2줄 + 부산 2줄, '약 10' 칸은 10 + 원래 값 메모
-    const qtyCells: unknown[] = [];
-    ws.eachRow((row) => row.eachCell((c) => { if (typeof c.note === 'string' && c.note.includes('약 10')) qtyCells.push(c.value); }));
-    expect(qtyCells).toEqual([10]);
+    // 같은 틀 시트: 서울 2줄 + 부산 2줄, '약 10' 칸은 10. 원래 값 메모는 검토 파일에만
+    const qtyCells = (b: ExcelJS.Workbook) => { const out: unknown[] = []; b.worksheets[0].eachRow((row) => row.eachCell((c) => { if (typeof c.note === 'string' && c.note.includes('약 10')) out.push(c.value); })); return out; };
+    expect(qtyCells(rb)).toEqual([10]);
+    expect(qtyCells(wb)).toEqual([]);
     const status = wb.getWorksheet('제출 현황')!.getSheetValues().slice(2).map((r) => (r as unknown[]).slice(1, 3));
     expect(status).toEqual([['서울', '제출'], ['부산', '중복'], ['부산', '제출'], ['대구', '미제출']]);
   });

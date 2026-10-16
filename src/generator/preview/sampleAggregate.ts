@@ -29,7 +29,8 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
   const useOrg = schema.org.mode !== 'none';
   const header = schema.blocks.flatMap((b) => (b.kind === 'fields' ? b.fields : []));
   const files = orgs.map((o) => (useOrg ? `${o}.xlsx` : `응답${orgs.indexOf(o) + 1}.xlsx`));
-  const autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...header.map((f) => f.label), '출처 파일'];
+  // 결과 파일과 같게: 자동 칸은 제출처(식별 안 함이면 출처 파일)만
+  const autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...header.map((f) => f.label), ...(useOrg ? [] : ['출처 파일'])];
   const data: AggregateFill = { autoColumns };
   const info = `취합 미리보기 · 가짜 데이터 ${orgs.length}곳`;
 
@@ -44,7 +45,7 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
     const headers = orgs.map((_, o) => computeHeader(schema, rawHeaders[o], rows.filter((__, i) => plan[i] === o)));
     data.rows = plan.map((o, i) => ({
       values: rows[i],
-      auto: [...(useOrg ? [orgs[o]] : []), ...header.map((f) => headers[o][f.key] ?? null), files[o]],
+      auto: [...(useOrg ? [orgs[o]] : []), ...header.map((f) => headers[o][f.key] ?? null), ...(useOrg ? [] : [files[o]])],
     }));
   }
   for (const matrix of schema.blocks) {
@@ -57,13 +58,13 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
   if (grid?.kind === 'grid') {
     data.grid = {};
     grid.rows.flat().forEach((c, i) => {
-      if (c.kind === 'input') data.grid![c.field.key] = { value: sampleValue(c.field, i), note: `출처: ${files[i % files.length]}` };
+      if (c.kind === 'input') data.grid![c.field.key] = { value: sampleValue(c.field, i), note: '' };
     });
     if (grid.spareRows > 0) {
-      data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), '출처 파일'];
+      data.autoColumns = [useOrg ? orgLabel(schema) : '출처 파일'];
       data.gridSpare = [0, 1].map((o) => ({
         values: (grid.spareColumns ?? []).map((f) => sampleValue(f, o)),
-        auto: [...(useOrg ? [orgs[o]] : []), files[o]],
+        auto: [useOrg ? orgs[o] : files[o]],
       }));
     }
   }

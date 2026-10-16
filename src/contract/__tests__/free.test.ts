@@ -66,7 +66,7 @@ describe('자유 제작형 취합 검사', () => {
   const check = (s: FormSchema, id: string) => freeAggregationChecks(s).find((c) => c.id === id)!;
 
   test('샘플은 모두 가능, 펼치기는 입력 칸·숫자 표·줄 수', () => {
-    expect(freeAggregationChecks(SAMPLE.free).map((c) => c.status)).toEqual(['ok', 'ok', 'ok', 'ok']);
+    expect(freeAggregationChecks(SAMPLE.free).map((c) => c.status)).toEqual(['ok', 'ok', 'ok']);
     expect(check(SAMPLE.free, 'spread').why).toContain('점검 내역');
     expect(freeProblems(SAMPLE.free)).toEqual([]);
   });

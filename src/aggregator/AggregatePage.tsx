@@ -165,8 +165,10 @@ export function AggregatePage({ formId }: { formId?: string }) {
       const at = new Date();
       const workbooks = new Map(analysis.identified.filter((f) => f.workbook).map((f) => [f.file.id, f.workbook!]));
       const out = await writeResult({ schema, res, methods, workbooks, now: at });
-      download(out.fileName, out.bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      download(out.fileName, out.bytes, XLSX);
       const names = [out.fileName];
+      if (out.review) { download(out.review.fileName, out.review.bytes, XLSX); names.push(`${out.review.fileName} (검토용: 출처·오류·검산)`); }
       if (wantCopies && manualCount && loaded) {
         const c = await patchCopies(res, loaded.files, withProposals, at, schema.title);
         if (c) { download(c.fileName, c.bytes, 'application/zip'); names.push(`${c.fileName} (회신 파일 ${c.count}개)`); }
@@ -238,7 +240,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
       )}
 
       <Card title="결과에 넣을 시트">
-        <p className="m-0 mb-2 text-xs text-sub">항상 들어가는 시트: {collect ? '파일목록 · 판단 기록 (그림이 빠진 시트가 있으면 오류 시트에 안내)' : `오류 · 파일목록 · 검산 · 판단 기록${noteCount ? ` · 메모(작성자가 단 엑셀 메모 ${noteCount}개)` : ''}`}</p>
+        <p className="m-0 mb-2 text-xs text-sub">{collect ? '항상 들어가는 시트: 파일목록 · 판단 기록 (그림이 빠진 시트가 있으면 오류 시트에 안내)' : `파일 두 개를 받아요. 결과 파일: 취합한 표와 아래에서 고른 시트. 검토 파일: 출처 파일·원본 줄·상태가 붙은 표와 오류 · 파일목록 · 검산 · 판단 기록${noteCount ? ` · 메모(작성자가 단 엑셀 메모 ${noteCount}개)` : ''}`}</p>
         <div className="flex flex-wrap gap-4">
           {available.map((m) => {
             const req = required.includes(m);

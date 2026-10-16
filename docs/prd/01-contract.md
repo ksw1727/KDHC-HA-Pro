@@ -389,7 +389,7 @@ export type IssueCode =
 export type AggregationId =
   | 'same-frame'         // 같은 틀 시트        — collect를 뺀 모든 layout, 항상 포함
   | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in(제출처 목록이 없을 때만), free(조건부 필수, 3.2)
-  | 'collect-sheets'     // 시트 모으기         — 모든 layout. collect는 항상 포함(목차 시트 포함)
+  | 'collect-sheets'     // 시트 모으기         — collect만, 항상 포함(목차 시트 포함)
   | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
