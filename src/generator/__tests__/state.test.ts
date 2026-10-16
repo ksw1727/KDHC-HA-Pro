@@ -149,7 +149,18 @@ describe('버전 (C3)', () => {
 
 describe('내보내기 전 검사 (C4)', () => {
   test('정상 양식은 문제 없음', () => {
-    for (const l of ['list', 'header-list', 'matrix', 'fill-in', 'collect'] as Layout[]) expect(validateForExport(ready(l))).toEqual([]);
+    for (const l of ['list', 'header-list', 'matrix', 'collect'] as Layout[]) expect(validateForExport(ready(l))).toEqual([]);
+  });
+  test('빈칸채우기: 제출처 목록이 있으면 입력칸마다 작성처가 있어야 한다', () => {
+    const s = ready('fill-in');
+    expect(validateForExport(s).map((p) => p.message)).toEqual([expect.stringContaining('작성처가 없는 입력칸이 2개')]);
+    const g = s.blocks[0];
+    if (g.kind !== 'grid') throw new Error('grid');
+    g.colLabels[2] = '서울';                                       // 머리글이 제출처 이름 → 자동
+    expect(validateForExport(s)).toEqual([]);
+    g.colLabels[2] = '입력';
+    for (const row of g.rows) for (const c of row) if (c.kind === 'input') c.field.owner = '부산';   // 직접 지정
+    expect(validateForExport(s)).toEqual([]);
   });
   test('제목·지사 목록·선택지·중복·최소최대', () => {
     let s = make('list');

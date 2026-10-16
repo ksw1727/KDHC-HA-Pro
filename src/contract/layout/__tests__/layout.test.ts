@@ -19,7 +19,7 @@ describe('주소 도우미', () => {
     expect(expandRange('A1:B2')).toEqual(['A1', 'B1', 'A2', 'B2']);
   });
   test('스타일 표에 모든 role이 있음', () => {
-    expect(Object.keys(ROLE_STYLES)).toHaveLength(12);
+    expect(Object.keys(ROLE_STYLES)).toHaveLength(13);
   });
 });
 

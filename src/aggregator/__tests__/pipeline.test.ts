@@ -144,6 +144,30 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
     expect(resolve(a.base!.schema, a.identified, a.parsed, d, ctx).gridOverlay.g1.value).toBe(100);
   });
 
+  test('빈칸채우기형 작성처: 지사마다 자기 칸만 읽고, 남의 칸에 적은 값은 쓰지 않고 알린다', async () => {
+    const g: FormSchema = {
+      ...structuredClone(SAMPLE['fill-in']), org: { mode: 'preset', orgs: ['서울', '부산'] },
+      blocks: [{
+        kind: 'grid', id: 'b1', colLabels: ['사업', '서울', '부산'], spareRows: 0,
+        rows: [[{ kind: 'fixed', value: '교육' }, { kind: 'input', field: f('s', '교육 · 서울', { type: 'number', required: true }) }, { kind: 'input', field: f('p', '교육 · 부산', { type: 'number', required: true }) }]],
+      }],
+    };
+    const fill = (vals: Record<string, number>) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
+      const gm = model.cellMap.blocks.b1;
+      if (gm.kind === 'grid') for (const [k, v] of Object.entries(vals)) ws.getCell(gm.inputCells[k]).value = v;
+    };
+    const a = await analyze([
+      await makeFile(g, '서울.xlsx', { orgName: '서울', fill: fill({ s: 10, p: 99 }) }),   // 부산 칸에 잘못 적음
+      await makeFile(g, '부산.xlsx', { orgName: '부산', fill: fill({}) }),                // 자기 칸(필수)을 비움
+    ], [], null, NOW);
+    const res = resolve(a.base!.schema, a.identified, a.parsed, emptyDecisions(), ctx);
+    expect(res.gridOverlay.s.value).toBe(10);
+    expect(res.gridOverlay.p).toBeUndefined();
+    expect(res.questions).toEqual([]);
+    expect(a.parsed[0].issues.find((i) => i.code === 'OTHER_ORG_CELL')?.message).toBe("부산 칸에 적은 값 '99'는 쓰지 않았어요 (이 칸은 부산이 채워요)");
+    expect(res.crossIssues.map((i) => i.message)).toEqual(['부산이 채우지 않은 필수 칸이에요']);
+  });
+
   test('시트 모으기형: 목차 + 제출처별 시트(모양 그대로), 일반 엑셀은 제외', async () => {
     const c = SAMPLE.collect;
     const shaped = (ws: ExcelJS.Worksheet) => {

@@ -1,4 +1,4 @@
-import { validateSchema, blockFields, aggregationLabel, type FormSchema } from '../schema';
+import { validateSchema, blockFields, aggregationLabel, gridOwners, type FormSchema } from '../schema';
 import { availableAggregations } from '../aggregationIds';
 import { SAMPLE, f } from './fixtures';
 
@@ -114,5 +114,27 @@ describe('aggregationLabel', () => {
     expect(aggregationLabel({ org: { mode: 'input', label: '부서' } }, 'spread')).toBe('부서별 펼치기');
     expect(aggregationLabel({ org: { mode: 'none', label: '부서' } }, 'spread')).toBe('파일별 펼치기');
     expect(aggregationLabel({ org: { mode: 'none' } }, 'same-frame')).toBe('같은 틀 시트');
+  });
+});
+
+describe('gridOwners (빈칸채우기 작성처)', () => {
+  const grid = (org: FormSchema['org'], owner?: string): Pick<FormSchema, 'org' | 'blocks'> => ({
+    org,
+    blocks: [{
+      kind: 'grid', id: 'b1', colLabels: ['사업', '수원 지사', '대구지사'], spareRows: 0,
+      rows: [
+        [{ kind: 'fixed', value: '교육' }, { kind: 'input', field: { key: 'a', label: 'a', type: 'number', required: false } }, { kind: 'input', field: { key: 'b', label: 'b', type: 'number', required: false, owner } }],
+        [{ kind: 'fixed', value: '강남지사' }, { kind: 'input', field: { key: 'c', label: 'c', type: 'number', required: false } }, { kind: 'blank' }],
+      ],
+    }],
+  });
+  const preset = { mode: 'preset' as const, orgs: ['강남지사', '수원지사', '대구지사'] };
+  it('직접 지정 > 열 머리글(띄어쓰기 무시) > 행 첫 칸', () => {
+    expect([...gridOwners(grid(preset))]).toEqual([['a', '수원지사'], ['b', '대구지사'], ['c', '수원지사']]);
+    expect(gridOwners(grid(preset, '강남지사')).get('b')).toBe('강남지사');
+  });
+  it('목록에 없는 직접 지정은 작성처 없음, preset이 아니면 비어 있다', () => {
+    expect(gridOwners(grid(preset, '청주지사')).has('b')).toBe(false);
+    expect(gridOwners(grid({ mode: 'none' })).size).toBe(0);
   });
 });

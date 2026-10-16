@@ -1,5 +1,6 @@
 import type { CellValue, RowRecord } from '@contract/meta';
-import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
+import { blockFields, gridOwners, orgLabel, sameOrg, type Field, type FormSchema } from '@contract/schema';
+import { josa } from '@contract/josa';
 import { normalize, type Ctx } from './normalize';
 import { slotId } from './parse';
 import type { Decisions, IdentifiedFile, Issue, ParsedSubmission, Question, Slot } from './types';
@@ -169,13 +170,17 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
   const gridOverlay: Resolved['gridOverlay'] = {};
   const crossIssues: Issue[] = [];
   const grid = schema.blocks.find((b) => b.kind === 'grid');
+  const owners = gridOwners(schema);
   if (grid?.kind === 'grid') {
     for (const cell of grid.rows.flat()) {
       if (cell.kind !== 'input') continue;
       const key = cell.field.key;
       const got = included.filter((x) => x.grid?.[key] !== undefined && x.grid[key] !== null).map((x) => ({ x, v: x.grid![key] }));
+      const owner = owners.get(key);
       if (!got.length) {
-        if (cell.field.required) crossIssues.push({ id: `grid-required:${key}`, fileId: '', code: 'REQUIRED_EMPTY', severity: 'value', sheet: '', location: cell.field.label, fieldLabel: cell.field.label, message: '어느 파일에도 채워지지 않은 필수 칸이에요' });
+        // 작성처가 정해진 칸: 그 제출처가 냈는데 비었을 때만 (안 냈으면 미제출로 보인다)
+        const ownerIn = owner ? included.find((x) => x.org && sameOrg(x.org, owner)) : undefined;
+        if (cell.field.required && (!owner || ownerIn)) crossIssues.push({ id: `grid-required:${key}`, fileId: ownerIn?.fileId ?? '', code: 'REQUIRED_EMPTY', severity: 'value', sheet: '', location: cell.field.label, fieldLabel: cell.field.label, message: owner ? `${josa(owner, '이', '가')} 채우지 않은 필수 칸이에요` : '어느 파일에도 채워지지 않은 필수 칸이에요' });
         continue;
       }
       const distinct = [...new Set(got.map((g) => JSON.stringify(g.v)))];

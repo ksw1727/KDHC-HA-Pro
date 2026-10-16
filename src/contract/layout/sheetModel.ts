@@ -3,7 +3,8 @@ import type { CellMap, CellValue } from '../meta';
 
 export type Role =
   | 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
-  | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc';
+  | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc'
+  | 'other-input';   // 빈칸채우기: 다른 제출처가 채우는 칸 (이 파일에서는 잠금)
 
 export type Mark = 'auto-fixed' | 'error' | 'muted' | 'strike';
 

@@ -59,6 +59,8 @@ export interface Field {
   options?: string[];                         // select (1개 이상, 중복 불가)
   pattern?: 'phone' | 'mobile' | 'email' | 'bizno';   // pattern (필수)
   formula?: string;                           // calc (필수). 칸 이름으로 쓴 계산식 (3.1절)
+
+  owner?: string;         // 빈칸채우기 입력 칸의 작성처(제출처 이름). org.mode = 'preset'일 때만. 없으면 머리글로 자동
 }
 
 export interface FieldsBlock { kind: 'fields'; id: string; title?: string; fields: Field[]; }
@@ -81,7 +83,12 @@ export interface MatrixBlock {
   calcCols?: Field[];      // 계산 열 (type 'calc'). 표 오른쪽, 계 열 다음
 }
 
-/** 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내고 채운 칸을 겹쳐 합친다. */
+/**
+ * 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내되, 입력칸마다 채우는 제출처(작성처)가 정해져 있다.
+ * 작성처 = gridOwners(schema): 직접 지정(field.owner) > 열 머리글 > 행 첫 칸이 제출처 목록의 이름과 같으면(띄어쓰기 무시, sameOrg) 그 제출처.
+ * 제출처 파일에서 다른 제출처 칸은 회색·잠금(role 'other-input'). 취합은 칸마다 작성처 파일의 값만 쓴다.
+ * org.mode가 'preset'이 아니면 작성처가 없고, 채운 칸을 겹쳐 합친다(다른 값이면 묻기).
+ */
 export type GridCell =
   | { kind: 'fixed'; value: string | number }   // 본사가 미리 채운 고정 내용 (잠금)
   | { kind: 'input'; field: Field }             // 작성자가 채우는 칸 (field.key는 블록 안에서 유일)
@@ -420,7 +427,8 @@ interface ModelCell {
   value?: string | number;
   formula?: string;                  // 합계 행·열 등
   role: 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
-      | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc';
+      | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc'
+      | 'other-input';                 // 빈칸채우기: 다른 제출처가 채우는 칸 (빈 양식에서 회색·잠금)
   required?: boolean;
   numFmt?: string;
   wrap?: boolean;

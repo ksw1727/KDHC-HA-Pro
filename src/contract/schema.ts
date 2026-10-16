@@ -22,6 +22,8 @@ export interface Field {
   options?: string[];                         // select (1개 이상, 중복 불가)
   pattern?: 'phone' | 'mobile' | 'email' | 'bizno';   // pattern (필수)
   formula?: string;                           // calc (필수). 칸 이름으로 쓴 계산식, 예: '[여] ÷ ([남] + [여]) × 100' (3.1절)
+
+  owner?: string;         // 빈칸채우기 입력 칸의 작성처(제출처 이름). org.mode = 'preset'일 때만. 없으면 머리글로 자동 (gridOwners)
 }
 
 export interface FieldsBlock { kind: 'fields'; id: string; title?: string; fields: Field[]; }
@@ -139,6 +141,30 @@ export function blockFields(block: Block): Field[] {
 }
 
 export const isCalc = (f: Pick<Field, 'type'>) => f.type === 'calc';
+
+/** 제출처 이름 비교: 띄어쓰기 무시 ("수원 지사" = "수원지사") */
+export const sameOrg = (a: string, b: string) => a.replace(/\s+/g, '') === b.replace(/\s+/g, '');
+
+/**
+ * 빈칸채우기 입력 칸마다 작성처: 입력 칸 key → 제출처 이름. org.mode = 'preset'일 때만.
+ * 직접 지정(field.owner) > 열 머리글 > 행 첫 칸 순서로, 제출처 목록의 이름과 같으면 그 제출처. 아무것도 아니면 빠진다.
+ */
+export function gridOwners(schema: Pick<FormSchema, 'org' | 'blocks'>): Map<string, string> {
+  const out = new Map<string, string>();
+  if (schema.org.mode !== 'preset') return out;
+  const orgs = schema.org.orgs ?? [];
+  const find = (s: unknown) => (typeof s === 'string' && s.trim() ? orgs.find((o) => sameOrg(o, s)) : undefined);
+  for (const b of schema.blocks) {
+    if (b.kind !== 'grid') continue;
+    b.rows.forEach((row, r) => row.forEach((cell, c) => {
+      if (cell.kind !== 'input') return;
+      const first = b.rows[r][0];
+      const owner = find(cell.field.owner) ?? (cell.field.owner ? undefined : find(b.colLabels[c]) ?? (first?.kind === 'fixed' ? find(first.value) : undefined));
+      if (owner) out.set(cell.field.key, owner);
+    }));
+  }
+  return out;
+}
 
 export function orgLabel(schema: Pick<FormSchema, 'org'>): string {
   return schema.org.label?.trim() || '지사';
