@@ -138,3 +138,23 @@ describe('gridOwners (빈칸채우기 작성처)', () => {
     expect(gridOwners(grid({ mode: 'none' })).size).toBe(0);
   });
 });
+
+describe('빈칸채우기 작성처는 지사가 아니어도 된다', () => {
+  it('담당자별 행: 행 첫 칸이 담당자 이름이면 그 사람 칸, 펼치기는 빠진다', () => {
+    const s = {
+      layout: 'fill-in' as const,
+      org: { mode: 'preset' as const, label: '담당자', orgs: ['김현우', '박소영'] },
+      blocks: [{
+        kind: 'grid' as const, id: 'b1', colLabels: ['담당자', '점검 건수', '비고'], spareRows: 0,
+        rows: ['김현우', '박 소영'].map((n, r) => [
+          { kind: 'fixed' as const, value: n },
+          { kind: 'input' as const, field: { key: `n${r}`, label: 'n', type: 'number' as const, required: false } },
+          { kind: 'input' as const, field: { key: `m${r}`, label: 'm', type: 'text' as const, required: false } },
+        ]),
+      }],
+    };
+    expect([...gridOwners(s)]).toEqual([['n0', '김현우'], ['m0', '김현우'], ['n1', '박소영'], ['m1', '박소영']]);
+    expect(availableAggregations(s)).not.toContain('spread');
+    expect(availableAggregations({ ...s, org: { mode: 'none' } })).toContain('spread');
+  });
+});

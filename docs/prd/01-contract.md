@@ -84,6 +84,8 @@ export interface MatrixBlock {
 }
 
 /**
+ * 작성처는 지사에 한정하지 않는다: ⑤ 제출처 목록(지사·부서·담당자 등 무엇이든)의 이름과 맞춘다. 예: 열마다 지사, 행마다 담당자.
+ * 제출처 목록이 있으면 칸이 겹치지 않아 같은 틀 시트 한 장에 모두 들어가므로 펼치기(spread)는 쓰지 않는다.
  * 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내되, 입력칸마다 채우는 제출처(작성처)가 정해져 있다.
  * 작성처 = gridOwners(schema): 직접 지정(field.owner) > 열 머리글 > 행 첫 칸이 제출처 목록의 이름과 같으면(띄어쓰기 무시, sameOrg) 그 제출처.
  * 제출처 파일에서 다른 제출처 칸은 회색·잠금(role 'other-input'). 취합은 칸마다 작성처 파일의 값만 쓴다.
@@ -386,7 +388,7 @@ export type IssueCode =
 ```ts
 export type AggregationId =
   | 'same-frame'         // 같은 틀 시트        — collect를 뺀 모든 layout, 항상 포함
-  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in, free(조건부 필수, 3.2)
+  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in(제출처 목록이 없을 때만), free(조건부 필수, 3.2)
   | 'collect-sheets'     // 시트 모으기         — 모든 layout. collect는 항상 포함(목차 시트 포함)
   | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 

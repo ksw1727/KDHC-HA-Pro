@@ -263,7 +263,8 @@ export function validateSchema(x: unknown): ValidateResult {
     for (const r of requiredAggregations(s)) if (!s.aggregations.includes(r)) errors.push(`필수 취합 방식이 빠졌어요: ${r}`);
     if (isObj(s.org)) {
       const allowed = availableAggregations(s);
-      for (const a of s.aggregations) if (!allowed.includes(a)) errors.push(`이 양식에서 쓸 수 없는 취합 방식: ${a}`);
+      // 예전 빈칸채우기 양식의 spread는 받아 주고 쓰지 않는다 (작성처 도입 전 파일)
+      for (const a of s.aggregations) if (!allowed.includes(a) && !(a === 'spread' && s.layout === 'fill-in')) errors.push(`이 양식에서 쓸 수 없는 취합 방식: ${a}`);
     }
   }
 

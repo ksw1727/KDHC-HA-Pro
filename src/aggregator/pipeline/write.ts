@@ -4,7 +4,7 @@ import type { CellValue, NormalizedSubmission } from '@contract/meta';
 import { buildMeta, writeChunkSheet, writeMeta } from '@contract/metaIO';
 import { kdhcProps, patchXlsx } from '@contract/xlsxPatch';
 import { CONTRACT_VERSION } from '@contract/version';
-import { requiredAggregations, type AggregationId } from '@contract/aggregationIds';
+import { availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
 import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
 import { buildSameFrame, fmtTime, spreadTable, statusTable, type SameFrame, type Table } from './aggregate';
 import { RECORDS_MARK, RECORDS_SHEET } from './parse';
@@ -103,7 +103,8 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
   const name = sheetNamer();
   const fieldOf = new Map<string, Field>();
   for (const b of schema.blocks) for (const f of blockFields(b)) fieldOf.set(f.key, f);
-  const chosen = [...new Set([...requiredAggregations(schema), ...methods])];
+  const allowed = availableAggregations(schema);
+  const chosen = [...new Set([...requiredAggregations(schema), ...methods])].filter((m) => allowed.includes(m));
   const collect = schema.layout === 'collect';
   let vr: VerifyResult;
 

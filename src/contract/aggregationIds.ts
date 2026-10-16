@@ -48,6 +48,8 @@ export function availableAggregations(schema: Pick<FormSchema, 'layout' | 'org'>
   return AGGREGATION_IDS.filter((id) => {
     if (!AGGREGATION_SUPPORT[id].includes(schema.layout)) return false;
     if (id === 'submission-status' && schema.org.mode === 'none') return false;
+    // 빈칸채우기 + 제출처 목록: 칸마다 작성처가 정해져 같은 틀 시트 한 장에 모두 들어가므로 펼치기는 필요 없다
+    if (id === 'spread' && schema.layout === 'fill-in' && schema.org.mode === 'preset') return false;
     return true;
   });
 }
