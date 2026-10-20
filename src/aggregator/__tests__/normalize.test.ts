@@ -37,6 +37,14 @@ describe('③ 값 정리 (01-contract.md 5절 표)', () => {
     expect(run('3만~4만', won)).toMatchObject({ status: 'invalid', issue: 'NOT_NUMBER' });
   });
 
+  test('number: 천 단위가 아닌 쉼표는 확인을 받는다', () => {
+    const n = f('n', '수량', { type: 'number' });
+    expect(run('1,2', n)).toMatchObject({ status: 'proposal', proposal: 12, issue: 'NOT_NUMBER' });
+    expect(run('12,34', n)).toMatchObject({ status: 'proposal', proposal: 1234 });
+    expect(run('1,200', n)).toMatchObject({ status: 'auto', value: 1200 });
+    expect(run('12,345,678원', f('w', '금액', { type: 'number', unit: '원' }))).toMatchObject({ status: 'auto', value: 12345678 });
+  });
+
   test('date', () => {
     const d = f('d', '참가일', { type: 'date' });
     expect(run(new Date(Date.UTC(2026, 10, 1)), d)).toEqual({ status: 'ok', value: '2026-11-01' });

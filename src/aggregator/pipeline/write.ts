@@ -8,7 +8,7 @@ import { availableAggregations, requiredAggregations, type AggregationId } from 
 import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
 import { FIELD_TYPES } from '@contract/fieldTypes';
 import { buildSameFrame, fmtTime, spreadTable, statusTable, type SameFrame, type Table } from './aggregate';
-import { RECORDS_MARK, RECORDS_SHEET } from './parse';
+import { RECORDS_MARK, RECORDS_SHEET, slotId } from './parse';
 import { STATUS_LABEL, type FinalSubmission, type Resolved } from './resolve';
 import { verify, type VerifyResult } from './verify';
 
@@ -194,6 +194,7 @@ function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, sc
     ...res.valueIssues.map((i) => [labelOf(i.fileId), nameOf(i.fileId), i.location, i.fieldLabel ?? '', show(i.raw), i.message, i.choice]),
     ...res.crossIssues.map((i) => { const f = res.included.find((x) => x.fileId === i.fileId); return [f?.label ?? '(전체)', f?.sourceFile ?? '', i.location, i.fieldLabel ?? '', '', i.message, '그대로']; }),
     ...infoIssues.map((i) => [labelOf(i.fileId), nameOf(i.fileId), i.location, '', '', i.message, '자동']),
+    ...res.files.filter((f) => f.orgBlank && f.status === 'included').map((f) => [f.label, f.fileName, `${lbl}명 칸`, '', '', `${lbl}명이 비어 있어 파일 이름으로 넣었어요`, '그대로']),
   ];
   if (!collect || errRows.length) writeTable(wb.addWorksheet(name('오류')), table('오류', [lbl, '파일명', '위치', '항목', '입력값', '내용', '처리'], errRows));
 
@@ -202,6 +203,9 @@ function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, sc
   writeTable(wb.addWorksheet(name('판단 기록')), table('판단 기록', ['항목', '대상', '결정', '기본값 적용'], res.log.map((l) => [l.what, l.target, l.choice, l.defaulted ? '예' : ''])));
 
   if (!collect) {
+    // 프로그램이 알아서 고친 값 (1,200 → 1200, 01012345678 → 010-1234-5678 등): 원래 값과 고친 값
+    const fixed = res.included.flatMap((s) => s.autoFixed.filter((a) => s.marks.get(slotId(a.slot))?.mark === 'auto-fixed').map((a) => [s.label, s.sourceFile, a.address, fieldOf.get(a.slot.key)?.label ?? '', show(a.from), typeof a.to === 'number' ? a.to : show(a.to)]));
+    if (fixed.length) writeTable(wb.addWorksheet(name('자동 정리')), table('자동 정리', [lbl, '파일명', '위치', '항목', '원래 값', '고친 값'], fixed));
     const notes = res.included.flatMap((s) => s.read.authorNotes.map((n) => [s.label, s.sourceFile, n.address, n.fieldKey ? fieldOf.get(n.fieldKey)?.label ?? '' : '', n.sourceRow ?? null, n.text]));
     if (notes.length) writeTable(wb.addWorksheet(name('메모')), table('메모', [lbl, '파일명', '위치', '항목', '원본 줄', '메모 내용'], notes));
     const extra = res.included.flatMap((s) => [...s.read.extraColumns.filter((e) => !s.droppedExtra.includes(e.header)), ...s.extraFromAlias].flatMap((e) => e.values.map((v) => [s.label, s.sourceFile, v.sourceRow, e.header, show(v.value)])));

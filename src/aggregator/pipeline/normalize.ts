@@ -66,7 +66,9 @@ function number(raw: unknown, field: Field): NormalizeResult {
     t = t.replace(/^약/, '').replace(/(정도|쯤|가량|여)$/, '');
     for (const u of [field.unit?.trim(), ...UNITS].filter(Boolean) as string[]) if (t.endsWith(u)) { t = t.slice(0, -u.length); break; }
     const ko = NUM_RE.test(t) ? Number(t) : koreanUnits(t);
-    if (ko !== null && approx) return proposal(raw, ko, 'NOT_NUMBER');
+    // 쉼표가 천 단위 자리(1,200·12,345,678)가 아니면("1,2") 1.2인지 12인지 알 수 없어 제안으로만
+    const oddComma = (s.match(/\d[\d,]*\d/g) ?? []).some((g) => g.includes(',') && !/^\d{1,3}(,\d{3})+$/.test(g));
+    if (ko !== null && (approx || oddComma)) return proposal(raw, ko, 'NOT_NUMBER');
     if (ko !== null) { n = ko; status = 'auto'; }
     else {
       const words = s.replace(/^약\s*/, '').replace(/\s*(정도|여|쯤|가량|이상|이하|개|명|건)$/g, '').trim();

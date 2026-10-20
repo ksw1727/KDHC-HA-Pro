@@ -164,6 +164,8 @@ export function statusTable(schema: FormSchema, res: Resolved): Table {
   const errCount = (id: string) => res.valueIssues.filter((i) => i.fileId === id && i.choice === '적혀 있던 값 그대로').length;
   const fixCount = (id: string) => res.valueIssues.filter((i) => i.fileId === id && i.choice !== '적혀 있던 값 그대로').length;
   const rows: CellValue[][] = [];
+  // 줄을 받는 양식이 아니면(표형·빈칸채우기형 등) 반영 행 수는 비운다 (0으로 보이면 아무것도 안 들어간 것 같아서)
+  const hasRows = schema.blocks.some((b) => b.kind === 'list' || (b.kind === 'grid' && b.spareRows > 0));
   for (const s of res.files) {
     if (s.status === 'unreadable' || s.status === 'other-form' || s.status === 'duplicate-content') {
       rows.push([s.label, '제외', s.fileName, fmtTime(s.savedAt), 0, 0, 0, s.reason ?? STATUS_LABEL[s.status]]);
@@ -172,7 +174,7 @@ export function statusTable(schema: FormSchema, res: Resolved): Table {
     const fin = res.included.find((x) => x.fileId === s.fileId);
     const count = fin ? fin.rows.length + (fin.gridSpareRows?.length ?? 0) : 0;
     const state = s.status === 'included' ? (fin && !count && schema.blocks.some((b) => b.kind === 'list') ? '해당 없음' : '제출') : s.status === 'duplicate' ? '중복' : '제외';
-    rows.push([s.label, state, s.fileName, fmtTime(s.savedAt), count, errCount(s.fileId), fixCount(s.fileId), s.status === 'included' ? '포함' : s.reason ?? STATUS_LABEL[s.status]]);
+    rows.push([s.label, state, s.fileName, fmtTime(s.savedAt), hasRows ? count : null, errCount(s.fileId), fixCount(s.fileId), s.status === 'included' ? '포함' : s.reason ?? STATUS_LABEL[s.status]]);
   }
   for (const o of res.missingOrgs) rows.push([o, '미제출', null, null, null, null, null, null]);
   return {

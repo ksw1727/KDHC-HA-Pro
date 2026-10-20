@@ -144,7 +144,8 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const allValueIssues = analysis.parsed.filter((p) => included.has(p.fileId)).flatMap((p) => p.issues.filter((i) => i.severity === 'value'));
   const rowOut = (i: Issue) => !!(i.slot && 'sourceRow' in i.slot && d.excludeRow[`${i.fileId}:${i.slot.sourceRow}`]);
   const visibleIssues = allValueIssues.filter((i) => rowOut(i) || res.valueIssues.some((v) => v.id === i.id));
-  const pending = visibleIssues.filter((i) => !rowOut(i) && !d.cellFix[i.id]).length + res.questions.filter((q) => d.answers[q.id] === undefined).length;
+  const pending = visibleIssues.filter((i) => !rowOut(i) && !d.cellFix[i.id]).length + res.questions.filter((q) => d.answers[q.id] === undefined).length
+    + res.files.filter((f) => f.orgBlank && f.needsOrgLink && f.status === 'included').length;   // 제출처 이름이 빈 파일
   const manualCount = Object.values(d.cellFix).filter((x) => x?.mode === 'manual').length;
   const autoCount = res.included.reduce((s, x) => s + x.autoFixed.length, 0);
   const noteCount = res.included.reduce((s, x) => s + x.read.authorNotes.length, 0);
@@ -374,7 +375,7 @@ function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved;
             const fin = res.included.find((x) => x.fileId === s.fileId);
             const issues = res.valueIssues.filter((i) => i.fileId === s.fileId).length;
             const infos = s.parsed?.issues.filter((i) => i.severity === 'info') ?? [];
-            const chip = s.needsOrgLink ? <Chip tone="warn">{L} 확인</Chip> : issues && s.status === 'included' ? <Chip tone="req">확인할 칸 {issues}</Chip>
+            const chip = s.needsOrgLink ? <Chip tone="warn">{s.orgBlank ? `${L}명 없음` : `${L} 확인`}</Chip> : issues && s.status === 'included' ? <Chip tone="req">확인할 칸 {issues}</Chip>
               : s.dupGroup && s.status === 'included' ? <Chip tone="pri">중복 {s.dupGroup.length}개</Chip>
               : infos.some((i) => ['COLUMNS_REORDERED', 'HEADER_MOVED', 'COLUMN_MISSING', 'LABEL_MOVED'].includes(i.code)) && s.status === 'included' ? <Chip>구조 변경</Chip>
               : <Chip tone={STATUS_TONE[s.status]}>{s.status === 'included' && fin && !fin.rows.length && schema.blocks.some((b) => b.kind === 'list') ? '해당 없음' : s.status === 'included' ? '정상' : STATUS_LABEL[s.status]}</Chip>;
@@ -392,6 +393,10 @@ function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved;
                       <select aria-label="반영할 파일" value={s.fileId} onChange={(e) => set((x) => { x.duplicateChoice[s.org!] = e.target.value; return x; })}>
                         {s.dupGroup.map((id) => { const f = res.files.find((y) => y.fileId === id)!; return <option key={id} value={id}>{f.fileName} ({fmtTime(f.savedAt).slice(5)})</option>; })}
                       </select>
+                    )}
+                    {s.parsed && orgs.length === 0 && (s.needsOrgLink || d.orgLink[s.fileId]) && (
+                      <input aria-label={`${L} 이름 입력`} placeholder={`${L} 이름`} defaultValue={d.orgLink[s.fileId] ?? ''} className="w-28 rounded border border-line px-1.5 py-0.5"
+                        onBlur={(e) => { const v = e.target.value.trim(); set((x) => { if (v) x.orgLink[s.fileId] = v; else delete x.orgLink[s.fileId]; return x; }); }} />
                     )}
                     {s.parsed && orgs.length > 0 && (s.needsOrgLink || d.orgLink[s.fileId]) && (
                       <select aria-label={`연결할 ${L}`} value={d.orgLink[s.fileId] ?? ''} onChange={(e) => set((x) => { if (e.target.value) x.orgLink[s.fileId] = e.target.value; else delete x.orgLink[s.fileId]; return x; })}>

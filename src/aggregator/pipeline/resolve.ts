@@ -37,6 +37,7 @@ export interface FileState {
   savedAt: string;
   parsed?: ParsedSubmission;
   needsOrgLink: boolean;
+  orgBlank?: boolean;                              // 제출처 이름 칸이 비어 파일 이름으로 대신함
   dupGroup?: string[];                             // 같은 지사 파일들 (fileId)
 }
 
@@ -71,9 +72,11 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
   for (const p of parsed) {
     const linked = d.orgLink[p.fileId];
     const org = useOrg ? (linked ?? p.org) : undefined;
-    const needsOrgLink = useOrg && !linked && orgs.length > 0 && (!org || !orgs.includes(org));
+    // 이름 칸이 비었으면 목록이 없어도 확인을 받는다 (그대로 두면 파일 이름이 제출처 이름이 된다)
+    const needsOrgLink = useOrg && !linked && (!org || (orgs.length > 0 && !orgs.includes(org)));
+    const orgBlank = useOrg && !org;
     if (linked) log.push({ what: `${orgLabel(schema)} 연결`, target: p.sourceFile, choice: linked, defaulted: false });
-    const base: FileState = { fileId: p.fileId, fileName: p.sourceFile, label: org ?? p.sourceFile, org, status: 'included', savedAt: p.savedAt, parsed: p, needsOrgLink };
+    const base: FileState = { fileId: p.fileId, fileName: p.sourceFile, label: org ?? p.sourceFile, org, status: 'included', savedAt: p.savedAt, parsed: p, needsOrgLink, ...(orgBlank ? { orgBlank } : {}) };
     const missing = schema.layout === 'collect' ? !p.read.collectSheets?.length : p.read.infos.some((i) => i.code === 'FORM_SHEET_MISSING');
     if (missing && !p.fromAggregate) Object.assign(base, { status: 'form-sheet-missing', reason: '양식 시트가 없어요' });
     else if (d.excludeFile[p.fileId]) {
@@ -213,7 +216,8 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
   }
 
   const missingOrgs = useOrg ? orgs.filter((o) => !files.some((s) => s.org === o && (s.status === 'included' || s.status === 'duplicate'))) : [];
-  return { files, included: sortByOrg(included, orgs), valueIssues, questions, gridOverlay, crossIssues, missingOrgs, log };
+  // 제출 현황·파일목록도 같은 틀 시트처럼 제출처 목록 순서로 (같은 곳 파일은 넣은 순서 그대로)
+  return { files: sortByOrg(files, orgs), included: sortByOrg(included, orgs), valueIssues, questions, gridOverlay, crossIssues, missingOrgs, log };
 }
 
 const copyRow = (r: RowRecord): RowRecord => ({ ...r, values: { ...r.values } });

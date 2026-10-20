@@ -51,7 +51,10 @@ describe('목록형 전체 흐름', () => {
 
     // 결과 파일: 취합한 표 + 고른 시트만, 자동 칸은 제출처만 / 검토 파일: 출처·상태가 붙은 표 + 오류·파일목록·검산·판단 기록
     expect(sheetNames(wb)).toEqual([wb.worksheets[0].name, '제출 현황']);
-    expect(sheetNames(rb)).toEqual([wb.worksheets[0].name, '오류', '파일목록', '검산', '판단 기록']);
+    expect(sheetNames(rb)).toEqual([wb.worksheets[0].name, '오류', '파일목록', '검산', '판단 기록', '자동 정리']);
+    // 자동으로 고친 값은 원래 값과 함께 검토 파일에 남는다
+    const fixedRows = rb.getWorksheet('자동 정리')!.getSheetValues().slice(2).map((r) => (r as unknown[]).slice(1, 7));
+    expect(fixedRows).toContainEqual(['서울', '서울.xlsx', expect.any(String), '수량', '1,000개', 1000]);
     expect(out.review?.fileName).toMatch(/_검토_/);
     const headers = (b: ExcelJS.Workbook) => b.worksheets[0].getSheetValues().flat().filter((v) => v === '출처 파일' || v === '원본 줄' || v === '상태' || v === '지사');
     expect(headers(wb)).toEqual(['지사']);
@@ -152,6 +155,24 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
     const spread = wb.getWorksheet('지사별')!;
     expect(spread.getRow(1).values).toEqual([undefined, '지사', '1학년 남', '1학년 여', '2학년 남', '2학년 여']);
     expect(spread.getRow(4).values).toEqual([undefined, '합계', 11, 22, 33, 44]);
+  });
+
+  test('표형: 지사명을 비워 낸 파일은 확인을 받고, 이름을 적으면 그 이름으로 들어간다', async () => {
+    const m = SAMPLE.matrix;   // input 모드, 지사 목록 없음
+    const fill = (org: string) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
+      ws.getCell(model.cellMap.orgCell!).value = org;
+      const mm = model.cellMap.blocks.b1;
+      if (mm.kind === 'matrix') ws.getCell(mm.cells[0][0]).value = 5;
+    };
+    const files = [await makeFile(m, '서울.xlsx', { fill: fill('서울') }), await makeFile(m, '이름없음.xlsx', { fill: fill('') })];
+    const { res, rb } = await runAll(files);
+    const blank = res.files.find((f) => f.fileName === '이름없음.xlsx')!;
+    expect([blank.needsOrgLink, blank.orgBlank, blank.label]).toEqual([true, true, '이름없음.xlsx']);
+    expect(res.files.find((f) => f.fileName === '서울.xlsx')!.needsOrgLink).toBe(false);
+    const errs = rb.getWorksheet('오류')!.getSheetValues().slice(2).map((r) => (r as unknown[])[6]);
+    expect(errs).toContain('지사명이 비어 있어 파일 이름으로 넣었어요');
+    const d = { ...emptyDecisions(), orgLink: { [blank.fileId]: '부산' } };
+    expect((await runAll(files, d)).res.included.map((s) => s.label)).toEqual(['부산', '서울']);
   });
 
   test('빈칸채우기형: 겹치고, 다른 값이면 물어보고(기본 = 최신), 고정 칸 변경은 알림', async () => {
