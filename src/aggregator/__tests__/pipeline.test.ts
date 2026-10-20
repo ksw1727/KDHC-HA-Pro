@@ -175,6 +175,22 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
     expect((await runAll(files, d)).res.included.map((s) => s.label)).toEqual(['부산', '서울']);
   });
 
+  test('제출처 이름: 띄어쓰기만 다르면 같은 곳 (목록이 있으면 목록 이름으로)', async () => {
+    const fill = (org: string) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => { ws.getCell(model.cellMap.orgCell!).value = org; };
+    // 목록 없음: 많이 쓴 이름으로 맞추고(같으면 띄어쓰기 없는 쪽), 같은 곳이 둘이면 중복
+    const free = await runAll([
+      await makeFile(SAMPLE.matrix, 'a.xlsx', { savedAt: new Date('2026-10-12T00:00:00Z'), fill: fill('수원 지사') }),
+      await makeFile(SAMPLE.matrix, 'b.xlsx', { fill: fill('수원지사') }),
+    ]);
+    // 두 이름이 한 번씩이면 띄어쓰기 없는 쪽
+    expect(free.res.files.map((f) => [f.label, f.status])).toEqual([['수원지사', 'duplicate'], ['수원지사', 'included']]);
+    expect(free.res.log.find((l) => l.what === '지사 이름 맞춤')?.choice).toBe("'수원 지사' → '수원지사'");
+    // 목록 있음: 목록 이름으로 바로 연결 (확인 안 받음)
+    const listed: FormSchema = { ...structuredClone(SAMPLE.matrix), org: { mode: 'input', orgs: ['수원지사', '대구지사'] } };
+    const withList = await runAll([await makeFile(listed, 'a.xlsx', { fill: fill('대구 지사') })]);
+    expect([withList.res.files[0].label, withList.res.files[0].needsOrgLink]).toEqual(['대구지사', false]);
+  });
+
   test('빈칸채우기형: 겹치고, 다른 값이면 물어보고(기본 = 최신), 고정 칸 변경은 알림', async () => {
     const g = SAMPLE['fill-in'];
     const fill = (key: string, v: number, fixed?: string) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {

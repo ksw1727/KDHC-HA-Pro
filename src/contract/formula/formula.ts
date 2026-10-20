@@ -267,7 +267,10 @@ export type ValueResolver = (name: string, inAggregate: boolean) => Value | Valu
 const nums = (vs: (Value | Value[])[]): number[] =>
   vs.flat().filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
 
-/** 계산. 계산할 수 없으면(빈칸, 0으로 나누기, 글자 연산) null — 엑셀의 IFERROR(…,"")와 같은 결과 */
+/**
+ * 계산. 엑셀과 같게 빈칸은 연산·비교·조건에서 0으로 본다 (빈칸 × 5 = 0, [할인율]이 비면 할인 0).
+ * 계산할 수 없으면(0으로 나누기, 글자 연산) null — 엑셀의 IFERROR(…,"")와 같은 결과.
+ */
 export function evaluate(node: Node, resolve: ValueResolver): Value {
   const ev = (n: Node, agg: boolean): Value | Value[] => {
     switch (n.t) {
@@ -278,10 +281,10 @@ export function evaluate(node: Node, resolve: ValueResolver): Value {
         if (v === undefined) throw new FormulaError(`[${n.name}] 칸을 찾을 수 없어요`, 0);
         return v;
       }
-      case 'neg': { const a = scalar(ev(n.a, agg)); return typeof a === 'number' ? -a : null; }
+      case 'neg': { const a = blank0(scalar(ev(n.a, agg))); return typeof a === 'number' ? 0 - a : null; }
       case 'bin': {
-        const a = num(scalar(ev(n.a, agg)));
-        const b = num(scalar(ev(n.b, agg)));
+        const a = num(blank0(scalar(ev(n.a, agg))));
+        const b = num(blank0(scalar(ev(n.b, agg))));
         if (a === null || b === null) return null;
         if (n.op === '+') return a + b;
         if (n.op === '-') return a - b;
@@ -289,21 +292,22 @@ export function evaluate(node: Node, resolve: ValueResolver): Value {
         return b === 0 ? null : a / b;
       }
       case 'cmp': {
-        const a = scalar(ev(n.a, agg));
-        const b = scalar(ev(n.b, agg));
-        if (a === null || b === null) return null;
+        // 빈칸은 상대가 글자면 "", 아니면 0 (엑셀과 같게)
+        let a = scalar(ev(n.a, agg));
+        let b = scalar(ev(n.b, agg));
+        if (a === null) a = typeof b === 'string' ? '' : 0;
+        if (b === null) b = typeof a === 'string' ? '' : 0;
         const r = n.op === '>' ? a > b : n.op === '<' ? a < b : n.op === '>=' ? a >= b : n.op === '<=' ? a <= b : n.op === '=' ? a === b : a !== b;
         return r ? 1 : 0;
       }
       case 'fn': {
         if (n.name === 'IF') {
-          const c = scalar(ev(n.args[0], agg));
-          if (c === null) return null;
+          const c = blank0(scalar(ev(n.args[0], agg)));
           return scalar(ev(c !== 0 && c !== '' ? n.args[1] : n.args[2], agg));
         }
         if (n.name === 'ROUND') {
-          const v = num(scalar(ev(n.args[0], agg)));
-          const d = n.args[1] ? num(scalar(ev(n.args[1], agg))) ?? 0 : 0;
+          const v = num(blank0(scalar(ev(n.args[0], agg))));
+          const d = n.args[1] ? num(blank0(scalar(ev(n.args[1], agg)))) ?? 0 : 0;
           if (v === null) return null;
           // 엑셀 ROUND처럼 0에서 먼 쪽으로 (-2.5 → -3), 소수 오차 보정
           const f = 10 ** d;
@@ -322,6 +326,8 @@ export function evaluate(node: Node, resolve: ValueResolver): Value {
   const r = scalar(ev(node, false));
   return typeof r === 'number' && !Number.isFinite(r) ? null : r;
 }
+
+const blank0 = (v: Value): Value => (v === null ? 0 : v);
 
 function scalar(v: Value | Value[]): Value {
   return Array.isArray(v) ? (v.length === 1 ? v[0] : null) : v;

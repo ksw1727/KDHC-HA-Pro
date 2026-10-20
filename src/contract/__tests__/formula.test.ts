@@ -64,10 +64,19 @@ describe('계산', () => {
   test('사칙연산·비율', () => {
     expect(calc('[여] ÷ ([남] + [여]) × 100', { 남: 45, 여: 41 })).toBeCloseTo(47.674, 2);
   });
-  test('0으로 나누기·빈칸·글자는 null (엑셀 IFERROR와 같음)', () => {
+  test('0으로 나누기·글자는 null (엑셀 IFERROR와 같음)', () => {
     expect(calc('[a] / [b]', { a: 1, b: 0 })).toBeNull();
-    expect(calc('[a] + 1', { a: null })).toBeNull();
+    expect(calc('[a] / [b]', { a: 1, b: null })).toBeNull();
     expect(calc('[a] * 2', { a: '열' })).toBeNull();
+  });
+  test('빈칸은 엑셀처럼 0으로 본다 (할인율이 비면 할인 0)', () => {
+    expect(calc('[a] + 1', { a: null })).toBe(1);
+    expect(calc('[수량] × [단가] × (1 − [할인율])', { 수량: 2, 단가: 1000, 할인율: null })).toBe(2000);
+    expect(calc('-[a]', { a: null })).toBe(0);
+    expect(calc('조건([a] > 0, "있음", "없음")', { a: null })).toBe('없음');
+    expect(calc('조건([a], 1, 2)', { a: null })).toBe(2);
+    expect(calc('[a] = "적합"', { a: null })).toBe(0);
+    expect(calc('반올림([a], 1)', { a: null })).toBe(0);
   });
   test('합계·평균·최소·최대는 빈칸을 건너뜀', () => {
     expect(calc('합계([x])', { x: [1, 2, null, 3] })).toBe(6);

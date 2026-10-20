@@ -69,9 +69,22 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
       files.push({ fileId: f.file.id, fileName: f.file.fileName, label: f.file.fileName, status: f.status, reason: f.skipReason, savedAt: f.savedAt, needsOrgLink: false });
     }
   }
+  // 제출처 이름 맞추기: 띄어쓰기만 다른 이름("수원 지사"·"수원지사")은 같은 곳.
+  // 목록이 있으면 목록 이름으로, 없으면 가장 많이 쓴 이름(같으면 띄어쓰기 없는 쪽)으로
+  const spell = new Map<string, Map<string, number>>();
+  for (const p of parsed) if (p.org) {
+    const k = p.org.replace(/\s+/g, '');
+    const m = spell.get(k) ?? new Map<string, number>();
+    m.set(p.org, (m.get(p.org) ?? 0) + 1);
+    spell.set(k, m);
+  }
+  const canonOrg = (org: string) => orgs.find((o) => sameOrg(o, org))
+    ?? [...(spell.get(org.replace(/\s+/g, ''))?.entries() ?? [])].sort((a, b) => b[1] - a[1] || a[0].length - b[0].length)[0]?.[0] ?? org;
+
   for (const p of parsed) {
     const linked = d.orgLink[p.fileId];
-    const org = useOrg ? (linked ?? p.org) : undefined;
+    const org = useOrg ? (linked ?? (p.org ? canonOrg(p.org) : undefined)) : undefined;
+    if (useOrg && !linked && p.org && org !== p.org) log.push({ what: `${orgLabel(schema)} 이름 맞춤`, target: p.sourceFile, choice: `'${p.org}' → '${org}'`, defaulted: true });
     // 이름 칸이 비었으면 목록이 없어도 확인을 받는다 (그대로 두면 파일 이름이 제출처 이름이 된다)
     const needsOrgLink = useOrg && !linked && (!org || (orgs.length > 0 && !orgs.includes(org)));
     const orgBlank = useOrg && !org;
