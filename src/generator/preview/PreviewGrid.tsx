@@ -22,6 +22,14 @@ type Row = { kind: 'row'; r: number } | { kind: 'gap'; text: string };
  * SheetModel을 엑셀처럼 생긴 표로 그린다 (02-generator.md 3절).
  * 색·굵기는 contract/layout/styles.ts의 role 표에서만 가져온다.
  */
+/** 예시 줄 등에 적힌 날짜를 항목의 날짜 형식대로 (엑셀에서 보이는 모양과 같게) */
+function formatDate(v: string | number, fmt: NonNullable<Field['dateFormat']>): string {
+  const m = /^(\d{4})[-./](\d{1,2})(?:[-./](\d{1,2}))?/.exec(String(v).trim());
+  if (!m) return String(v);
+  const [y, mo, d] = [m[1], m[2].padStart(2, '0'), (m[3] ?? '01').padStart(2, '0')];
+  return fmt === 'yyyy' ? y : fmt === 'yyyy-mm' ? `${y}-${mo}` : fmt === 'yyyy.mm.dd' ? `${y}.${mo}.${d}` : `${y}-${mo}-${d}`;
+}
+
 export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleForSelected }: Props) {
   const fieldsByKey = useMemo(() => {
     const m = new Map<string, Field>();
@@ -77,6 +85,7 @@ export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleFo
     const f = c.fieldKey ? fieldsByKey.get(c.fieldKey) : undefined;
     if (c.value !== undefined) {
       if (typeof c.value === 'number' && (f?.type === 'number' || f?.type === 'calc') && c.role !== 'header' && c.role !== 'label') return { text: formatNumber(c.value, f) };
+      if (f?.type === 'date' && c.role !== 'header' && c.role !== 'label') return { text: formatDate(c.value, f.dateFormat ?? 'yyyy-mm-dd') };
       return { text: typeof c.value === 'number' ? c.value.toLocaleString('ko-KR') : c.value };
     }
     if (showSampleForSelected && f && c.fieldKey === selectedKey && c.role === 'input' && firstInputRowOf.get(f.key) === parseAddr(c.address).row)
@@ -84,11 +93,12 @@ export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleFo
     return { text: '' };
   };
 
+  // 표 너비를 열 너비 합으로 못 박아야 table-layout: fixed가 먹는다 (안 그러면 긴 계산식 한 칸이 열을 끝없이 넓힘)
   const colWidths = model.columns.map((c) => Math.round(Math.max(6, Math.min(40, c.width)) * 7.2));
 
   return (
     <div className="overflow-auto rounded-card border border-line bg-[#f1f3f6] p-2.5">
-      <table role="grid" aria-label="엑셀 미리보기" className="border-collapse bg-white text-xs" style={{ tableLayout: 'fixed' }}>
+      <table role="grid" aria-label="엑셀 미리보기" className="border-collapse bg-white text-xs" style={{ tableLayout: 'fixed', width: 30 + colWidths.reduce((a, w) => a + w, 0) }}>
         <colgroup>
           <col style={{ width: 30 }} />
           {colWidths.map((w, i) => <col key={i} style={{ width: w }} />)}

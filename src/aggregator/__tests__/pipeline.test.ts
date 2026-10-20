@@ -91,6 +91,31 @@ describe('목록형 전체 흐름', () => {
     expect(again.parsed[0].read.authorNotes).toEqual([]);   // [자동] 메모는 작성자 메모로 세지 않음
   });
 
+  test('숨긴 곳: 기본은 넣고, [빼기]면 숨긴 줄은 빼고 숨긴 열 값은 비운다 — 검산·파일목록·판단 기록에 남는다', async () => {
+    const hide = (ws: ExcelJS.Worksheet, m: Parameters<typeof firstRow>[0]) => {
+      put([{ name: '김', rank: '사원', qty: 1 }, { name: '이', rank: '대리', qty: 20 }, { name: '박', rank: '사원', qty: 3 }])(ws, m);
+      ws.getRow(firstRow(m) + 1).hidden = true;
+      ws.getColumn(listCol(m, 'rank')).hidden = true;
+    };
+    const files = [await makeFile(list, '서울.xlsx', { orgName: '서울', fill: hide })];
+    const kept = await runAll(files);
+    expect(kept.res.included[0].rows.map((r) => [r.values.name, r.values.rank, r.values.qty])).toEqual([['김', '사원', 1], ['이', '대리', 20], ['박', '사원', 3]]);
+    expect(kept.res.log.find((l) => l.what === '숨긴 곳')).toMatchObject({ choice: '넣기', defaulted: true });
+
+    const q = kept.res.questions.find((x) => x.kind === 'hidden-area')!;
+    const out = await runAll(files, { ...emptyDecisions(), answers: { [q.id]: 'exclude' } }, ['same-frame']);
+    const s = out.res.included[0];
+    expect(s.rows.map((r) => [r.values.name, r.values.rank, r.values.qty])).toEqual([['김', null, 1], ['박', null, 3]]);
+    expect(s.removedRows).toEqual([expect.objectContaining({ reason: 'hidden' })]);
+    expect(out.out.verify.ok).toBe(true);
+    expect(out.out.verify.lines[0].detail).toContain('숨긴 줄 제외 1');
+    expect(out.out.verify.lines.find((l) => l.check === '숫자 합계 · 수량')?.detail).toContain('숨긴 줄 제외로 -20');
+    const fl = out.rb.getWorksheet('파일목록')!;
+    const head = (fl.getRow(1).values as unknown[]).slice(1);
+    expect((fl.getRow(2).values as unknown[]).slice(1)[head.indexOf('숨긴 줄 제외')]).toBe(1);
+    expect(out.res.log.find((l) => l.what === '숨긴 곳')).toMatchObject({ choice: '빼기', defaulted: false });
+  });
+
   test('다시 취합: 본부 취합본 2개 = 같은 지사 파일을 직접 취합한 결과', async () => {
     const seoul = await makeFile(list, '서울.xlsx', { orgName: '서울', fill: put([{ name: '김', qty: 1 }]) });
     const busan = await makeFile(list, '부산.xlsx', { orgName: '부산', fill: put([{ name: '박', qty: 2 }, { name: '최', qty: 3 }]) });

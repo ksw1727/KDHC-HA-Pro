@@ -105,6 +105,9 @@ function date(raw: unknown, field: Field, ctx: Ctx): NormalizeResult {
     if ((r = /^(\d{4}) ?[.\-/년] ?(\d{1,2}) ?[.\-/월] ?(\d{1,2}) ?일?\.?$/.exec(s))) [y, m, d] = [+r[1], +r[2], +r[3]];
     else if ((r = /^(\d{4})(\d{2})(\d{2})$/.exec(s))) [y, m, d] = [+r[1], +r[2], +r[3]];
     else if ((r = /^(\d{4}) ?[.\-/년] ?(\d{1,2}) ?월?\.?$/.exec(s))) [y, m] = [+r[1], +r[2]];
+    // 연도 두 자리("26년 12월", "26.12.5", "26-12-05"): 2000년대로 짐작해 수정안으로
+    else if ((r = /^(\d{2}) ?[.\-/년] ?(\d{1,2}) ?[.\-/월] ?(\d{1,2}) ?일?\.?$/.exec(s))) { [y, m, d] = [2000 + +r[1], +r[2], +r[3]]; guessed = true; }
+    else if ((r = /^(\d{2}) ?년 ?(\d{1,2}) ?월?\.?$/.exec(s))) { [y, m] = [2000 + +r[1], +r[2]]; guessed = true; }
     else if ((r = /^(\d{1,2}) ?[./월] ?(\d{1,2}) ?일?$/.exec(s))) [y, m, d] = [ctx.year, +r[1], +r[2]];
     else if ((r = /^(\d{4}) ?년?$/.exec(s))) y = +r[1];
     else if ((r = /^(\d{2}) ?년?$/.exec(s)) && fmt === 'yyyy') { y = 2000 + +r[1]; guessed = true; }

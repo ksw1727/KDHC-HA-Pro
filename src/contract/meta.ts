@@ -57,7 +57,7 @@ export interface GridBlockMap {
 
 export type CellValue = string | number | null;   // 날짜는 'YYYY-MM-DD' / 'YYYY-MM' / 'YYYY' 문자열
 
-export type RowFlag = 'hidden' | 'strike';          // 숨긴 줄(필터 포함) / 취소선
+export type RowFlag = 'hidden' | 'strike';          // 직접 숨긴 줄(필터로 가린 줄은 보통 줄로 읽음) / 취소선
 
 export interface RowRecord {
   values: Record<string, CellValue>;   // key = field.key

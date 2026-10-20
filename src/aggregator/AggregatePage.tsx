@@ -171,18 +171,25 @@ export function AggregatePage({ formId }: { formId?: string }) {
       if (out.review) { download(out.review.fileName, out.review.bytes, XLSX); names.push(`${out.review.fileName} (검토용: 출처·오류·검산)`); }
       if (wantCopies && manualCount && loaded) {
         const c = await patchCopies(res, loaded.files, withProposals, at, schema.title);
-        if (c) { download(c.fileName, c.bytes, 'application/zip'); names.push(`${c.fileName} (회신 파일 ${c.count}개)`); }
+        if (c?.count) { download(c.fileName, c.bytes, 'application/zip'); names.push(`${c.fileName} (회신 파일 ${c.count}개)`); }
+        for (const k of c?.skipped ?? []) names.push(`수정본 사본 없음: ${k.fileName} — ${k.reason}`);
       }
       const rows = res.included.reduce((s, x) => s + x.rows.length + (x.gridSpareRows?.length ?? 0), 0);
-      setDone({ files: names, message: `${L} ${res.included.length}곳${collect ? '의 시트를 모았어요' : `, 행 ${rows}개를 취합했어요`} · 검산 ${out.verify.ok ? '일치' : '불일치 — 받은 파일의 검산 시트를 확인해 주세요'}` });
+      const who = schema.org.mode === 'none' ? `파일 ${res.included.length}개` : `${L} ${res.included.length}곳`;
+      const hasList = schema.blocks.some((b) => b.kind === 'list');
+      const spare = schema.blocks.some((b) => b.kind === 'grid' && b.spareRows > 0);
+      const what = collect ? '의 시트를 모았어요' : hasList ? `, 행 ${rows}개를 취합했어요` : spare && rows ? `을 취합했어요 (여유 줄 ${rows}줄)` : '을 취합했어요';
+      setDone({ files: names, message: `${who}${what} · 검산 ${out.verify.ok ? '일치' : '불일치 — 받은 파일의 검산 시트를 확인해 주세요'}` });
       setStage('done');
     } catch (e) {
       setError(`결과 파일을 만들다가 문제가 생겼어요: ${(e as Error).message}`);
     } finally { setBusy(false); }
   };
 
+  // 목록에 있는 제출처 중 낸 곳 / 목록 수 (+ 목록에 없는 이름으로 낸 파일)
+  const outsideList = orgsTotal ? res.included.filter((x) => !x.org || !(schema.org.orgs ?? []).includes(x.org)).length : 0;
   const stats: [string, ReactNode, Tone?][] = [
-    ['제출', orgsTotal ? `${res.included.length}/${orgsTotal}` : res.included.length],
+    ['제출', orgsTotal ? `${orgsTotal - res.missingOrgs.length}/${orgsTotal}${outsideList ? ` + 목록 밖 ${outsideList}` : ''}` : res.included.length],
     ...(!collect ? [['확인할 칸', pending, pending ? 'req' : undefined] as [string, ReactNode, Tone?], ['자동 정리', autoCount] as [string, ReactNode], ['작성자 메모', noteCount] as [string, ReactNode]] : []),
     ['제외', excluded],
     ...(orgsTotal ? [['미제출', res.missingOrgs.length] as [string, ReactNode]] : []),
@@ -424,6 +431,8 @@ function summary(schema: FormSchema, fin: Resolved['included'][number], s: FileS
   if (fin.gridSpareRows?.length) parts.push(`여유 줄 ${fin.gridSpareRows.length}줄`);
   if (fin.autoFixed.length) parts.push(`자동 정리 ${fin.autoFixed.length}칸`);
   if (fin.read.authorNotes.length) parts.push(`작성자 메모 ${fin.read.authorNotes.length}개`);
+  if (fin.read.hiddenArea) parts.push(fin.removedRows.some((r) => r.reason === 'hidden') || fin.droppedExtra.length ? '숨긴 곳 뺌' : '숨긴 곳 있음');
+  if (fin.read.infos.some((i) => i.code === 'FILTER_CLEARED')) parts.push('필터 풀고 읽음');
   if (s.dupGroup) parts.push(`저장 ${fmtTime(s.savedAt)} 파일 사용`);
   return parts.join(' · ');
 }
@@ -432,7 +441,7 @@ function FileDetail({ res, s }: { res: Resolved; s: FileState }) {
   const p = s.parsed!;
   const fin = res.included.find((x) => x.fileId === s.fileId);
   const r = p.read;
-  const reasons: Record<string, string> = { blank: '빈 줄', example: '예시 줄', total: '합계 줄', operator: '운영자 제외', duplicate: '중복' };
+  const reasons: Record<string, string> = { blank: '빈 줄', example: '예시 줄', total: '합계 줄', operator: '운영자 제외', duplicate: '중복', hidden: '숨긴 줄 제외' };
   const ex = [...r.excludedRows, ...(fin?.removedRows ?? [])].reduce<Record<string, number>>((m, e) => { m[e.reason] = (m[e.reason] ?? 0) + 1; return m; }, {});
   const kept = fin ? fin.rows.length + (fin.gridSpareRows?.length ?? 0) : 0;
   return (

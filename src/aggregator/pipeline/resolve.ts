@@ -22,8 +22,9 @@ export interface FinalSubmission extends ParsedSubmission {
   label: string;                                   // 화면·시트에 쓰는 이름 (지사명, 없으면 파일명)
   before: RowRecord[];                             // 결정 전(값 정리 후) 목록 줄 — 검산에서 수정·제외 차이를 나눠 보일 때 씀
   marks: Map<string, CellMarkInfo>;                // slotId →
-  removedRows: { sourceRow: number; reason: 'operator' | 'duplicate'; preview: string }[];
+  removedRows: { sourceRow: number; reason: 'operator' | 'duplicate' | 'hidden'; preview: string }[];
   extraFromAlias: { header: string; values: { sourceRow: number; value: unknown }[] }[];
+  droppedExtra: string[];                          // 숨긴 곳 [빼기]로 뺀 추가 칸 이름
 }
 
 export interface FileState {
@@ -111,22 +112,31 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
     const fin: FinalSubmission = {
       ...p, org: s.org, label: s.label, before: p.rows, header: { ...p.header }, rows: p.rows.map(copyRow),
       matrices: p.matrices ? Object.fromEntries(Object.entries(p.matrices).map(([id, m]) => [id, m.map((r) => [...r])])) : undefined, grid: p.grid ? { ...p.grid } : undefined, gridSpareRows: p.gridSpareRows?.map(copyRow),
-      marks: new Map(), removedRows: [], extraFromAlias: [],
+      marks: new Map(), removedRows: [], extraFromAlias: [], droppedExtra: [],
     };
+    const cleared = new Set<string>();
     let issues = p.issues.filter((i) => i.severity === 'value');
 
     // 3-1. 판단 질문 (비슷한 칸 이름, 같은 줄 두 번)
     for (const q of p.read.questions) {
       questions.push(q);
       const ans = d.answers[q.id] ?? q.defaultChoice;
-      log.push({ what: '애매한 판단', target: `${s.label} · ${q.message}`, choice: q.choices.find((c) => c.id === ans)?.label ?? ans, defaulted: d.answers[q.id] === undefined });
+      log.push({ what: q.kind === 'hidden-area' ? '숨긴 곳' : '애매한 판단', target: `${s.label} · ${q.message}`, choice: q.choices.find((c) => c.id === ans)?.label ?? ans, defaulted: d.answers[q.id] === undefined });
       if (q.kind === 'column-alias' && ans === 'extra' && q.fieldKey) {
         fin.extraFromAlias.push({ header: q.header ?? '', values: p.read.rows.map((r) => ({ sourceRow: r.sourceRow, value: r.cells[q.fieldKey!]?.raw })).filter((v) => v.value !== null && v.value !== undefined && v.value !== '') });
         for (const r of fin.rows) r.values[q.fieldKey] = null;
         issues = issues.filter((i) => !(i.slot?.part === 'row' && i.slot.key === q.fieldKey));
       }
       if (q.kind === 'same-row-twice' && ans === 'one' && q.sourceRow) removeRow(fin, q.sourceRow, 'duplicate');
+      // 직접 숨긴 줄·열: [빼기]면 숨긴 줄은 빼고, 숨긴 열(칸)의 값은 빈칸으로
+      if (q.kind === 'hidden-area' && ans === 'exclude' && p.read.hiddenArea) {
+        const h = p.read.hiddenArea;
+        for (const r of h.rows) removeRow(fin, r, 'hidden');
+        for (const slot of h.slots) { setSlot(fin, slot, null); cleared.add(slotId(slot)); }
+        fin.droppedExtra.push(...h.extraHeaders);
+      }
     }
+    if (cleared.size) issues = issues.filter((i) => !(i.slot && cleared.has(slotId(i.slot))));
 
     // 3-2. [이 줄 빼기]
     for (const r of [...fin.rows, ...(fin.gridSpareRows ?? [])]) {
@@ -139,7 +149,7 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
     issues = issues.filter((i) => !(i.slot && 'sourceRow' in i.slot && gone.has(i.slot.sourceRow)));
 
     // 3-3. 자동 정리 칸: 연한 파랑 + 원래 값 메모
-    for (const a of p.autoFixed) if (!('sourceRow' in a.slot && gone.has(a.slot.sourceRow))) fin.marks.set(slotId(a.slot), { mark: 'auto-fixed', note: `[자동] 원래 값: ${show(a.from)} · 자동 정리` });
+    for (const a of p.autoFixed) if (!('sourceRow' in a.slot && gone.has(a.slot.sourceRow)) && !cleared.has(slotId(a.slot))) fin.marks.set(slotId(a.slot), { mark: 'auto-fixed', note: `[자동] 원래 값: ${show(a.from)} · 자동 정리` });
 
     // 3-4. 확인할 칸: 미결정이면 수정안 있으면 수정안, 없으면 그대로
     for (const iss of issues) {
@@ -208,7 +218,7 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
 
 const copyRow = (r: RowRecord): RowRecord => ({ ...r, values: { ...r.values } });
 
-function removeRow(fin: FinalSubmission, sourceRow: number, reason: 'operator' | 'duplicate') {
+function removeRow(fin: FinalSubmission, sourceRow: number, reason: 'operator' | 'duplicate' | 'hidden') {
   for (const list of [fin.rows, fin.gridSpareRows ?? []]) {
     const i = list.findIndex((r) => r.sourceRow === sourceRow);
     if (i < 0) continue;

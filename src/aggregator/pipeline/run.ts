@@ -58,6 +58,16 @@ function withMap(base: BaseForm, today: Date): BaseForm {
   return { schema: base.schema, meta: { contractVersion: 1, kind: 'submission', schema: base.schema, generatedAt: '', checksum: '', sheetName: m.sheetName, cellMap: m.cellMap } };
 }
 
+/**
+ * '오늘 이후'·'오늘부터 30일' 같은 날짜 범위는 양식을 내보낸 날을 기준으로 본다.
+ * 엑셀 입력 규칙도 내보낸 날 기준으로 고정돼 있어서, 취합이 늦어져도 그때 맞게 쓴 날짜를 범위 밖으로 걸지 않는다.
+ */
+function exportCtx(f: IdentifiedFile, base: BaseForm, ctx: Ctx): Ctx {
+  const at = f.meta?.generatedAt || base.meta?.generatedAt;
+  const d = at ? new Date(at) : null;
+  return d && !Number.isNaN(d.getTime()) ? { ...ctx, today: d } : ctx;
+}
+
 export async function analyze(files: LoadedFile[], schemas: FormSchema[], fallback: FormSchema | null, today: Date): Promise<Analysis> {
   const ids = await Promise.all(files.map(identifyFile));
   const json = schemas.at(-1) ?? null;
@@ -72,18 +82,29 @@ export async function analyze(files: LoadedFile[], schemas: FormSchema[], fallba
   for (const f of identified) {
     if (f.status !== 'ok' || !base) continue;
     if (f.kind === 'aggregate') { parsed.push(...expandAggregate(f, base.schema)); continue; }
-    parsed.push(parseSubmission(f, readSubmission(f, base), base.schema, ctx));
+    parsed.push(parseSubmission(f, readSubmission(f, base), base.schema, exportCtx(f, base, ctx)));
   }
   return { base, identified, parsed };
 }
 
 /** ⑨ 수정된 회신 파일 사본: 직접 수정한 칸(+ 원하면 수정안 칸)을 원본 사본에 고쳐 zip으로 (3.10) */
-export async function patchCopies(res: Resolved, files: LoadedFile[], includeProposals: boolean, now: Date, title: string): Promise<{ fileName: string; bytes: Uint8Array; count: number } | null> {
+export interface CopiesResult { fileName: string; bytes: Uint8Array; count: number; skipped: { fileName: string; reason: string }[] }
+
+export async function patchCopies(res: Resolved, files: LoadedFile[], includeProposals: boolean, now: Date, title: string): Promise<CopiesResult | null> {
+  // 원본에 그 칸이 없는 직접 고침(예: 옛 버전 파일에 없는 항목)은 사본에 쓸 자리가 없다 → 이유와 함께 알린다
+  const noPlace = res.valueIssues.filter((i) => !i.address && i.choice === '직접 고침');
   const fixes = res.valueIssues.filter((i) => i.address && (i.choice === '직접 고침' || (includeProposals && i.choice === '자동으로 고친 값')));
   const byFile = new Map<string, typeof fixes>();
   for (const f of fixes) byFile.set(f.fileId, [...(byFile.get(f.fileId) ?? []), f]);
   const manualFiles = new Set(fixes.filter((f) => f.choice === '직접 고침').map((f) => f.fileId));
-  if (!manualFiles.size) return null;
+  const skipped = [...new Set(noPlace.map((i) => i.fileId))].map((id) => {
+    const what = noPlace.filter((i) => i.fileId === id).map((i) => i.location).join(', ');
+    return {
+      fileName: files.find((f) => f.id === id)?.fileName ?? id,
+      reason: manualFiles.has(id) ? `${what} 칸은 원본 파일에 없어서 사본에 반영하지 못했어요` : `고친 칸(${what})이 원본 파일에 없어서 사본을 만들지 않았어요`,
+    };
+  });
+  if (!manualFiles.size) return skipped.length ? { fileName: '', bytes: new Uint8Array(), count: 0, skipped } : null;
 
   const zip = new JSZip();
   const day = fmtTime(now.toISOString()).slice(0, 10);
@@ -111,7 +132,7 @@ export async function patchCopies(res: Resolved, files: LoadedFile[], includePro
   }
   const safe = title.replace(/[\\/:*?"<>|]/g, '_').trim() || '양식';
   const stamp = fmtTime(now.toISOString()).replace(/[-:]/g, '').replace(' ', '-');
-  return { fileName: `${safe}_수정본_${stamp}.zip`, bytes: await zip.generateAsync({ type: 'uint8array' }), count: manualFiles.size };
+  return { fileName: `${safe}_수정본_${stamp}.zip`, bytes: await zip.generateAsync({ type: 'uint8array' }), count: manualFiles.size, skipped };
 }
 
 function slotValue(s: Resolved['included'][number], slot: NonNullable<Resolved['valueIssues'][number]['slot']>) {

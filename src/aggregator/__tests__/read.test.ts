@@ -57,6 +57,37 @@ describe('② 읽기 (read) — 목록형', () => {
     expect(r.infos).toEqual([]);
   });
 
+  test('필터로 가린 줄은 필터를 푼 것처럼 보통 줄로 읽고 안내만 남긴다', async () => {
+    const r = await readOne(await makeFile(schema, '울산.xlsx', { fill: (ws, m) => {
+      const put = writer(ws, m);
+      put(0, { name: '가', rank: '사원', qty: 1 }); put(1, { name: '나', rank: '대리', qty: 2 }); put(2, { name: '다', rank: '사원', qty: 3 });
+      ws.autoFilter = `A${firstRow(m) - 1}:${listCol(m, 'qty')}${firstRow(m) + 2}`;
+      ws.getRow(firstRow(m) + 1).hidden = true;   // 직급=사원으로 걸러서 가려진 줄
+    } }));
+    expect(r.rows.map((x) => [x.cells.name.raw, x.flags])).toEqual([['가', []], ['나', []], ['다', []]]);
+    expect(r.infos.map((i) => i.code)).toEqual(['FILTER_CLEARED']);
+    expect(r.questions.filter((q) => q.kind === 'hidden-area')).toEqual([]);
+    expect(r.hiddenArea).toBeUndefined();
+  });
+
+  test('직접 숨긴 줄·열에 값이 있으면 모아 두고 넣을지 묻는다(기본 = 넣기)', async () => {
+    const r = await readOne(await makeFile(schema, '세종.xlsx', { fill: (ws, m) => {
+      const put = writer(ws, m);
+      put(0, { name: '가', rank: '사원', qty: 1 }); put(1, { name: '나', rank: '대리', qty: 2 }); put(2, { name: '다', qty: 3 });
+      ws.getRow(firstRow(m) + 1).hidden = true;
+      ws.getColumn(listCol(m, 'rank')).hidden = true;
+    } }));
+    expect(r.rows[1].flags).toEqual(['hidden']);
+    expect(r.hiddenArea?.rows).toEqual([r.rows[1].sourceRow]);
+    // 숨긴 열(직급)에서 값이 있는 칸: 숨긴 줄은 줄째로 빠지므로 1번째 줄만
+    expect(r.hiddenArea?.slots).toEqual([{ part: 'row', key: 'rank', sourceRow: r.rows[0].sourceRow }]);
+    const q = r.questions.find((x) => x.kind === 'hidden-area')!;
+    expect(q.defaultChoice).toBe('include');
+    expect(q.message).toContain('숨긴 줄 1개');
+    expect(q.message).toContain('숨긴 열 1개');
+    expect(r.infos.map((i) => i.code)).not.toContain('FILTER_CLEARED');
+  });
+
   test('합계 줄이 위 줄들의 합과 다르면 알려 준다', async () => {
     const r = await readOne(await makeFile(schema, '대구.xlsx', { fill: (ws, m) => {
       const put = writer(ws, m);

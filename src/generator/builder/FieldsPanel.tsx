@@ -24,7 +24,8 @@ export function FieldsPanel({ b }: { b: Builder }) {
               onPatch={(key, patch) => b.act({ type: 'field/update', blockId: block.id, key, patch })}
               onAdd={(fieldType) => {
                 const key = randomKey();
-                b.act({ type: 'field/add', blockId: block.id, key, fieldType, after: b.selected?.blockId === block.id ? b.selected.key : undefined });
+                // '+ 항목 추가'는 목록 맨 아래에 있으니 새 항목도 맨 끝에 (순서는 끌어서 바꾼다)
+                b.act({ type: 'field/add', blockId: block.id, key, fieldType });
                 b.setSelected({ blockId: block.id, key });
               }}
               onRemove={(key) => { b.act({ type: 'field/remove', blockId: block.id, key }); if (b.selected?.key === key) b.setSelected(null); }}

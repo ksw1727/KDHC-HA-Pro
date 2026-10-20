@@ -6,6 +6,7 @@ import { kdhcProps, patchXlsx } from '@contract/xlsxPatch';
 import { CONTRACT_VERSION } from '@contract/version';
 import { availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
 import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
+import { FIELD_TYPES } from '@contract/fieldTypes';
 import { buildSameFrame, fmtTime, spreadTable, statusTable, type SameFrame, type Table } from './aggregate';
 import { RECORDS_MARK, RECORDS_SHEET } from './parse';
 import { STATUS_LABEL, type FinalSubmission, type Resolved } from './resolve';
@@ -34,9 +35,16 @@ export function sheetNamer() {
 function writeModel(ws: ExcelJS.Worksheet, model: SheetModel, fieldOf: Map<string, Field>) {
   model.columns.forEach((c, i) => { ws.getColumn(i + 1).width = c.width; });
   const side = { style: 'thin' as const, color: { argb: argb(BORDER_COLOR) } };
+  // 오른쪽 자동 칸 중 위쪽 정보 항목(점검일 등)은 그 항목의 서식으로: 날짜는 엑셀 날짜로 넣어야 정렬·필터가 된다
+  const byLabel = new Map([...fieldOf.values()].map((f) => [f.label.trim(), f]));
+  const autoField = new Map<string, Field>();
+  for (const c of model.cells) if (c.role === 'auto-header' && typeof c.value === 'string' && byLabel.has(c.value.trim())) autoField.set(c.address.replace(/\d+$/, ''), byLabel.get(c.value.trim())!);
   for (const c of model.cells) {
     const cell = ws.getCell(c.address);
-    cell.value = excelValue(c.value, c.fieldKey ? fieldOf.get(c.fieldKey) : undefined);
+    const af = c.role === 'auto-value' ? autoField.get(c.address.replace(/\d+$/, '')) : undefined;
+    cell.value = excelValue(c.value, c.fieldKey ? fieldOf.get(c.fieldKey) : af);
+    if (af && !c.numFmt && af.type !== 'calc') c.numFmt = FIELD_TYPES[af.type].excelNumFmt(af);
+    else if (af?.type === 'calc' && !c.numFmt) c.numFmt = FIELD_TYPES.calc.excelNumFmt(af);
     const st = cellStyle(c.role, c.required, c.mark);
     cell.font = { name: '맑은 고딕', size: st.size ?? 10, bold: st.bold, italic: st.italic, strike: st.strike, color: st.color ? { argb: argb(st.color) } : undefined };
     if (st.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(st.fill) } };
@@ -64,6 +72,7 @@ function excelValue(v: string | number | undefined | null, field?: Field): Excel
 function writeTable(ws: ExcelJS.Worksheet, t: Table, fieldOf?: Map<string, Field>, keys?: (string | undefined)[]) {
   ws.addRow(t.columns.map((c) => c.header));
   for (const r of t.rows) ws.addRow(r.map((v, i) => excelValue(v, keys?.[i] ? fieldOf?.get(keys[i]!) : undefined)));
+  keys?.forEach((k, i) => { const f = k ? fieldOf?.get(k) : undefined; if (f && f.type !== 'text' && f.type !== 'memo') ws.getColumn(i + 1).numFmt = FIELD_TYPES[f.type].excelNumFmt(f) ?? ''; });
   const head = ws.getRow(1);
   head.font = { bold: true };
   head.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb('#EEF2F7') } }; });
@@ -139,7 +148,11 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
     const who = schema.org.mode === 'none' ? `파일 ${res.included.length}개` : `${orgLabel(schema)} ${res.included.length}곳${res.missingOrgs.length ? ` (미제출 ${res.missingOrgs.length}곳)` : ''}`;
     const clean = buildSameFrame(schema, res, `취합일 ${day} · ${who}`, now, true);
     writeModel(wb.addWorksheet(name(clean.model.sheetName)), clean.model, fieldOf);
-    if (chosen.includes('spread')) { const t = spreadTable(schema, res); writeTable(wb.addWorksheet(name(t.name)), t); }
+    if (chosen.includes('spread')) {
+      const t = spreadTable(schema, res);
+      const byLabel = new Map([...fieldOf.values()].map((f) => [f.label.trim(), f.key]));
+      writeTable(wb.addWorksheet(name(t.name)), t, fieldOf, t.columns.map((c) => byLabel.get(c.header.trim())));
+    }
     if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
 
     // 검토 파일
@@ -179,7 +192,7 @@ function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, sc
   const infoIssues = res.included.flatMap((s) => s.issues.filter((i) => i.severity === 'info'));
   const errRows: CellValue[][] = [
     ...res.valueIssues.map((i) => [labelOf(i.fileId), nameOf(i.fileId), i.location, i.fieldLabel ?? '', show(i.raw), i.message, i.choice]),
-    ...res.crossIssues.map((i) => ['(전체)', '', i.location, i.fieldLabel ?? '', '', i.message, '그대로']),
+    ...res.crossIssues.map((i) => { const f = res.included.find((x) => x.fileId === i.fileId); return [f?.label ?? '(전체)', f?.sourceFile ?? '', i.location, i.fieldLabel ?? '', '', i.message, '그대로']; }),
     ...infoIssues.map((i) => [labelOf(i.fileId), nameOf(i.fileId), i.location, '', '', i.message, '자동']),
   ];
   if (!collect || errRows.length) writeTable(wb.addWorksheet(name('오류')), table('오류', [lbl, '파일명', '위치', '항목', '입력값', '내용', '처리'], errRows));
@@ -191,7 +204,7 @@ function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, sc
   if (!collect) {
     const notes = res.included.flatMap((s) => s.read.authorNotes.map((n) => [s.label, s.sourceFile, n.address, n.fieldKey ? fieldOf.get(n.fieldKey)?.label ?? '' : '', n.sourceRow ?? null, n.text]));
     if (notes.length) writeTable(wb.addWorksheet(name('메모')), table('메모', [lbl, '파일명', '위치', '항목', '원본 줄', '메모 내용'], notes));
-    const extra = res.included.flatMap((s) => [...s.read.extraColumns, ...s.extraFromAlias].flatMap((e) => e.values.map((v) => [s.label, s.sourceFile, v.sourceRow, e.header, show(v.value)])));
+    const extra = res.included.flatMap((s) => [...s.read.extraColumns.filter((e) => !s.droppedExtra.includes(e.header)), ...s.extraFromAlias].flatMap((e) => e.values.map((v) => [s.label, s.sourceFile, v.sourceRow, e.header, show(v.value)])));
     if (extra.length) writeTable(wb.addWorksheet(name('추가 칸')), table('추가 칸', [lbl, '파일명', '원본 줄', '칸 이름', '값'], extra));
   }
 }
@@ -243,12 +256,12 @@ function fileListTable(schema: FormSchema, res: Resolved): Table {
     const listy = schema.blocks.some((b) => b.kind === 'list');
     return [
       f.label, f.fileName, f.status === 'included' && kept === 0 && listy ? '제출 · 해당 없음' : STATUS_LABEL[f.status], f.reason ?? '', fmtTime(f.savedAt),
-      r?.readCount ?? null, kept, count('blank') || null, count('example') || null, count('total') || null, count('operator') || null, count('duplicate') || null,
+      r?.readCount ?? null, kept, count('blank') || null, count('example') || null, count('total') || null, count('operator') || null, count('duplicate') || null, count('hidden') || null,
       [...(r?.unreadSheets ?? [])].join(', '), r?.collectSheets?.join(', ') ?? '', [...(f.parsed?.file.notes ?? [])].join(' / '),
     ];
   });
-  for (const o of res.missingOrgs) rows.push([o, '', '미제출', '', '', null, null, null, null, null, null, null, '', '', '']);
-  return table('파일목록', [orgLabel(schema), '파일명', '상태', '사유', '저장 시각', '읽은 줄', '반영 줄', '빈 줄', '예시 줄', '합계 줄', '운영자 제외', '중복 줄', '읽지 않은 시트', '모은 시트', '알림'], rows);
+  for (const o of res.missingOrgs) rows.push([o, '', '미제출', '', '', null, null, null, null, null, null, null, null, '', '', '']);
+  return table('파일목록', [orgLabel(schema), '파일명', '상태', '사유', '저장 시각', '읽은 줄', '반영 줄', '빈 줄', '예시 줄', '합계 줄', '운영자 제외', '중복 줄', '숨긴 줄 제외', '읽지 않은 시트', '모은 시트', '알림'], rows);
 }
 
 /** 시트 모으기: 원본 시트를 값·서식·합친 셀·열 너비·줄 높이 그대로 복사. collect 양식이면 맨 앞에 목차 */

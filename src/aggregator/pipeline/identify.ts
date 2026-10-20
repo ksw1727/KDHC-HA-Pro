@@ -121,7 +121,8 @@ export function classify(files: IdentifiedFile[], base: BaseForm | null): Identi
     } else if (f.workbook && headerMatchRatio(f.workbook, base.schema) >= 0.7) {
       f.source = 'header-match';
       f.kind = 'submission';
-      f.notes.push('숨김 정보가 없어 칸 이름으로 알아봤어요(새 파일에 복사해서 보낸 것 같아요)');
+      const tampered = f.notes.some((n) => n.includes('메타 변조'));
+      f.notes.push(tampered ? '그래서 칸 이름으로 알아봤어요' : '숨김 정보가 없어 칸 이름으로 알아봤어요(새 파일에 복사해서 보낸 것 같아요)');
     } else {
       return { ...f, status: 'unreadable', skipReason: '한난MOA 양식 파일이 아니거나 칸 이름이 너무 많이 달라요' };
     }

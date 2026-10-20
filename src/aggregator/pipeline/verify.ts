@@ -17,13 +17,13 @@ export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): V
   // 1. 줄 수: 읽은 줄 = 반영 + 제외(사유별)
   if (schema.blocks.some((b) => b.kind === 'list' || (b.kind === 'grid' && b.spareRows > 0))) {
     let allOk = true;
-    const sum = { read: 0, kept: 0, blank: 0, example: 0, total: 0, operator: 0, duplicate: 0 };
+    const sum = { read: 0, kept: 0, blank: 0, example: 0, total: 0, operator: 0, duplicate: 0, hidden: 0 };
     for (const s of included) {
       const kept = s.rows.length + (s.gridSpareRows?.length ?? 0);
-      const ex = { blank: 0, example: 0, total: 0, operator: 0, duplicate: 0 };
+      const ex = { blank: 0, example: 0, total: 0, operator: 0, duplicate: 0, hidden: 0 };
       for (const e of s.read.excludedRows) ex[e.reason]++;
       for (const e of s.removedRows) ex[e.reason]++;
-      const accounted = kept + ex.blank + ex.example + ex.total + ex.operator + ex.duplicate;
+      const accounted = kept + ex.blank + ex.example + ex.total + ex.operator + ex.duplicate + ex.hidden;
       if (accounted !== s.read.readCount) {
         allOk = false;
         lines.push({ check: '줄 수', detail: `${s.label}: 읽은 줄 ${s.read.readCount} ≠ 반영 ${kept} + 제외 ${accounted - kept}`, ok: false });
@@ -31,7 +31,7 @@ export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): V
       sum.read += s.read.readCount; sum.kept += kept;
       for (const k of Object.keys(ex) as (keyof typeof ex)[]) sum[k] += ex[k];
     }
-    const parts = [['빈 줄', sum.blank], ['예시', sum.example], ['합계 줄', sum.total], ['운영자 제외', sum.operator], ['중복', sum.duplicate]].filter(([, c]) => c).map(([l, c]) => `${l} ${c}`);
+    const parts = [['빈 줄', sum.blank], ['예시', sum.example], ['합계 줄', sum.total], ['운영자 제외', sum.operator], ['중복', sum.duplicate], ['숨긴 줄 제외', sum.hidden]].filter(([, c]) => c).map(([l, c]) => `${l} ${c}`);
     lines.unshift({ check: '줄 수', detail: `읽은 줄 ${sum.read} = 반영 ${sum.kept}${parts.length ? ` + ${parts.join(' + ')}` : ''}`, ok: allOk });
   }
 
@@ -39,19 +39,19 @@ export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): V
   const by = (st: string) => res.files.filter((f) => f.status === st).length;
   const fileParts = [['반영', by('included')], ['중복', by('duplicate')], ['운영자 제외', by('operator')], ['양식 시트 없음', by('form-sheet-missing')], ['다른 양식', by('other-form')], ['내용 같음', by('duplicate-content')], ['건너뜀', by('unreadable')]].filter(([, c]) => c);
   const fileSum = fileParts.reduce((s, [, c]) => s + (c as number), 0);
-  lines.push({ check: '파일 수', detail: `넣은 파일 ${res.files.length} = ${fileParts.map(([l, c]) => `${l} ${c}`).join(' + ')}${res.missingOrgs.length ? ` · 미제출 ${res.missingOrgs.join(', ')}` : ''}`, ok: fileSum === res.files.length });
+  lines.push({ check: '파일 수', detail: `넣은 파일 ${res.files.length} = ${fileParts.map(([l, c]) => `${l} ${c}`).join(' + ')}${res.missingOrgs.length ? ` · 미제출 ${res.missingOrgs.length}곳(${res.missingOrgs.join(' · ')})` : ''}`, ok: fileSum === res.files.length });
 
   // 3. 숫자 합계: 원본(값 정리 후) → 수정·제외 차이 → 같은 틀 시트에 실제로 들어간 합
   const list = schema.blocks.find((b) => b.kind === 'list');
   if (list?.kind === 'list' && model) {
     const lm = model.cellMap.blocks[list.id];
     for (const f of list.columns.filter((c) => c.type === 'number')) {
-      let source = 0, fixed = 0, removed = 0;
+      let source = 0, fixed = 0, removed = 0, hiddenOut = 0;
       for (const s of res.included) {
         const at = (row: number) => n(s.before.find((x) => x.sourceRow === row)?.values[f.key]);
         for (const r of s.before) source += n(r.values[f.key]);
         for (const r of s.rows) fixed += n(r.values[f.key]) - at(r.sourceRow);
-        for (const r of s.removedRows) removed -= at(r.sourceRow);
+        for (const r of s.removedRows) { if (r.reason === 'hidden') hiddenOut -= at(r.sourceRow); else removed -= at(r.sourceRow); }
       }
       let sheet = 0;
       if (lm?.kind === 'list') {
@@ -61,8 +61,8 @@ export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): V
           if (p[1] === col && +p[2] >= lm.firstDataRow && +p[2] <= lm.lastDataRow) sheet += n(c.value);
         }
       }
-      const expected = round(source + fixed + removed);
-      const diffs = [fixed && `수정으로 ${fixed > 0 ? '+' : ''}${round(fixed)}`, removed && `운영자 제외로 ${round(removed)}`].filter(Boolean);
+      const expected = round(source + fixed + removed + hiddenOut);
+      const diffs = [fixed && `수정으로 ${fixed > 0 ? '+' : ''}${round(fixed)}`, removed && `운영자 제외로 ${round(removed)}`, hiddenOut && `숨긴 줄 제외로 ${round(hiddenOut)}`].filter(Boolean);
       lines.push({ check: `숫자 합계 · ${f.label}`, detail: `원본 ${round(source)}${diffs.length ? ` (${diffs.join(', ')})` : ''} → 같은 틀 시트 ${round(sheet)}`, ok: round(sheet) === expected });
     }
   }

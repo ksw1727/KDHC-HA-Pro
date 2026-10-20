@@ -128,7 +128,7 @@ interface Issue {
   fileId: string;
   code: IssueCode | 'COLUMN_MISSING' | 'COLUMNS_REORDERED' | 'VERSION_MISMATCH' | 'META_TAMPERED'
       | 'META_MISSING' | 'FIXED_CELL_CHANGED' | 'TOTAL_MISMATCH' | 'IMAGE_NOT_COPIED'
-      | 'EXTRA_SHEET' | 'TEXT_OUTSIDE_INPUT' | 'FORM_SHEET_MISSING';
+      | 'EXTRA_SHEET' | 'TEXT_OUTSIDE_INPUT' | 'FORM_SHEET_MISSING' | 'FILTER_CLEARED';
   severity: 'value' | 'info';      // value = 확인할 칸 대상, info = 자동 처리 안내
   sheet: string; address?: string; // 원본 위치 — 수정본 사본에 쓸 때 필요
   location: string;                // 화면용: '목록 7행 수량'
@@ -140,7 +140,7 @@ interface Issue {
 
 interface Question {               // 애매한 판단 (값 오류가 아닌 것)
   id: string; fileId?: string;
-  kind: 'column-alias' | 'split-values' | 'multi-sheet' | 'same-row-twice' | 'grid-conflict';
+  kind: 'column-alias' | 'split-values' | 'multi-sheet' | 'same-row-twice' | 'grid-conflict' | 'hidden-area';
   message: string;
   choices: { id: string; label: string }[];
   defaultChoice: string;
@@ -209,7 +209,8 @@ interface Decisions {
 
 | 모양 | 처리 |
 |---|---|
-| 숨긴 줄·필터로 가린 줄 | **넣고** `flags: ['hidden']` → 상태 칸 `숨긴 줄`, 같은 틀 시트에서 흐리게 |
+| 필터로 가린 줄 | 자동 필터 범위 안의 숨긴 줄. 필터는 보통 일부만 보려고 걸고 풀지 않은 채 제출하는 경우가 있어서 **필터를 푼 것처럼 보통 줄로 넣는다**(표시 없음). 파일에 `FILTER_CLEARED`(info) "필터로 가려진 n줄도 함께 합쳤어요" |
+| 직접 숨긴 줄·열 | 값이 있는 숨긴 줄(목록·여유 줄)과 숨긴 줄·열에 있는 칸(위쪽 정보·표·입력칸·목록 칸·추가 칸)을 `hiddenArea`로 모으고, 파일마다 확인(`hidden-area`): **넣기(기본)** / 빼기. 넣기 → 숨긴 줄은 `flags: ['hidden']`, 상태 칸 `숨긴 줄`, 같은 틀 시트에서 흐리게. 빼기 → 숨긴 줄은 사유 "숨긴 줄 제외"로 빼고(파일목록·검산·판단 기록), 숨긴 열의 값은 빈칸, 숨긴 추가 칸은 `추가 칸` 시트에 넣지 않음 |
 | 취소선 | **넣고** `flags: ['strike']` → 상태 칸 `취소선`, 취소선 서식 유지 |
 | 합친 셀 | 병합 범위의 모든 줄에 같은 값(자동, `fill: 'merged'`) |
 | `〃`, `"`, `상동`, `위와 같음` | 윗줄 값으로 채움(자동, `fill: 'ditto'`, 원래 값은 메모) |
@@ -323,9 +324,9 @@ export const METHODS: AggregationMethod[] = [sameFrame, spread, collectSheets, s
 
 | 검사 | 내용 |
 |---|---|
-| 줄 수 | 파일별·전체 `읽은 줄 = 반영 + 제외(사유별: 빈 줄·예시·합계·운영자 제외·중복)` |
+| 줄 수 | 파일별·전체 `읽은 줄 = 반영 + 제외(사유별: 빈 줄·예시·합계·운영자 제외·중복·숨긴 줄 제외)` |
 | 취합 누락 | 넣은 파일 수 = 반영 + 제외(사유별) + 건너뜀(사유별). 지사 사용 시 미제출 지사 목록 |
-| 숫자 합계 | 숫자 칸마다 `원본 합계(값 정리 후) = 같은 틀 시트 합계`. 수정·제외로 생긴 차이는 별도 줄로 표시(예: "수정으로 +5, 운영자 제외로 -120") |
+| 숫자 합계 | 숫자 칸마다 `원본 합계(값 정리 후) = 같은 틀 시트 합계`. 수정·제외로 생긴 차이는 별도 줄로 표시(예: "수정으로 +5, 운영자 제외로 -120, 숨긴 줄 제외로 -20") |
 | 수식 검산 | 표형 합계 행·열: 원본 파일의 합계 칸 값 = 원본 칸들의 합. 목록에서 제외한 합계 줄(`totalRowChecks`): 적힌 합계 = 위 줄들의 합. 안 맞으면 `TOTAL_MISMATCH`(info)로 해당 파일 표시 |
 | 빈칸채우기 | 입력칸 수 = 채워진 칸 + 빈칸(필수 빈칸 수 별도), 충돌 칸 수 |
 
@@ -399,7 +400,7 @@ src/aggregator/
 | 대상 | 내용 |
 |---|---|
 | identify | 메타 정상 / 변조 / 시트 삭제(속성만) / 모두 없음(머리글 일치율) / 다른 양식 / 버전 다름 / 취합본 / 내용 완전 동일 / .xls·암호·깨진 파일 |
-| read | 양식 시트 찾기(이름 변경·삭제), 추가 시트 무시, 열 순서 변경·삭제·비슷한 이름, 추가 칸, 숨긴 줄·필터, 취소선, 합친 셀, `〃`, 빈/예시/합계 줄, 입력칸에 메모처럼 적은 줄(데이터로 읽힘), 작성자 엑셀 메모 수집, 보호 풀린 사본의 입력칸 밖 글(info), grid 고정 칸 변경·여유 줄 |
+| read | 양식 시트 찾기(이름 변경·삭제), 추가 시트 무시, 열 순서 변경·삭제·비슷한 이름, 추가 칸, 필터로 가린 줄(보통 줄)·직접 숨긴 줄·열(묻기), 취소선, 합친 셀, `〃`, 빈/예시/합계 줄, 입력칸에 메모처럼 적은 줄(데이터로 읽힘), 작성자 엑셀 메모 수집, 보호 풀린 사본의 입력칸 밖 글(info), grid 고정 칸 변경·여유 줄 |
 | normalize | `01-contract.md` 5절 표의 모든 예시 (타입 × ok/auto/proposal/invalid) |
 | validate | IssueCode 8종, grid 필수 칸은 겹친 뒤 판정 |
 | resolve | 미결정 기본값, 수정안/직접/그대로, 파일 제외, 줄 빼기, 중복 기본값(최신)·파일 바꾸기, 지사 연결 후 중복 재판정, none 모드 |

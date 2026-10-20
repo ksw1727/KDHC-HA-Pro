@@ -312,7 +312,7 @@ ExcelJS는 사용자 지정 속성을 지원하지 않으므로 `xlsxPatch.ts`�
 ```ts
 export type CellValue = string | number | null;   // 날짜는 'YYYY-MM-DD' / 'YYYY-MM' / 'YYYY' 문자열
 
-export type RowFlag = 'hidden' | 'strike';          // 숨긴 줄(필터 포함) / 취소선
+export type RowFlag = 'hidden' | 'strike';          // 직접 숨긴 줄(필터로 가린 줄은 보통 줄로 읽음) / 취소선
 
 export interface RowRecord {
   values: Record<string, CellValue>;   // key = field.key
@@ -377,7 +377,7 @@ export type IssueCode =
 | date | dateFormat, minDate, maxDate | 날짜, 범위, 표시 서식 | `2026.11.1`, `2026/11/01`, `11월 1일`, `11/1`(연도 없으면 취합 연도), 엑셀 날짜 숫자 → 형식대로. 연도형: `2026년`→2026 | 연도형 `26`→2026 | 해석 불가 (`NOT_DATE`), 범위 밖 (`OUT_OF_RANGE`) |
 | select | options | 드롭다운 | 공백·대소문자 차이 → 목록 값 | 목록에 없는 비슷한 값(`notebook`→`노트북` 등 편집거리·포함관계) → 후보 | 그 외 (`NOT_IN_OPTIONS`) |
 | memo | — | 없음, 줄바꿈 서식 | 앞뒤 공백 제거 | — | — |
-| pattern | pattern | 텍스트 길이 제한 + 입력 메시지 | 전화 `0212345678`→`02-1234-5678`, 휴대폰 `01012345678`→`010-1234-5678`, 사업자 `1234567890`→`123-45-67890`, 이메일 앞뒤 공백·도메인 소문자 | — | 자릿수·형식·사업자번호 검증 실패 (`BAD_PATTERN`) |
+| pattern | pattern | 텍스트 길이 제한 + 입력 메시지 | 전화 `0212345678`→`02-1234-5678`, 휴대폰 `01012345678`→`010-1234-5678`, 사업자 `1234567891`→`123-45-67891`(검증 숫자가 맞는 예시), 이메일 앞뒤 공백·도메인 소문자 | — | 자릿수·형식·사업자번호 검증 실패 (`BAD_PATTERN`) |
 
 - 공통: 엑셀 오류 값(`#N/A`, `#REF!` 등) → `invalid`, `FORMULA_ERROR`, 값은 빈칸 처리. 수식 칸은 결과 값을 사용한다.
 - 필수 여부(`required`)는 공통 규칙으로 취합 파트가 검사한다(코드 `REQUIRED_EMPTY`). 수정안 없음.
