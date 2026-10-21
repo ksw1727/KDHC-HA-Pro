@@ -22,7 +22,11 @@ interface Msg {
   form?: FormSchema;
   problems?: string[];     // 양식 규칙 위반 (있으면 내보내기 전에 고쳐야 함)
   badForm?: string;        // 양식 정의가 아예 틀렸을 때
+  edited?: boolean;        // 빌더에서 고친 양식으로 바뀜
 }
+
+/** 양식 비교용 (빌더가 저장할 때마다 바뀌는 updatedAt은 빼고) */
+const sig = (s: FormSchema) => JSON.stringify({ ...s, updatedAt: '' });
 
 const ENGINES: [Engine, string][] = [['claude', 'Claude'], ['codex', 'Codex']];
 const EXAMPLES = [
@@ -34,12 +38,12 @@ const EXAMPLES = [
 const ENGINE_KEY = 'hanan-moa:ai-engine';
 const CHAT_KEY = 'hanan-moa:ai-chat';   // 대화를 브라우저에 남겨 새로고침해도 이어 간다. [새 대화]로만 지운다
 
-function loadChat(): { chatId: string | null; msgs: Msg[] } {
+function loadChat(): { chatId: string | null; msgs: Msg[]; aiVersion: string | null } {
   try {
     const j = JSON.parse(localStorage.getItem(CHAT_KEY) ?? 'null');
-    if (j && Array.isArray(j.msgs)) return { chatId: j.chatId ?? null, msgs: j.msgs.map((m: Msg) => ({ ...m, status: undefined })) };
+    if (j && Array.isArray(j.msgs)) return { chatId: j.chatId ?? null, aiVersion: j.aiVersion ?? null, msgs: j.msgs.map((m: Msg) => ({ ...m, status: undefined })) };
   } catch { /* 없거나 깨졌으면 새로 */ }
-  return { chatId: null, msgs: [] };
+  return { chatId: null, msgs: [], aiVersion: null };
 }
 
 /** AI가 준 양식 정의 → 화면용 (계약 검사 → 내보내기 전 검사) */
@@ -56,6 +60,8 @@ export function AiPage() {
   const [saved] = useState(loadChat);
   const [chatId, setChatId] = useState<string | null>(saved.chatId);
   const [msgs, setMsgs] = useState<Msg[]>(saved.msgs);
+  // AI 작업 폴더에 있는 양식(마지막으로 AI가 만들었거나 AI에게 넘긴 것). 화면 양식과 다르면 다음 말에 함께 넘긴다
+  const [aiVersion, setAiVersion] = useState<string | null>(saved.aiVersion);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
@@ -67,10 +73,26 @@ export function AiPage() {
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
   useEffect(() => { try { localStorage.setItem(ENGINE_KEY, engine); } catch { /* 저장 못 해도 됨 */ } }, [engine]);
   useEffect(() => {
-    try { if (msgs.length) localStorage.setItem(CHAT_KEY, JSON.stringify({ chatId, msgs })); else localStorage.removeItem(CHAT_KEY); } catch { /* 저장 못 해도 됨 */ }
-  }, [chatId, msgs]);
+    try { if (msgs.length) localStorage.setItem(CHAT_KEY, JSON.stringify({ chatId, msgs, aiVersion })); else localStorage.removeItem(CHAT_KEY); } catch { /* 저장 못 해도 됨 */ }
+  }, [chatId, msgs, aiVersion]);
 
   const lastForm = [...msgs].reverse().find((m) => m.form)?.form;
+
+  // 빌더에서 이 대화의 양식을 고치면 마지막 양식 카드를 바로 그 양식으로 바꾼다
+  useEffect(() => {
+    const apply = (s: FormSchema) => setMsgs((xs) => {
+      const i = xs.map((m) => !!m.form).lastIndexOf(true);
+      if (i < 0 || xs[i].form!.formId !== s.formId || sig(xs[i].form!) === sig(s)) return xs;
+      return xs.map((m, k) => (k === i ? { ...m, ...checkForm(s), edited: true } : m));
+    });
+    const on = (e: Event) => apply((e as CustomEvent<FormSchema>).detail);
+    window.addEventListener('hanan-moa:form-saved', on);
+    // 새로고침 전에 고친 것도 맞춘다
+    const last = [...saved.msgs].reverse().find((m) => m.form)?.form;
+    const stored = last ? loadForm(last.formId)?.schema : undefined;
+    if (stored) apply(stored);
+    return () => window.removeEventListener('hanan-moa:form-saved', on);
+  }, [saved]);
   const patchLast = (f: (m: Msg) => Msg) => setMsgs((xs) => xs.map((m, i) => (i === xs.length - 1 ? f(m) : m)));
 
   const send = async (text = input) => {
@@ -83,9 +105,10 @@ export function AiPage() {
     abort.current = ctl;
     try {
       // 빌더에서 고친 양식이 있으면 그 양식에서 이어 고친다
-      const edited = lastForm ? loadForm(lastForm.formId)?.schema : undefined;
-      const form = edited && JSON.stringify(edited) !== JSON.stringify(lastForm) ? edited : undefined;
+      const edited = [...msgs].reverse().find((m) => m.form)?.edited;
+      const form = lastForm && (aiVersion !== null ? sig(lastForm) !== aiVersion : edited) ? lastForm : undefined;
       if (form) patchLast((m) => ({ ...m, status: '빌더에서 고친 양식을 AI에게 넘기는 중' }));
+      if (form) setAiVersion(sig(form));
       const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ chatId: chatId ?? undefined, engine, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.)\n${message}` : message, form }), signal: ctl.signal });
       if (!res.body) throw new Error('연결 서버가 답하지 않아요');
@@ -104,7 +127,7 @@ export function AiPage() {
           if (e.type === 'chat') setChatId(e.chatId);
           else if (e.type === 'status') patchLast((m) => ({ ...m, status: e.text }));
           else if (e.type === 'text') patchLast((m) => ({ ...m, text: m.text ? `${m.text}\n\n${e.text}` : e.text }));
-          else if (e.type === 'form') patchLast((m) => ({ ...m, ...checkForm(e.schema) }));
+          else if (e.type === 'form') { const c = checkForm(e.schema); patchLast((m) => ({ ...m, ...c })); if (c.form) setAiVersion(sig(c.form)); }
           else if (e.type === 'error') patchLast((m) => ({ ...m, error: e.text }));
         }
       }
@@ -120,7 +143,7 @@ export function AiPage() {
 
   const reset = () => {
     if (msgs.length && !window.confirm('지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
-    abort.current?.abort(); setChatId(null); setMsgs([]); setInput('');
+    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null);
   };
 
   if (health === 'off') {
@@ -196,13 +219,13 @@ function AiBubble({ m }: { m: Msg }) {
       {m.text && <div className="whitespace-pre-wrap rounded-card bg-panel px-3 py-2">{bold(m.text)}</div>}
       {m.status && <div className="flex items-center gap-2 text-xs text-sub"><span className="inline-block h-2 w-2 animate-pulse rounded-full bg-pri" />{m.status}…</div>}
       {m.badForm && <div className="rounded-card border border-[#f3c2bd] bg-[#fffafa] px-3 py-2 text-sm text-err-ink">AI가 만든 양식이 규칙에 맞지 않아요: {m.badForm}. "규칙에 맞게 다시 고쳐 줘"라고 말해 보세요.</div>}
-      {m.form && <FormCard schema={m.form} problems={m.problems ?? []} />}
+      {m.form && <FormCard schema={m.form} problems={m.problems ?? []} edited={m.edited} />}
       {m.error && <div className="text-sm text-err-ink">{m.error}</div>}
     </div>
   );
 }
 
-function FormCard({ schema, problems }: { schema: FormSchema; problems: string[] }) {
+function FormCard({ schema, problems, edited }: { schema: FormSchema; problems: string[]; edited?: boolean }) {
   const org = schema.org.mode === 'preset' ? schema.org.orgs?.[0] : undefined;
   const model = useMemo(() => layoutSheet(schema, { mode: 'template', orgName: org }, { today: new Date() }), [schema, org]);
   const [busy, setBusy] = useState(false);
@@ -222,6 +245,7 @@ function FormCard({ schema, problems }: { schema: FormSchema; problems: string[]
         <b>{schema.title || '(제목 없음)'}</b>
         <Chip tone="pri">{LAYOUT_LABELS[schema.layout]}</Chip>
         <span className="text-xs text-sub">{who}</span>
+        {edited && <Chip tone="warn">빌더에서 고침 · 다음에 말하면 AI가 이 양식에서 이어 가요</Chip>}
         <span className="flex-1" />
         {problems.length === 0 ? <Chip tone="auto">검사 통과</Chip> : <Chip tone="err">고칠 곳 {problems.length}</Chip>}
       </div>
