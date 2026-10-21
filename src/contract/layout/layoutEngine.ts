@@ -1,6 +1,6 @@
 import type { DataValidation } from 'exceljs';
 import type { Block, Field, FieldsBlock, FormSchema, GridBlock, ListBlock, MatrixBlock } from '../schema';
-import { orgLabel } from '../schema';
+import { gridOwners, orgLabel, sameOrg } from '../schema';
 import type { CellMap, CellValue, FieldsBlockMap, GridBlockMap, ListBlockMap, MatrixBlockMap } from '../meta';
 import { FIELD_TYPES } from '../fieldTypes';
 import { parseFormula, printFormula, toExcel, type Node, type RefResolver } from '../formula/formula';
@@ -77,7 +77,7 @@ class Layouter {
   private put(cell: ModelCell) {
     this.cells.set(cell.address, cell);
     const row = Number(/\d+$/.exec(cell.address)![0]);
-    if (cell.role === 'input' || cell.role === 'example' || cell.role === 'auto-value' || cell.role === 'row-number' || cell.formula || cell.role === 'fixed' || cell.role === 'calc')
+    if (cell.role === 'input' || cell.role === 'example' || cell.role === 'auto-value' || cell.role === 'row-number' || cell.formula || cell.role === 'fixed' || cell.role === 'calc' || cell.role === 'other-input')
       this.lastInputRow = Math.max(this.lastInputRow, row);
   }
 
@@ -484,6 +484,9 @@ class Layouter {
       const p = names.get(name);
       return p ? addr(1 + p.c, firstBodyRow + p.r) : undefined;
     };
+    // 빈 양식: 다른 제출처가 채우는 칸은 회색·잠금 (작성처는 gridOwners)
+    const owners = this.isTemplate ? gridOwners(this.schema) : new Map<string, string>();
+    const me = this.input.mode === 'template' ? this.input.orgName ?? this.schema.org.orgs?.[0] : undefined;
     const gridCalc = this.isTemplate ? {} : computeGrid(b, Object.fromEntries(Object.entries(this.agg?.grid ?? {}).map(([k, v]) => [k, v.value])));
     for (const cells of b.rows) {
       cells.forEach((cell, c) => {
@@ -497,6 +500,12 @@ class Layouter {
           map.fixedCells[a] = cell.value;
         } else if (cell.kind === 'input') {
           const f = cell.field;
+          const owner = owners.get(f.key);
+          if (owner && me && !sameOrg(owner, me)) {
+            this.put({ address: a, role: 'other-input', fieldKey: f.key });
+            map.inputCells[f.key] = a;
+            return;
+          }
           const g = this.agg?.grid?.[f.key];
           this.put({ address: a, value: this.isTemplate ? undefined : asCell(g?.value), note: g?.note, role: 'input', required: f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key });
           map.inputCells[f.key] = a;

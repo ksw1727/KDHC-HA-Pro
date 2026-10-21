@@ -59,6 +59,8 @@ export interface Field {
   options?: string[];                         // select (1개 이상, 중복 불가)
   pattern?: 'phone' | 'mobile' | 'email' | 'bizno';   // pattern (필수)
   formula?: string;                           // calc (필수). 칸 이름으로 쓴 계산식 (3.1절)
+
+  owner?: string;         // 빈칸채우기 입력 칸의 작성처(제출처 이름). org.mode = 'preset'일 때만. 없으면 머리글로 자동
 }
 
 export interface FieldsBlock { kind: 'fields'; id: string; title?: string; fields: Field[]; }
@@ -81,7 +83,14 @@ export interface MatrixBlock {
   calcCols?: Field[];      // 계산 열 (type 'calc'). 표 오른쪽, 계 열 다음
 }
 
-/** 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내고 채운 칸을 겹쳐 합친다. */
+/**
+ * 작성처는 지사에 한정하지 않는다: ⑤ 제출처 목록(지사·부서·담당자 등 무엇이든)의 이름과 맞춘다. 예: 열마다 지사, 행마다 담당자.
+ * 제출처 목록이 있으면 칸이 겹치지 않아 같은 틀 시트 한 장에 모두 들어가므로 펼치기(spread)는 쓰지 않는다.
+ * 빈칸채우기형: 본사가 채운 표 + 빈 입력칸. 모두에게 같은 표를 보내되, 입력칸마다 채우는 제출처(작성처)가 정해져 있다.
+ * 작성처 = gridOwners(schema): 직접 지정(field.owner) > 열 머리글 > 행 첫 칸이 제출처 목록의 이름과 같으면(띄어쓰기 무시, sameOrg) 그 제출처.
+ * 제출처 파일에서 다른 제출처 칸은 회색·잠금(role 'other-input'). 취합은 칸마다 작성처 파일의 값만 쓴다.
+ * org.mode가 'preset'이 아니면 작성처가 없고, 채운 칸을 겹쳐 합친다(다른 값이면 묻기).
+ */
 export type GridCell =
   | { kind: 'fixed'; value: string | number }   // 본사가 미리 채운 고정 내용 (잠금)
   | { kind: 'input'; field: Field }             // 작성자가 채우는 칸 (field.key는 블록 안에서 유일)
@@ -200,7 +209,8 @@ export interface FormSchema {
 | 빈칸채우기 계산 칸 | 입력·계산 칸 이름, 숫자 고정 칸 `{행 첫 칸} · {열 머리글}` | 그 칸 주소 |
 | 빈칸채우기 여유 줄 계산 열 | 다른 여유 줄 열 이름(같은 줄) | 같은 줄 주소 |
 
-- 엑셀 수식은 `IFERROR(…,"")`로 감싼다(0으로 나누기·빈칸이면 빈칸). 셀 메모에 `계산: {계산식}`을 단다.
+- 엑셀 수식은 `IFERROR(…,"")`로 감싼다(0으로 나누기·글자 연산이면 빈칸). 셀 메모에 `계산: {계산식}`을 단다.
+- 빈칸은 엑셀과 같게 연산·비교·조건에서 **0으로 본다** (`[수량] × [단가] × (1 − [할인율])`에서 할인율이 비면 할인 0). 합계·평균·최소·최대·개수는 빈칸을 건너뛴다. 취합(`contract/formula.evaluate`)도 같은 규칙이라 엑셀 결과와 같다.
 - 검사(`validateSchema`·`formulaErrors`): 문법, 없는 이름, 자기 자신, 계산 칸끼리 순환, 합계 안에서만 쓸 목록 칸.
 - **취합본은 계산 칸을 읽지 않고, 합친 입력값으로 다시 계산한다**(`computeListRow`, `computeHeader`, `computeMatrix`, `computeGrid`, `computeSpareRow`). 비율처럼 지사 값을 더하면 틀리는 값이 있기 때문이다. 표형 합계 행의 계산 열 값은 합계 행 값으로 다시 계산한다.
 
@@ -303,7 +313,7 @@ ExcelJS는 사용자 지정 속성을 지원하지 않으므로 `xlsxPatch.ts`�
 ```ts
 export type CellValue = string | number | null;   // 날짜는 'YYYY-MM-DD' / 'YYYY-MM' / 'YYYY' 문자열
 
-export type RowFlag = 'hidden' | 'strike';          // 숨긴 줄(필터 포함) / 취소선
+export type RowFlag = 'hidden' | 'strike';          // 직접 숨긴 줄(필터로 가린 줄은 보통 줄로 읽음) / 취소선
 
 export interface RowRecord {
   values: Record<string, CellValue>;   // key = field.key
@@ -364,11 +374,11 @@ export type IssueCode =
 | type | 서식 옵션 | 엑셀 입력 규칙 (생성) | auto (확실) | proposal (수정안) | invalid |
 |---|---|---|---|---|---|
 | text | maxLength | 텍스트 길이 ≤ maxLength | 앞뒤 공백·줄바꿈 제거 | — | `TOO_LONG` |
-| number | decimals, thousands, unit, min, max | 정수/소수, min~max, 표시 서식 `#,##0.00"단위"` | `1,000개`→1000, `₩5,000`→5000, `15%`→15, 숫자 모양 문자열 | `약 10`→10, `다섯`→5, 자릿수 초과(`3.456`, decimals 2)→3.46 | `10~20` 등 (`NOT_NUMBER`), 범위 밖 (`OUT_OF_RANGE`) |
+| number | decimals, thousands, unit, min, max | 정수/소수, min~max, 표시 서식 `#,##0.00"단위"` | `1,000개`→1000, `₩5,000`→5000, `15%`→15, 숫자 모양 문자열, 한글 자릿수 `3만원`→30000·`6만 5천`→65000·`2.5만`→25000·`1억 2천만`→120000000 | `약 10`→10, `약 6만`·`10명 정도`(대략 적은 값)→60000·10, 천 단위 자리가 아닌 쉼표 `1,2`(1.2인지 12인지 모름)→12, `다섯`→5, 자릿수 초과(`3.456`, decimals 2)→3.46 | `10~20` 등 (`NOT_NUMBER`), 범위 밖 (`OUT_OF_RANGE`) |
 | date | dateFormat, minDate, maxDate | 날짜, 범위, 표시 서식 | `2026.11.1`, `2026/11/01`, `11월 1일`, `11/1`(연도 없으면 취합 연도), 엑셀 날짜 숫자 → 형식대로. 연도형: `2026년`→2026 | 연도형 `26`→2026 | 해석 불가 (`NOT_DATE`), 범위 밖 (`OUT_OF_RANGE`) |
 | select | options | 드롭다운 | 공백·대소문자 차이 → 목록 값 | 목록에 없는 비슷한 값(`notebook`→`노트북` 등 편집거리·포함관계) → 후보 | 그 외 (`NOT_IN_OPTIONS`) |
 | memo | — | 없음, 줄바꿈 서식 | 앞뒤 공백 제거 | — | — |
-| pattern | pattern | 텍스트 길이 제한 + 입력 메시지 | 전화 `0212345678`→`02-1234-5678`, 휴대폰 `01012345678`→`010-1234-5678`, 사업자 `1234567890`→`123-45-67890`, 이메일 앞뒤 공백·도메인 소문자 | — | 자릿수·형식·사업자번호 검증 실패 (`BAD_PATTERN`) |
+| pattern | pattern | 텍스트 길이 제한 + 입력 메시지 | 전화 `0212345678`→`02-1234-5678`, 휴대폰 `01012345678`→`010-1234-5678`, 사업자 `1234567891`→`123-45-67891`(검증 숫자가 맞는 예시), 이메일 앞뒤 공백·도메인 소문자 | — | 자릿수·형식·사업자번호 검증 실패 (`BAD_PATTERN`) |
 
 - 공통: 엑셀 오류 값(`#N/A`, `#REF!` 등) → `invalid`, `FORMULA_ERROR`, 값은 빈칸 처리. 수식 칸은 결과 값을 사용한다.
 - 필수 여부(`required`)는 공통 규칙으로 취합 파트가 검사한다(코드 `REQUIRED_EMPTY`). 수정안 없음.
@@ -379,8 +389,8 @@ export type IssueCode =
 ```ts
 export type AggregationId =
   | 'same-frame'         // 같은 틀 시트        — collect를 뺀 모든 layout, 항상 포함
-  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in, free(조건부 필수, 3.2)
-  | 'collect-sheets'     // 시트 모으기         — 모든 layout. collect는 항상 포함(목차 시트 포함)
+  | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in(제출처 목록이 없을 때만), free(조건부 필수, 3.2)
+  | 'collect-sheets'     // 시트 모으기         — collect만, 항상 포함(목차 시트 포함)
   | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]>;
@@ -420,7 +430,8 @@ interface ModelCell {
   value?: string | number;
   formula?: string;                  // 합계 행·열 등
   role: 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
-      | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc';
+      | 'example' | 'fixed' | 'auto-header' | 'auto-value' | 'calc'
+      | 'other-input';                 // 빈칸채우기: 다른 제출처가 채우는 칸 (빈 양식에서 회색·잠금)
   required?: boolean;
   numFmt?: string;
   wrap?: boolean;

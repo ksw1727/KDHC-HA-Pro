@@ -3,7 +3,7 @@ import { DATE_EXAMPLE, PATTERN_INFO } from '@contract/fieldTypes';
 
 /** 숫자를 서식(쉼표·소수·단위)대로 글자로. 엑셀 numFmt와 같은 결과를 화면에서 보여주기 위함. */
 /** 정리 안내에 쓰는 '아무렇게나 들어온 값' 예시 (패턴마다 다름. 사업자번호에 휴대폰 번호가 나오던 것) */
-const RAW_EXAMPLE: Record<'phone' | 'mobile' | 'bizno', string> & Record<string, string> = { phone: '0212345678', mobile: '01012345678', bizno: '1234567890' };
+const RAW_EXAMPLE: Record<'phone' | 'mobile' | 'bizno', string> & Record<string, string> = { phone: '0212345678', mobile: '01012345678', bizno: '1234567891' };
 
 export function formatNumber(n: number, field: Pick<Field, 'decimals' | 'thousands' | 'unit'>): string {
   const d = Math.max(0, Math.min(4, field.decimals ?? 0));

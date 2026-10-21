@@ -18,7 +18,9 @@ async function runAll(files: LoadedFile[], d: Decisions = emptyDecisions(), meth
   const out = await writeResult({ schema: a.base!.schema, res, methods, workbooks: new Map(a.identified.filter((x) => x.workbook).map((x) => [x.file.id, x.workbook!])), now: NOW });
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(out.bytes as unknown as ArrayBuffer);
-  return { a, res, out, wb };
+  const rb = new ExcelJS.Workbook();
+  if (out.review) await rb.xlsx.load(out.review.bytes as unknown as ArrayBuffer);
+  return { a, res, out, wb, rb };
 }
 
 const sheetNames = (wb: ExcelJS.Workbook) => wb.worksheets.filter((w) => w.state === 'visible').map((w) => w.name);
@@ -38,7 +40,7 @@ describe('목록형 전체 흐름', () => {
       await makeFile(list, '부산_옛.xlsx', { orgName: '부산', savedAt: new Date('2026-10-12T00:00:00Z'), fill: put([{ name: '박', qty: 1 }]) }),
       await makeFile(list, '부산_새.xlsx', { orgName: '부산', savedAt: new Date('2026-10-14T00:00:00Z'), fill: put([{ name: '최', qty: 2 }, { rank: '사원', qty: 3 }]) }),
     ];
-    const { res, out, wb } = await runAll(files, emptyDecisions(), ['same-frame', 'submission-status']);
+    const { res, out, wb, rb } = await runAll(files, emptyDecisions(), ['same-frame', 'submission-status']);
 
     expect(res.files.find((s) => s.fileName === '부산_옛.xlsx')?.status).toBe('duplicate');
     expect(res.missingOrgs).toEqual(['대구']);
@@ -47,14 +49,22 @@ describe('목록형 전체 흐름', () => {
     expect(out.verify.ok).toBe(true);
     expect(out.verify.lines.find((l) => l.check === '숫자 합계 · 수량')?.detail).toContain('같은 틀 시트 1015');
 
-    expect(sheetNames(wb)).toEqual([wb.worksheets[0].name, '제출 현황', '오류', '파일목록', '검산', '판단 기록']);
-    const ws = wb.worksheets[0];
+    // 결과 파일: 취합한 표 + 고른 시트만, 자동 칸은 제출처만 / 검토 파일: 출처·상태가 붙은 표 + 오류·파일목록·검산·판단 기록
+    expect(sheetNames(wb)).toEqual([wb.worksheets[0].name, '제출 현황']);
+    expect(sheetNames(rb)).toEqual([wb.worksheets[0].name, '오류', '파일목록', '검산', '판단 기록', '자동 정리']);
+    // 자동으로 고친 값은 원래 값과 함께 검토 파일에 남는다
+    const fixedRows = rb.getWorksheet('자동 정리')!.getSheetValues().slice(2).map((r) => (r as unknown[]).slice(1, 7));
+    expect(fixedRows).toContainEqual(['서울', '서울.xlsx', expect.any(String), '수량', '1,000개', 1000]);
+    expect(out.review?.fileName).toMatch(/_검토_/);
+    const headers = (b: ExcelJS.Workbook) => b.worksheets[0].getSheetValues().flat().filter((v) => v === '출처 파일' || v === '원본 줄' || v === '상태' || v === '지사');
+    expect(headers(wb)).toEqual(['지사']);
+    expect(headers(rb)).toEqual(['지사', '출처 파일', '원본 줄', '상태']);
     const meta = await readMeta(wb);
     expect(meta.status === 'ok' && meta.meta.kind).toBe('aggregate');
-    // 같은 틀 시트: 서울 2줄 + 부산 2줄, '약 10' 칸은 10 + 원래 값 메모
-    const qtyCells: unknown[] = [];
-    ws.eachRow((row) => row.eachCell((c) => { if (typeof c.note === 'string' && c.note.includes('약 10')) qtyCells.push(c.value); }));
-    expect(qtyCells).toEqual([10]);
+    // 같은 틀 시트: 서울 2줄 + 부산 2줄, '약 10' 칸은 10. 원래 값 메모는 검토 파일에만
+    const qtyCells = (b: ExcelJS.Workbook) => { const out: unknown[] = []; b.worksheets[0].eachRow((row) => row.eachCell((c) => { if (typeof c.note === 'string' && c.note.includes('약 10')) out.push(c.value); })); return out; };
+    expect(qtyCells(rb)).toEqual([10]);
+    expect(qtyCells(wb)).toEqual([]);
     const status = wb.getWorksheet('제출 현황')!.getSheetValues().slice(2).map((r) => (r as unknown[]).slice(1, 3));
     expect(status).toEqual([['서울', '제출'], ['부산', '중복'], ['부산', '제출'], ['대구', '미제출']]);
   });
@@ -82,6 +92,31 @@ describe('목록형 전체 흐름', () => {
     expect(again.parsed[0].rows[0].values.qty).toBe(12);
     expect(again.parsed[0].issues.filter((i) => i.code === 'NOT_NUMBER')).toEqual([]);
     expect(again.parsed[0].read.authorNotes).toEqual([]);   // [자동] 메모는 작성자 메모로 세지 않음
+  });
+
+  test('숨긴 곳: 기본은 넣고, [빼기]면 숨긴 줄은 빼고 숨긴 열 값은 비운다 — 검산·파일목록·판단 기록에 남는다', async () => {
+    const hide = (ws: ExcelJS.Worksheet, m: Parameters<typeof firstRow>[0]) => {
+      put([{ name: '김', rank: '사원', qty: 1 }, { name: '이', rank: '대리', qty: 20 }, { name: '박', rank: '사원', qty: 3 }])(ws, m);
+      ws.getRow(firstRow(m) + 1).hidden = true;
+      ws.getColumn(listCol(m, 'rank')).hidden = true;
+    };
+    const files = [await makeFile(list, '서울.xlsx', { orgName: '서울', fill: hide })];
+    const kept = await runAll(files);
+    expect(kept.res.included[0].rows.map((r) => [r.values.name, r.values.rank, r.values.qty])).toEqual([['김', '사원', 1], ['이', '대리', 20], ['박', '사원', 3]]);
+    expect(kept.res.log.find((l) => l.what === '숨긴 곳')).toMatchObject({ choice: '넣기', defaulted: true });
+
+    const q = kept.res.questions.find((x) => x.kind === 'hidden-area')!;
+    const out = await runAll(files, { ...emptyDecisions(), answers: { [q.id]: 'exclude' } }, ['same-frame']);
+    const s = out.res.included[0];
+    expect(s.rows.map((r) => [r.values.name, r.values.rank, r.values.qty])).toEqual([['김', null, 1], ['박', null, 3]]);
+    expect(s.removedRows).toEqual([expect.objectContaining({ reason: 'hidden' })]);
+    expect(out.out.verify.ok).toBe(true);
+    expect(out.out.verify.lines[0].detail).toContain('숨긴 줄 제외 1');
+    expect(out.out.verify.lines.find((l) => l.check === '숫자 합계 · 수량')?.detail).toContain('숨긴 줄 제외로 -20');
+    const fl = out.rb.getWorksheet('파일목록')!;
+    const head = (fl.getRow(1).values as unknown[]).slice(1);
+    expect((fl.getRow(2).values as unknown[]).slice(1)[head.indexOf('숨긴 줄 제외')]).toBe(1);
+    expect(out.res.log.find((l) => l.what === '숨긴 곳')).toMatchObject({ choice: '빼기', defaulted: false });
   });
 
   test('다시 취합: 본부 취합본 2개 = 같은 지사 파일을 직접 취합한 결과', async () => {
@@ -122,6 +157,40 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
     expect(spread.getRow(4).values).toEqual([undefined, '합계', 11, 22, 33, 44]);
   });
 
+  test('표형: 지사명을 비워 낸 파일은 확인을 받고, 이름을 적으면 그 이름으로 들어간다', async () => {
+    const m = SAMPLE.matrix;   // input 모드, 지사 목록 없음
+    const fill = (org: string) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
+      ws.getCell(model.cellMap.orgCell!).value = org;
+      const mm = model.cellMap.blocks.b1;
+      if (mm.kind === 'matrix') ws.getCell(mm.cells[0][0]).value = 5;
+    };
+    const files = [await makeFile(m, '서울.xlsx', { fill: fill('서울') }), await makeFile(m, '이름없음.xlsx', { fill: fill('') })];
+    const { res, rb } = await runAll(files);
+    const blank = res.files.find((f) => f.fileName === '이름없음.xlsx')!;
+    expect([blank.needsOrgLink, blank.orgBlank, blank.label]).toEqual([true, true, '이름없음.xlsx']);
+    expect(res.files.find((f) => f.fileName === '서울.xlsx')!.needsOrgLink).toBe(false);
+    const errs = rb.getWorksheet('오류')!.getSheetValues().slice(2).map((r) => (r as unknown[])[6]);
+    expect(errs).toContain('지사명이 비어 있어 파일 이름으로 넣었어요');
+    const d = { ...emptyDecisions(), orgLink: { [blank.fileId]: '부산' } };
+    expect((await runAll(files, d)).res.included.map((s) => s.label)).toEqual(['부산', '서울']);
+  });
+
+  test('제출처 이름: 띄어쓰기만 다르면 같은 곳 (목록이 있으면 목록 이름으로)', async () => {
+    const fill = (org: string) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => { ws.getCell(model.cellMap.orgCell!).value = org; };
+    // 목록 없음: 많이 쓴 이름으로 맞추고(같으면 띄어쓰기 없는 쪽), 같은 곳이 둘이면 중복
+    const free = await runAll([
+      await makeFile(SAMPLE.matrix, 'a.xlsx', { savedAt: new Date('2026-10-12T00:00:00Z'), fill: fill('수원 지사') }),
+      await makeFile(SAMPLE.matrix, 'b.xlsx', { fill: fill('수원지사') }),
+    ]);
+    // 두 이름이 한 번씩이면 띄어쓰기 없는 쪽
+    expect(free.res.files.map((f) => [f.label, f.status])).toEqual([['수원지사', 'duplicate'], ['수원지사', 'included']]);
+    expect(free.res.log.find((l) => l.what === '지사 이름 맞춤')?.choice).toBe("'수원 지사' → '수원지사'");
+    // 목록 있음: 목록 이름으로 바로 연결 (확인 안 받음)
+    const listed: FormSchema = { ...structuredClone(SAMPLE.matrix), org: { mode: 'input', orgs: ['수원지사', '대구지사'] } };
+    const withList = await runAll([await makeFile(listed, 'a.xlsx', { fill: fill('대구 지사') })]);
+    expect([withList.res.files[0].label, withList.res.files[0].needsOrgLink]).toEqual(['대구지사', false]);
+  });
+
   test('빈칸채우기형: 겹치고, 다른 값이면 물어보고(기본 = 최신), 고정 칸 변경은 알림', async () => {
     const g = SAMPLE['fill-in'];
     const fill = (key: string, v: number, fixed?: string) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
@@ -142,6 +211,30 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
     expect(a.parsed[1].issues.map((i) => i.code)).toContain('FIXED_CELL_CHANGED');
     const d = { ...emptyDecisions(), answers: { 'grid:g1': a.parsed[0].fileId } };
     expect(resolve(a.base!.schema, a.identified, a.parsed, d, ctx).gridOverlay.g1.value).toBe(100);
+  });
+
+  test('빈칸채우기형 작성처: 지사마다 자기 칸만 읽고, 남의 칸에 적은 값은 쓰지 않고 알린다', async () => {
+    const g: FormSchema = {
+      ...structuredClone(SAMPLE['fill-in']), org: { mode: 'preset', orgs: ['서울', '부산'] },
+      blocks: [{
+        kind: 'grid', id: 'b1', colLabels: ['사업', '서울', '부산'], spareRows: 0,
+        rows: [[{ kind: 'fixed', value: '교육' }, { kind: 'input', field: f('s', '교육 · 서울', { type: 'number', required: true }) }, { kind: 'input', field: f('p', '교육 · 부산', { type: 'number', required: true }) }]],
+      }],
+    };
+    const fill = (vals: Record<string, number>) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
+      const gm = model.cellMap.blocks.b1;
+      if (gm.kind === 'grid') for (const [k, v] of Object.entries(vals)) ws.getCell(gm.inputCells[k]).value = v;
+    };
+    const a = await analyze([
+      await makeFile(g, '서울.xlsx', { orgName: '서울', fill: fill({ s: 10, p: 99 }) }),   // 부산 칸에 잘못 적음
+      await makeFile(g, '부산.xlsx', { orgName: '부산', fill: fill({}) }),                // 자기 칸(필수)을 비움
+    ], [], null, NOW);
+    const res = resolve(a.base!.schema, a.identified, a.parsed, emptyDecisions(), ctx);
+    expect(res.gridOverlay.s.value).toBe(10);
+    expect(res.gridOverlay.p).toBeUndefined();
+    expect(res.questions).toEqual([]);
+    expect(a.parsed[0].issues.find((i) => i.code === 'OTHER_ORG_CELL')?.message).toBe("부산 칸에 적은 값 '99'는 쓰지 않았어요 (이 칸은 부산이 채워요)");
+    expect(res.crossIssues.map((i) => i.message)).toEqual(['부산이 채우지 않은 필수 칸이에요']);
   });
 
   test('시트 모으기형: 목차 + 제출처별 시트(모양 그대로), 일반 엑셀은 제외', async () => {

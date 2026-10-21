@@ -126,7 +126,7 @@ test('안내문: 필수칸이 없으면 "노란 칸" 말을 빼요', () => {
 });
 
 test('사업자번호 정리 안내 예시는 사업자번호 모양', () => {
-  expect(normalizeHint(f('b', '사업자번호', { type: 'pattern', pattern: 'bizno' }))).toContain('"1234567890"');
+  expect(normalizeHint(f('b', '사업자번호', { type: 'pattern', pattern: 'bizno' }))).toContain('"1234567891"');
 });
 
 test('계산식 개수(): 빈칸이 아닌 값 수', () => {

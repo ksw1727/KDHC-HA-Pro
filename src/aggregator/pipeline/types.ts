@@ -56,7 +56,7 @@ export interface ReadRow {
 export type InfoCode =
   | 'COLUMN_MISSING' | 'COLUMNS_REORDERED' | 'HEADER_MOVED' | 'VERSION_MISMATCH' | 'META_TAMPERED' | 'META_MISSING'
   | 'EXTRA_SHEET' | 'TEXT_OUTSIDE_INPUT' | 'FORM_SHEET_MISSING' | 'TOTAL_MISMATCH' | 'LABEL_MOVED'
-  | 'FIXED_CELL_CHANGED' | 'IMAGE_NOT_COPIED';
+  | 'FIXED_CELL_CHANGED' | 'IMAGE_NOT_COPIED' | 'OTHER_ORG_CELL' | 'FILTER_CLEARED' | 'EXAMPLE_ROW_USED';
 
 export interface Info {
   code: InfoCode;
@@ -67,7 +67,7 @@ export interface Info {
 export interface Question {
   id: string;
   fileId?: string;
-  kind: 'column-alias' | 'same-row-twice' | 'grid-conflict';
+  kind: 'column-alias' | 'same-row-twice' | 'grid-conflict' | 'hidden-area';
   message: string;
   choices: { id: string; label: string }[];
   defaultChoice: string;
@@ -93,6 +93,12 @@ export interface ReadResult {
   totalRowChecks: { sourceRow: number; fieldKey: string; written: number; computed: number; label?: string }[];
   infos: Info[];
   questions: Question[];
+  /**
+   * 작성자가 직접 숨긴 줄·열에 있는 값 (03-aggregator.md 3.3 "모양 속 숨은 뜻").
+   * 필터로 가린 줄은 여기 넣지 않고 보통 줄로 읽는다. 값이 있는 곳만 담는다.
+   * rows: 숨긴 목록 줄·여유 줄 / slots: 숨긴 열(또는 숨긴 줄의 위쪽 정보·표·입력칸)에 든 값 / extraHeaders: 숨긴 추가 칸
+   */
+  hiddenArea?: { rows: number[]; cols: string[]; slots: Slot[]; extraHeaders: string[] };
   /** 검산용: 데이터 영역에서 읽은 줄 수 (빈 줄은 글이 있는 줄 사이에 낀 것만 센다) */
   readCount: number;
 }

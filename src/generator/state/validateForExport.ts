@@ -1,5 +1,5 @@
 import type { Block, Field, FormSchema } from '@contract/schema';
-import { aggregationLabel, orgLabel, validateSchema } from '@contract/schema';
+import { aggregationLabel, gridOwners, orgLabel, validateSchema } from '@contract/schema';
 import { resolveDate } from '@contract/fieldTypes';
 import { calcEntries, calcProblem, formulaErrors, scopeFor } from '@contract/formula';
 import { freeAggregationChecks, freeProblems } from '@contract/free';
@@ -92,6 +92,15 @@ export function validateForExport(s: FormSchema): ExportProblem[] {
     for (const c of freeAggregationChecks(s)) {
       if (c.status === 'ok' || !s.aggregations.includes(c.id)) continue;
       out.push({ where: 'aggregations', blockId: c.at?.blockId, key: c.at?.key, message: `${aggregationLabel(s, c.id)}: ${c.why} ${c.fix ?? ''}`.trim() });
+    }
+  }
+  // 빈칸채우기: 제출처 목록이 있으면 입력칸마다 작성처가 있어야 한다 (칸이 겹치지 않게)
+  if (s.layout === 'fill-in' && s.org.mode === 'preset' && s.org.orgs?.length) {
+    const owners = gridOwners(s);
+    for (const b of s.blocks) {
+      if (b.kind !== 'grid') continue;
+      const none = b.rows.flat().flatMap((c) => (c.kind === 'input' && !owners.has(c.field.key) ? [c.field] : []));
+      if (none.length) out.push({ where: 'fields', blockId: b.id, key: none[0].key, message: `작성처가 없는 입력칸이 ${none.length}개 있어요 (${none.slice(0, 3).map((f) => f.label).join(', ')}${none.length > 3 ? ' …' : ''}). 칸을 골라 작성처를 정해 주세요.` });
     }
   }
   if (s.org.mode === 'preset' && !(s.org.orgs?.length)) {

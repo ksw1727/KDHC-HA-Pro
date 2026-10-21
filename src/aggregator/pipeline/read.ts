@@ -3,7 +3,7 @@ import { META_SHEET } from '@contract/metaIO';
 import { addr, colLetter, colNumber, parseAddr } from '@contract/layout';
 import type { CellMap, FieldsBlockMap, GridBlockMap, ListBlockMap, MatrixBlockMap, RowFlag } from '@contract/meta';
 import type { Field, FieldsBlock, FormSchema, GridBlock, ListBlock, MatrixBlock } from '@contract/schema';
-import type { BaseForm, IdentifiedFile, Question, RawCell, ReadResult, ReadRow } from './types';
+import type { BaseForm, IdentifiedFile, Question, RawCell, ReadResult, ReadRow, Slot } from './types';
 import { normalize } from './normalize';
 import { cellText, formLabels, isBlank, noteText, normLabel, plainValue, similar } from './cellValue';
 
@@ -57,6 +57,75 @@ function rawCellOf(ws: ExcelJS.Worksheet, address: string): RawCell & { strike: 
   return { raw: plainValue(c.value), address, ...(comment ? { comment } : {}), ...(merged ? { fill: 'merged' as const } : {}), strike: !!c.font?.strike };
 }
 
+/** 자동 필터 범위의 데이터 줄(머리글 줄 다음부터). 없으면 null */
+function filterRows(ws: ExcelJS.Worksheet): [number, number] | null {
+  const af = (ws as unknown as { autoFilter?: unknown }).autoFilter;
+  if (!af) return null;
+  const at = (x: unknown): string | undefined => {
+    if (typeof x === 'string') return x;
+    if (x && typeof x === 'object' && 'row' in x && 'column' in x) return addr(Number((x as { column: number }).column), Number((x as { row: number }).row));
+    return undefined;
+  };
+  const ref = typeof af === 'string' ? af : `${at((af as { from?: unknown }).from) ?? ''}:${at((af as { to?: unknown }).to) ?? ''}`;
+  const m = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(ref.trim());
+  if (!m) return null;
+  return [Number(m[2]) + 1, Number(m[4])];
+}
+
+/**
+ * 숨긴 줄·열 가려내기 (03-aggregator.md 3.3 "모양 속 숨은 뜻")
+ * - 필터로 가린 줄: 보통 일부만 보려고 건 것이라 필터를 푼 것처럼 보통 줄로 읽고, 파일에 안내만 남긴다.
+ * - 직접 숨긴 줄·열: 값이 있으면 어디인지 모아 두고, 파일마다 넣을지 묻는다(기본 = 넣기).
+ */
+class HiddenArea {
+  private filter: [number, number] | null;
+  private filtered = new Set<number>();
+  private msgRows = new Set<number>();
+  private msgCols = new Map<number, string>();
+  constructor(private ws: ExcelJS.Worksheet, private out: ReadResult) { this.filter = filterRows(ws); }
+
+  /** 이 줄이 직접 숨긴 줄인가 (필터로 가린 줄은 false, 따로 셈다) */
+  row(r: number): boolean {
+    if (!this.ws.getRow(r).hidden) return false;
+    if (this.filter && r >= this.filter[0] && r <= this.filter[1]) { this.filtered.add(r); return false; }
+    return true;
+  }
+  col(c: number): boolean { return !!this.ws.getColumn(c).hidden; }
+  private area() { return (this.out.hiddenArea ??= { rows: [], cols: [], slots: [], extraHeaders: [] }); }
+  /** 값이 있는 숨긴 목록 줄 */
+  addRow(r: number) { this.area().rows.push(r); this.msgRows.add(r); }
+  /** 값이 있는 칸이 숨긴 줄·열에 있으면 기록. 기록했으면 true */
+  addCell(address: string, slot: Slot, label: string): boolean {
+    const { row, col } = parseAddr(address);
+    const byRow = this.row(row), byCol = this.col(col);
+    if (!byRow && !byCol) return false;
+    this.area().slots.push(slot);
+    if (byRow) this.msgRows.add(row);
+    if (byCol) this.msgCols.set(col, label);
+    return true;
+  }
+  addExtra(col: number, header: string) { this.area().extraHeaders.push(header); this.msgCols.set(col, header); }
+
+  /** 파일 하나를 다 읽은 뒤: 필터 안내와 숨긴 곳 질문 */
+  finish() {
+    if (this.filtered.size)
+      this.out.infos.push({ code: 'FILTER_CLEARED', message: `필터가 걸린 채 제출된 파일이에요. 필터로 가려진 ${this.filtered.size}줄도 필터를 푼 것처럼 함께 합쳤어요` });
+    const a = this.out.hiddenArea;
+    if (!a || (!a.rows.length && !a.slots.length && !a.extraHeaders.length)) return;
+    a.cols = [...this.msgCols.entries()].sort((x, y) => x[0] - y[0]).map(([c, l]) => `${colLetter(c)}열 "${l}"`);
+    const rows = [...this.msgRows].sort((x, y) => x - y);
+    const parts = [
+      rows.length ? `숨긴 줄 ${rows.length}개(${rows.slice(0, 6).join('·')}${rows.length > 6 ? '…' : ''}행)` : '',
+      a.cols.length ? `숨긴 열 ${a.cols.length}개(${a.cols.join(', ')})` : '',
+    ].filter(Boolean);
+    this.out.questions.push({
+      id: `hidden:${this.out.fileId}`, fileId: this.out.fileId, kind: 'hidden-area',
+      message: `${parts.join('과 ')}에 값이 있어요. 숨긴 곳의 값도 취합에 넣을까요?`,
+      choices: [{ id: 'include', label: '넣기' }, { id: 'exclude', label: '빼기' }], defaultChoice: 'include',
+    });
+  }
+}
+
 function emptyResult(f: IdentifiedFile, sheetName: string): ReadResult {
   return {
     fileId: f.file.id, sheetName, header: {}, rows: [], excludedRows: [], extraColumns: [], authorNotes: [],
@@ -82,13 +151,15 @@ export function readSubmission(f: IdentifiedFile, base: BaseForm): ReadResult {
 
   out.org = f.orgFromFile ?? (cellMap.orgCell ? cellText(ws.getCell(cellMap.orgCell).value).trim() || undefined : undefined);
 
+  const h = new HiddenArea(ws, out);
   for (const b of schema.blocks) {
     const m = cellMap.blocks[b.id];
-    if (b.kind === 'fields' && m?.kind === 'fields') readFields(ws, b, m, fileSchema, out, schema.layout === 'free');
-    if (b.kind === 'list' && m?.kind === 'list') readList(ws, b, m, fileSchema, out, !!(ws as unknown as { sheetProtection?: object }).sheetProtection);
-    if (b.kind === 'matrix' && m?.kind === 'matrix') readMatrix(ws, b, m, out);
-    if (b.kind === 'grid' && m?.kind === 'grid') readGrid(ws, b, m, out);
+    if (b.kind === 'fields' && m?.kind === 'fields') readFields(ws, b, m, fileSchema, out, h, schema.layout === 'free');
+    if (b.kind === 'list' && m?.kind === 'list') readList(ws, b, m, fileSchema, out, h, !!(ws as unknown as { sheetProtection?: object }).sheetProtection);
+    if (b.kind === 'matrix' && m?.kind === 'matrix') readMatrix(ws, b, m, out, h);
+    if (b.kind === 'grid' && m?.kind === 'grid') readGrid(ws, b, m, out, h);
   }
+  h.finish();
   return out;
 }
 
@@ -115,7 +186,7 @@ const cellAt = (ws: ExcelJS.Worksheet, a: string): RawCell => {
 };
 
 /** 표형: 칸 지도대로 읽고, 행·열 제목이 자리에 없으면 제목 이름으로 위치를 다시 찾는다. 합계 행·열은 대조용으로만 */
-function readMatrix(ws: ExcelJS.Worksheet, b: MatrixBlock, m: MatrixBlockMap, out: ReadResult) {
+function readMatrix(ws: ExcelJS.Worksheet, b: MatrixBlock, m: MatrixBlockMap, out: ReadResult, h: HiddenArea) {
   const find = (label: string) => {
     let hit: { col: number; row: number } | undefined;
     ws.eachRow({ includeEmpty: false }, (row, r) => row.eachCell({ includeEmpty: false }, (c, col) => {
@@ -125,18 +196,29 @@ function readMatrix(ws: ExcelJS.Worksheet, b: MatrixBlock, m: MatrixBlockMap, ou
   };
   const locate = (labels: string[], cells: string[], what: '행' | '열', pick: 'row' | 'col') => labels.map((l, i) => {
     const a = cells[i];
-    if (a && normLabel(cellText(ws.getCell(a).value)) === normLabel(l)) return parseAddr(a)[pick];
+    const here = a ? cellText(ws.getCell(a).value).trim() : '';
+    if (a && normLabel(here) === normLabel(l)) return parseAddr(a)[pick];
     const hit = find(l);
-    out.infos.push(hit
-      ? { code: 'LABEL_MOVED', message: `${what} 제목 "${l}"이(가) 자리를 옮겨 있어서 이름으로 찾았어요` }
-      : { code: 'COLUMN_MISSING', message: `${what} 제목 "${l}"을(를) 찾지 못해 빈칸으로 둬요` });
-    return hit?.[pick];
+    if (hit) {
+      out.infos.push({ code: 'LABEL_MOVED', message: `${what} 제목 "${l}"이(가) 자리를 옮겨 있어서 이름으로 찾았어요` });
+      return hit[pick];
+    }
+    // 이름만 고친 경우("1분기" → "1/4분기"): 제자리에 글자가 있고 다른 제목과 겹치지 않으면 그 자리로 읽는다
+    if (a && here && !labels.some((x) => normLabel(x) === normLabel(here))) {
+      out.infos.push({ code: 'LABEL_MOVED', message: `${what} 제목 "${l}"이(가) "${here}"(으)로 바뀌어 있었어요. 같은 자리라 "${l}"(으)로 읽었어요`, address: a });
+      return parseAddr(a)[pick];
+    }
+    out.infos.push({ code: 'COLUMN_MISSING', message: `${what} 제목 "${l}"을(를) 찾지 못해 빈칸으로 둬요` });
+    return undefined;
   });
   const rowOf = locate(b.rowLabels, m.rowLabelCells, '행', 'row');
   const colOf = locate(b.colLabels, m.colLabelCells, '열', 'col');
   const matrix = rowOf.map((r) => colOf.map((c) => (r && c ? cellAt(ws, addr(c, r)) : undefined)));
   (out.matrices ??= {})[b.id] = matrix;
   for (const row of matrix) for (const cell of row) if (cell?.comment) out.authorNotes.push({ address: cell.address, fieldKey: b.cell.key, text: cell.comment });
+  matrix.forEach((row, r) => row.forEach((cell, c) => {
+    if (cell && !isBlank(cell.raw)) h.addCell(cell.address, { part: 'matrix', key: b.cell.key, blockId: b.id, r, c }, `${b.rowLabels[r]} ${b.colLabels[c]}`);
+  }));
 
   // 원본 파일에 적힌 합계 행·계 열 값 = 칸들의 합인지 대조 (값으로는 읽지 않음)
   const num = (v: unknown) => (typeof v === 'number' ? v : 0);
@@ -153,7 +235,7 @@ function readMatrix(ws: ExcelJS.Worksheet, b: MatrixBlock, m: MatrixBlockMap, ou
 }
 
 /** 빈칸채우기형: 입력칸 주소에서 읽고, 고정 칸이 바뀌었으면 알려만 준다. 여유 줄은 글이 있는 줄만 */
-function readGrid(ws: ExcelJS.Worksheet, b: GridBlock, m: GridBlockMap, out: ReadResult) {
+function readGrid(ws: ExcelJS.Worksheet, b: GridBlock, m: GridBlockMap, out: ReadResult, h: HiddenArea) {
   const grid: Record<string, RawCell> = {};
   out.grid = grid;
   for (const cell of b.rows.flat()) {
@@ -161,7 +243,7 @@ function readGrid(ws: ExcelJS.Worksheet, b: GridBlock, m: GridBlockMap, out: Rea
     const a = m.inputCells[cell.field.key];
     if (!a) continue;
     const c = cellAt(ws, a);
-    if (!isBlank(c.raw)) grid[cell.field.key] = c;
+    if (!isBlank(c.raw)) { grid[cell.field.key] = c; h.addCell(a, { part: 'grid', key: cell.field.key }, cell.field.label); }
     if (c.comment) out.authorNotes.push({ address: a, fieldKey: cell.field.key, text: c.comment });
   }
   for (const [a, v] of Object.entries(m.fixedCells)) {
@@ -191,7 +273,8 @@ function readGrid(ws: ExcelJS.Worksheet, b: GridBlock, m: GridBlockMap, out: Rea
       continue;
     }
     const flags: RowFlag[] = [];
-    if (ws.getRow(r).hidden) flags.push('hidden');
+    if (h.row(r)) { flags.push('hidden'); h.addRow(r); }
+    else for (const { f, col } of fields) if (!isBlank(cells[f.key].raw) && h.col(col)) h.addCell(cells[f.key].address, { part: 'spare', key: f.key, sourceRow: r }, f.label);
     if (strike) flags.push('strike');
     spare.push({ cells, sourceRow: r, flags });
     for (const [k, c] of Object.entries(cells)) if (c.comment) out.authorNotes.push({ address: c.address, fieldKey: k, sourceRow: r, text: c.comment });
@@ -200,7 +283,7 @@ function readGrid(ws: ExcelJS.Worksheet, b: GridBlock, m: GridBlockMap, out: Rea
 }
 
 
-function readFields(ws: ExcelJS.Worksheet, b: FieldsBlock, m: FieldsBlockMap, fileSchema: FormSchema | undefined, out: ReadResult, trustMap = false) {
+function readFields(ws: ExcelJS.Worksheet, b: FieldsBlock, m: FieldsBlockMap, fileSchema: FormSchema | undefined, out: ReadResult, h: HiddenArea, trustMap = false) {
   for (const field of b.fields) {
     if (isCalc(field)) continue;
     const at = m.cells[field.key];
@@ -220,11 +303,12 @@ function readFields(ws: ExcelJS.Worksheet, b: FieldsBlock, m: FieldsBlockMap, fi
     if (!valueAddr) continue;
     const { strike: _s, ...cell } = rawCellOf(ws, valueAddr);
     out.header[field.key] = cell;
+    if (!isBlank(cell.raw)) h.addCell(valueAddr, { part: 'header', key: field.key }, field.label);
     if (cell.comment) out.authorNotes.push({ address: valueAddr, fieldKey: field.key, text: cell.comment });
   }
 }
 
-function readList(ws: ExcelJS.Worksheet, b: ListBlock, m: ListBlockMap, fileSchema: FormSchema | undefined, out: ReadResult, isProtected: boolean) {
+function readList(ws: ExcelJS.Worksheet, b: ListBlock, m: ListBlockMap, fileSchema: FormSchema | undefined, out: ReadResult, h: HiddenArea, isProtected: boolean) {
   const fields = b.columns.filter((x) => !isCalc(x));
   const headerAt = (row: number, col: number) => normLabel(cellText(ws.getCell(row, col).value));
 
@@ -274,13 +358,16 @@ function readList(ws: ExcelJS.Worksheet, b: ListBlock, m: ListBlockMap, fileSche
 
   // 3. 데이터 줄: 지도의 입력 줄 범위(머리글이 밀린 만큼 같이 밀기). 보호가 풀린 사본은 표가 이어지면 더 읽는다
   const shift = headerRow - m.headerRow;
-  const first = m.firstDataRow + shift;
+  // 예시 줄도 읽는다: 예시 그대로면 빼고, 작성자가 실제 값으로 덮어 썼으면 데이터로 (예시 줄을 첫 줄로 쓰는 경우가 많다)
+  const exampleRow = m.exampleRow !== undefined && b.exampleRow ? m.exampleRow + shift : undefined;
+  const first = exampleRow ?? m.firstDataRow + shift;
   let last = m.lastDataRow + shift;
   if (!isProtected) while (last < ws.rowCount && rowHasText(ws, last + 1, colOf, extraCols)) last++;
 
   const prev: Record<string, RawCell> = {};
   const pendingBlank: number[] = [];
   const totals: Record<string, number> = {};
+  const hiddenExtra = new Set<string>();
   for (let r = first; r <= last; r++) {
     const row = ws.getRow(r);
     const cells: Record<string, RawCell> = {};
@@ -295,14 +382,20 @@ function readList(ws: ExcelJS.Worksheet, b: ListBlock, m: ListBlockMap, fileSche
     }
     const extraVals = extraCols.map((e) => plainValue(ws.getCell(r, e.col).value));
     const blank = Object.values(cells).every((c) => isBlank(c.raw)) && extraVals.every(isBlank);
-    if (blank) { pendingBlank.push(r); continue; }
+    if (blank) { if (r !== exampleRow) pendingBlank.push(r); continue; }
     // 글이 있는 줄 사이에 낀 빈 줄만 "빈 줄"로 센다 (끝의 남은 입력 줄은 세지 않음)
     for (const br of pendingBlank.splice(0)) out.excludedRows.push({ sourceRow: br, reason: 'blank', preview: '' });
     const preview = fields.map((x) => cellText(ws.getCell(r, colOf[x.key] ?? 1).value)).filter(Boolean).join(' · ').slice(0, 60);
 
-    if (m.exampleRow === r && b.exampleRow && fields.every((x) => String(b.exampleRow?.[x.key] ?? '') === cellText(ws.getCell(r, colOf[x.key] ?? 1).value))) {
-      out.excludedRows.push({ sourceRow: r, reason: 'example', preview });
-      continue;
+    if (r === exampleRow) {
+      const same = (x: Field) => {
+        const want = b.exampleRow?.[x.key];
+        const got = cells[x.key]?.raw;
+        if (isBlank(want)) return isBlank(got);
+        return got !== undefined && sameValue(want, got, x);
+      };
+      if (fields.every(same)) { out.excludedRows.push({ sourceRow: r, reason: 'example', preview }); continue; }   // fields엔 계산 칸이 없음
+      out.infos.push({ code: 'EXAMPLE_ROW_USED', message: `예시 줄(${r}행)에 적은 값을 데이터로 읽었어요`, address: `A${r}` });
     }
     if (Object.values(cells).some((c) => typeof c.raw === 'string' && TOTAL_RE.test(c.raw.trim()))) {
       out.excludedRows.push({ sourceRow: r, reason: 'total', preview });
@@ -318,7 +411,11 @@ function readList(ws: ExcelJS.Worksheet, b: ListBlock, m: ListBlockMap, fileSche
     }
 
     const flags: RowFlag[] = [];
-    if (row.hidden) flags.push('hidden');
+    if (h.row(row.number)) { flags.push('hidden'); h.addRow(r); }
+    else {
+      for (const x of fields) { const c = cells[x.key]; if (c && !isBlank(c.raw) && h.col(colOf[x.key])) h.addCell(c.address, { part: 'row', key: x.key, sourceRow: r }, x.label); }
+      extraCols.forEach((e, i) => { if (!isBlank(extraVals[i]) && h.col(e.col) && !hiddenExtra.has(e.header)) { hiddenExtra.add(e.header); h.addExtra(e.col, e.header); } });
+    }
     if (strike) flags.push('strike');
     const rec: ReadRow = { cells, sourceRow: r, flags };
     out.rows.push(rec);
@@ -348,6 +445,13 @@ function rowHasText(ws: ExcelJS.Worksheet, r: number, colOf: Record<string, numb
   return [...Object.values(colOf), ...extra.map((e) => e.col)].some((col) => !isBlank(plainValue(ws.getCell(r, col).value)));
 }
 
+
+/** 예시 줄 비교: 엑셀이 '2026-12'를 날짜로, '25000'을 숫자로 바꿔 저장해도 같은 값으로 본다 */
+function sameValue(a: unknown, b: unknown, field: Field): boolean {
+  const ctx = { year: 2000, today: new Date(0) };
+  const v = (x: unknown) => { const r = normalize(x, field, ctx); const val = r.status === 'ok' || r.status === 'auto' ? r.value : x; return val instanceof Date ? val.toISOString().slice(0, 10) : String(val ?? '').trim(); };
+  return v(a) === v(b);
+}
 
 /** 합계 줄 대조용 숫자: '1,000개'·'약 10'처럼 값 정리에서 숫자가 되는 것은 그 숫자로 */
 function asNumber(raw: unknown, field: Field): number {

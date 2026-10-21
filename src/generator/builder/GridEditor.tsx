@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GridBlock } from '@contract/schema';
+import { gridOwners, type GridBlock } from '@contract/schema';
 import { FIELD_TYPES } from '@contract/fieldTypes';
 import type { Builder } from '../state/useBuilder';
 import { randomKey } from '../state/newSchema';
@@ -8,6 +8,9 @@ import { FieldEditor } from './FieldEditor';
 import { parsePastedTable } from './parsePastedTable';
 import { addCol, addRow, applyToInputs, fromPaste, norm, relabel, removeCol, removeRow, setBlank, setCalc, setFixed, setInputs, setValue, syncSpare, type GridData, type Range } from './gridOps';
 import { scopeFor } from '@contract/formula';
+
+/** 작성처 색 (제출처 목록 순서대로) */
+const OWNER_COLORS = ['#1f5fbf', '#2f8a4c', '#c46a12', '#8a3fb8', '#b8336a', '#0f7d8c', '#7a6a12', '#4a5a8a'];
 
 /** 빈칸채우기형 표 편집기 (02-generator.md 2.4) */
 export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
@@ -22,6 +25,10 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
   const rg = sel ? norm(sel) : null;
   const single = rg && rg.r1 === rg.r2 && rg.c1 === rg.c2 ? g.rows[rg.r1]?.[rg.c1] : null;
   const isSel = (r: number, c: number) => !!rg && r >= rg.r1 && r <= rg.r2 && c >= rg.c1 && c <= rg.c2;
+  const orgs = b.schema.org.mode === 'preset' ? b.schema.org.orgs ?? [] : [];
+  const owners = gridOwners(b.schema);
+  const colorOf = (org?: string) => (org ? OWNER_COLORS[orgs.indexOf(org) % OWNER_COLORS.length] : undefined);
+  const inputKeys = g.rows.flat().flatMap((cell) => (cell.kind === 'input' ? [cell.field.key] : []));
   const selInputs = rg ? g.rows.flatMap((row, r) => row.flatMap((cell, c) => (isSel(r, c) && cell.kind === 'input' ? [cell.field] : []))) : [];
 
   const click = (r: number, c: number, shift: boolean) => {
@@ -91,6 +98,11 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
                     className={cx('h-7 min-w-24 cursor-pointer border border-line px-1.5 outline-none focus-visible:shadow-[inset_0_0_0_2px_#93b4ea]', cell.kind === 'input' && (cell.field.required ? 'bg-req' : 'bg-white'), cell.kind === 'calc' && 'bg-[#f3f7fd]', cell.kind === 'blank' && 'bg-[#fafbfc]', isSel(r, c) && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
                     {cell.kind === 'fixed' && String(cell.value)}
                     {cell.kind === 'input' && <span className="text-pri-ink">[{cell.field.label}]</span>}
+                    {cell.kind === 'input' && orgs.length > 0 && (
+                      <span className="block text-[10.5px] font-semibold" style={{ color: colorOf(owners.get(cell.field.key)) ?? '#c0392b' }}>
+                        {owners.get(cell.field.key) ? `● ${owners.get(cell.field.key)}${cell.field.owner ? '' : ' (자동)'}` : '● 작성처 없음'}
+                      </span>
+                    )}
                     {cell.kind === 'calc' && <span className="font-mono text-[#174a96]">= {cell.field.formula || '계산식?'}</span>}
                   </td>
                 ))}
@@ -100,6 +112,35 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
         </table>
       </div>
       <p className="m-0 text-xs text-muted">칸을 누르면 고르고, Shift를 누른 채 누르면 범위를 골라요. 고정 칸은 아래에서 글자를 바꿀 수 있어요.</p>
+
+      {orgs.length > 0 ? (
+        <div className="flex flex-col gap-1.5 rounded-card border border-line bg-panel p-2.5" aria-label="작성처">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <b className="text-sub">작성처</b>
+            {orgs.map((o) => {
+              const n = inputKeys.filter((k) => owners.get(k) === o).length;
+              return <span key={o} style={{ color: colorOf(o) }} className="font-semibold">● {o} {n ? `${n}칸` : <span className="font-normal text-warn-ink">(칸 없음)</span>}</span>;
+            })}
+          </div>
+          {selInputs.length > 0 && rg ? (
+            <label className="flex items-center gap-2 text-sub">
+              고른 입력칸 {selInputs.length}개의 작성처
+              <select aria-label="고른 칸 작성처"
+                value={selInputs.every((f) => f.owner === selInputs[0].owner) ? selInputs[0].owner ?? '' : '(여러 개)'}
+                onChange={(e) => put(applyToInputs(g, rg, { owner: e.target.value || undefined }))}
+                className="h-8 rounded-btn border border-line-strong bg-white px-2 text-[13px]">
+                {!selInputs.every((f) => f.owner === selInputs[0].owner) && <option value="(여러 개)" disabled>(여러 개)</option>}
+                <option value="">머리글로 자동</option>
+                {orgs.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </label>
+          ) : (
+            <p className="m-0 text-xs text-muted">열 머리글이나 행 첫 칸이 제출처 이름과 같으면 자동으로 그 제출처 칸이 돼요. 다른 칸은 입력칸을 골라 작성처를 정해 주세요. 제출처마다 받는 파일에서 다른 제출처 칸은 회색으로 잠겨요.</p>
+          )}
+        </div>
+      ) : inputKeys.length > 0 && (
+        <p className="m-0 text-xs text-muted">⑤ 제출처를 목록으로 정하면 입력칸마다 작성처(어느 제출처가 채우는 칸인지)를 정할 수 있어요.</p>
+      )}
 
       {single && rg && single.kind !== 'input' && (
         <div className="flex items-center gap-2">

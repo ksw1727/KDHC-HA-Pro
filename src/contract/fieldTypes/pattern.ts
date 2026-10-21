@@ -9,7 +9,7 @@ export const PATTERN_INFO: Record<P, { label: string; example: string; min: numb
   phone: { label: '전화번호', example: '02-1234-5678', min: 9, max: 13 },
   mobile: { label: '휴대폰', example: '010-1234-5678', min: 10, max: 13 },
   email: { label: '이메일', example: 'name@example.com', min: 5, max: 254 },
-  bizno: { label: '사업자번호', example: '123-45-67890', min: 10, max: 12 },
+  bizno: { label: '사업자번호', example: '123-45-67891', min: 10, max: 12 },
 };
 
 export const pattern: FieldTypeDef = {

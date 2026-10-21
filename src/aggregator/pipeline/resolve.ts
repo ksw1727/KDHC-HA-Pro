@@ -1,5 +1,6 @@
 import type { CellValue, RowRecord } from '@contract/meta';
-import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
+import { blockFields, gridOwners, orgLabel, sameOrg, type Field, type FormSchema } from '@contract/schema';
+import { josa } from '@contract/josa';
 import { normalize, type Ctx } from './normalize';
 import { slotId } from './parse';
 import type { Decisions, IdentifiedFile, Issue, ParsedSubmission, Question, Slot } from './types';
@@ -21,8 +22,9 @@ export interface FinalSubmission extends ParsedSubmission {
   label: string;                                   // 화면·시트에 쓰는 이름 (지사명, 없으면 파일명)
   before: RowRecord[];                             // 결정 전(값 정리 후) 목록 줄 — 검산에서 수정·제외 차이를 나눠 보일 때 씀
   marks: Map<string, CellMarkInfo>;                // slotId →
-  removedRows: { sourceRow: number; reason: 'operator' | 'duplicate'; preview: string }[];
+  removedRows: { sourceRow: number; reason: 'operator' | 'duplicate' | 'hidden'; preview: string }[];
   extraFromAlias: { header: string; values: { sourceRow: number; value: unknown }[] }[];
+  droppedExtra: string[];                          // 숨긴 곳 [빼기]로 뺀 추가 칸 이름
 }
 
 export interface FileState {
@@ -35,6 +37,7 @@ export interface FileState {
   savedAt: string;
   parsed?: ParsedSubmission;
   needsOrgLink: boolean;
+  orgBlank?: boolean;                              // 제출처 이름 칸이 비어 파일 이름으로 대신함
   dupGroup?: string[];                             // 같은 지사 파일들 (fileId)
 }
 
@@ -66,12 +69,27 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
       files.push({ fileId: f.file.id, fileName: f.file.fileName, label: f.file.fileName, status: f.status, reason: f.skipReason, savedAt: f.savedAt, needsOrgLink: false });
     }
   }
+  // 제출처 이름 맞추기: 띄어쓰기만 다른 이름("수원 지사"·"수원지사")은 같은 곳.
+  // 목록이 있으면 목록 이름으로, 없으면 가장 많이 쓴 이름(같으면 띄어쓰기 없는 쪽)으로
+  const spell = new Map<string, Map<string, number>>();
+  for (const p of parsed) if (p.org) {
+    const k = p.org.replace(/\s+/g, '');
+    const m = spell.get(k) ?? new Map<string, number>();
+    m.set(p.org, (m.get(p.org) ?? 0) + 1);
+    spell.set(k, m);
+  }
+  const canonOrg = (org: string) => orgs.find((o) => sameOrg(o, org))
+    ?? [...(spell.get(org.replace(/\s+/g, ''))?.entries() ?? [])].sort((a, b) => b[1] - a[1] || a[0].length - b[0].length)[0]?.[0] ?? org;
+
   for (const p of parsed) {
     const linked = d.orgLink[p.fileId];
-    const org = useOrg ? (linked ?? p.org) : undefined;
-    const needsOrgLink = useOrg && !linked && orgs.length > 0 && (!org || !orgs.includes(org));
+    const org = useOrg ? (linked ?? (p.org ? canonOrg(p.org) : undefined)) : undefined;
+    if (useOrg && !linked && p.org && org !== p.org) log.push({ what: `${orgLabel(schema)} 이름 맞춤`, target: p.sourceFile, choice: `'${p.org}' → '${org}'`, defaulted: true });
+    // 이름 칸이 비었으면 목록이 없어도 확인을 받는다 (그대로 두면 파일 이름이 제출처 이름이 된다)
+    const needsOrgLink = useOrg && !linked && (!org || (orgs.length > 0 && !orgs.includes(org)));
+    const orgBlank = useOrg && !org;
     if (linked) log.push({ what: `${orgLabel(schema)} 연결`, target: p.sourceFile, choice: linked, defaulted: false });
-    const base: FileState = { fileId: p.fileId, fileName: p.sourceFile, label: org ?? p.sourceFile, org, status: 'included', savedAt: p.savedAt, parsed: p, needsOrgLink };
+    const base: FileState = { fileId: p.fileId, fileName: p.sourceFile, label: org ?? p.sourceFile, org, status: 'included', savedAt: p.savedAt, parsed: p, needsOrgLink, ...(orgBlank ? { orgBlank } : {}) };
     const missing = schema.layout === 'collect' ? !p.read.collectSheets?.length : p.read.infos.some((i) => i.code === 'FORM_SHEET_MISSING');
     if (missing && !p.fromAggregate) Object.assign(base, { status: 'form-sheet-missing', reason: '양식 시트가 없어요' });
     else if (d.excludeFile[p.fileId]) {
@@ -110,22 +128,31 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
     const fin: FinalSubmission = {
       ...p, org: s.org, label: s.label, before: p.rows, header: { ...p.header }, rows: p.rows.map(copyRow),
       matrices: p.matrices ? Object.fromEntries(Object.entries(p.matrices).map(([id, m]) => [id, m.map((r) => [...r])])) : undefined, grid: p.grid ? { ...p.grid } : undefined, gridSpareRows: p.gridSpareRows?.map(copyRow),
-      marks: new Map(), removedRows: [], extraFromAlias: [],
+      marks: new Map(), removedRows: [], extraFromAlias: [], droppedExtra: [],
     };
+    const cleared = new Set<string>();
     let issues = p.issues.filter((i) => i.severity === 'value');
 
     // 3-1. 판단 질문 (비슷한 칸 이름, 같은 줄 두 번)
     for (const q of p.read.questions) {
       questions.push(q);
       const ans = d.answers[q.id] ?? q.defaultChoice;
-      log.push({ what: '애매한 판단', target: `${s.label} · ${q.message}`, choice: q.choices.find((c) => c.id === ans)?.label ?? ans, defaulted: d.answers[q.id] === undefined });
+      log.push({ what: q.kind === 'hidden-area' ? '숨긴 곳' : '애매한 판단', target: `${s.label} · ${q.message}`, choice: q.choices.find((c) => c.id === ans)?.label ?? ans, defaulted: d.answers[q.id] === undefined });
       if (q.kind === 'column-alias' && ans === 'extra' && q.fieldKey) {
         fin.extraFromAlias.push({ header: q.header ?? '', values: p.read.rows.map((r) => ({ sourceRow: r.sourceRow, value: r.cells[q.fieldKey!]?.raw })).filter((v) => v.value !== null && v.value !== undefined && v.value !== '') });
         for (const r of fin.rows) r.values[q.fieldKey] = null;
         issues = issues.filter((i) => !(i.slot?.part === 'row' && i.slot.key === q.fieldKey));
       }
       if (q.kind === 'same-row-twice' && ans === 'one' && q.sourceRow) removeRow(fin, q.sourceRow, 'duplicate');
+      // 직접 숨긴 줄·열: [빼기]면 숨긴 줄은 빼고, 숨긴 열(칸)의 값은 빈칸으로
+      if (q.kind === 'hidden-area' && ans === 'exclude' && p.read.hiddenArea) {
+        const h = p.read.hiddenArea;
+        for (const r of h.rows) removeRow(fin, r, 'hidden');
+        for (const slot of h.slots) { setSlot(fin, slot, null); cleared.add(slotId(slot)); }
+        fin.droppedExtra.push(...h.extraHeaders);
+      }
     }
+    if (cleared.size) issues = issues.filter((i) => !(i.slot && cleared.has(slotId(i.slot))));
 
     // 3-2. [이 줄 빼기]
     for (const r of [...fin.rows, ...(fin.gridSpareRows ?? [])]) {
@@ -138,7 +165,7 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
     issues = issues.filter((i) => !(i.slot && 'sourceRow' in i.slot && gone.has(i.slot.sourceRow)));
 
     // 3-3. 자동 정리 칸: 연한 파랑 + 원래 값 메모
-    for (const a of p.autoFixed) if (!('sourceRow' in a.slot && gone.has(a.slot.sourceRow))) fin.marks.set(slotId(a.slot), { mark: 'auto-fixed', note: `[자동] 원래 값: ${show(a.from)} · 자동 정리` });
+    for (const a of p.autoFixed) if (!('sourceRow' in a.slot && gone.has(a.slot.sourceRow)) && !cleared.has(slotId(a.slot))) fin.marks.set(slotId(a.slot), { mark: 'auto-fixed', note: `[자동] 원래 값: ${show(a.from)} · 자동 정리` });
 
     // 3-4. 확인할 칸: 미결정이면 수정안 있으면 수정안, 없으면 그대로
     for (const iss of issues) {
@@ -169,13 +196,17 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
   const gridOverlay: Resolved['gridOverlay'] = {};
   const crossIssues: Issue[] = [];
   const grid = schema.blocks.find((b) => b.kind === 'grid');
+  const owners = gridOwners(schema);
   if (grid?.kind === 'grid') {
     for (const cell of grid.rows.flat()) {
       if (cell.kind !== 'input') continue;
       const key = cell.field.key;
       const got = included.filter((x) => x.grid?.[key] !== undefined && x.grid[key] !== null).map((x) => ({ x, v: x.grid![key] }));
+      const owner = owners.get(key);
       if (!got.length) {
-        if (cell.field.required) crossIssues.push({ id: `grid-required:${key}`, fileId: '', code: 'REQUIRED_EMPTY', severity: 'value', sheet: '', location: cell.field.label, fieldLabel: cell.field.label, message: '어느 파일에도 채워지지 않은 필수 칸이에요' });
+        // 작성처가 정해진 칸: 그 제출처가 냈는데 비었을 때만 (안 냈으면 미제출로 보인다)
+        const ownerIn = owner ? included.find((x) => x.org && sameOrg(x.org, owner)) : undefined;
+        if (cell.field.required && (!owner || ownerIn)) crossIssues.push({ id: `grid-required:${key}`, fileId: ownerIn?.fileId ?? '', code: 'REQUIRED_EMPTY', severity: 'value', sheet: '', location: cell.field.label, fieldLabel: cell.field.label, message: owner ? `${josa(owner, '이', '가')} 채우지 않은 필수 칸이에요` : '어느 파일에도 채워지지 않은 필수 칸이에요' });
         continue;
       }
       const distinct = [...new Set(got.map((g) => JSON.stringify(g.v)))];
@@ -198,12 +229,13 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
   }
 
   const missingOrgs = useOrg ? orgs.filter((o) => !files.some((s) => s.org === o && (s.status === 'included' || s.status === 'duplicate'))) : [];
-  return { files, included: sortByOrg(included, orgs), valueIssues, questions, gridOverlay, crossIssues, missingOrgs, log };
+  // 제출 현황·파일목록도 같은 틀 시트처럼 제출처 목록 순서로 (같은 곳 파일은 넣은 순서 그대로)
+  return { files: sortByOrg(files, orgs), included: sortByOrg(included, orgs), valueIssues, questions, gridOverlay, crossIssues, missingOrgs, log };
 }
 
 const copyRow = (r: RowRecord): RowRecord => ({ ...r, values: { ...r.values } });
 
-function removeRow(fin: FinalSubmission, sourceRow: number, reason: 'operator' | 'duplicate') {
+function removeRow(fin: FinalSubmission, sourceRow: number, reason: 'operator' | 'duplicate' | 'hidden') {
   for (const list of [fin.rows, fin.gridSpareRows ?? []]) {
     const i = list.findIndex((r) => r.sourceRow === sourceRow);
     if (i < 0) continue;

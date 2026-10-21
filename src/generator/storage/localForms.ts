@@ -25,6 +25,8 @@ export function saveForm(entry: Omit<StoredForm, 'savedAt'>, now: Date): boolean
     const value: StoredForm = { ...entry, savedAt: now.toISOString() };
     s.setItem(PREFIX + entry.schema.formId, JSON.stringify(value));
     s.setItem(CURRENT, entry.schema.formId);
+    // AI로 만들기 화면이 같은 양식 카드를 바로 바꿀 수 있게 (같은 탭이라 storage 이벤트가 오지 않음)
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('hanan-moa:form-saved', { detail: value.schema }));
     return true;
   } catch {
     return false;

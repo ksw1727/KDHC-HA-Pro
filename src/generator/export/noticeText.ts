@@ -1,5 +1,6 @@
 import type { FormSchema } from '@contract/schema';
-import { blockFields, orgLabel } from '@contract/schema';
+import { blockFields, gridOwners, orgLabel } from '@contract/schema';
+import { josa } from '@contract/josa';
 
 /** 내보내기 완료 화면의 "지사에 보낼 안내문" 기본 문구 (02-generator.md 2.6 ③) */
 export function noticeText(s: FormSchema): string {
@@ -12,6 +13,7 @@ export function noticeText(s: FormSchema): string {
     const anyRequired = s.org.mode === 'input' || s.blocks.some((b) => blockFields(b).some((f) => f.required && f.type !== 'calc'));
     parts.push(anyRequired ? '노란 칸은 꼭 채워 주시고, 칸 이름과 순서는 바꾸지 말아 주세요.' : '칸 이름과 순서는 바꾸지 말아 주세요.', '참고 사항은 칸에 엑셀 메모로 달아 주시고, 계산이 필요하면 새 시트를 추가해 써 주세요.');
   }
+  if (s.layout === 'fill-in' && gridOwners(s).size) parts.push(`회색으로 잠긴 칸은 다른 ${josa(orgLabel(s), '이', '가')} 채우는 칸이니 자기 칸만 작성해 주세요.`);
   if (s.org.mode === 'preset') parts.push(`파일에 ${orgLabel(s)}명이 미리 들어 있으니 자기 ${orgLabel(s)} 파일을 써 주세요.`);
   if (s.contact?.trim()) parts.push(`문의: ${s.contact.trim()}`);
   return parts.join(' ');

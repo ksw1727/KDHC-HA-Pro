@@ -239,7 +239,7 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
       </div>
 
       <div ref={boxRef} tabIndex={sel ? -1 : 0} onFocus={(e) => { if (e.target === boxRef.current) { if (sel) typeRef.current?.focus(); else onSel({ anchor: 'A1', focus: 'A1' }); } }} className="overflow-auto rounded-card border border-line bg-[#f1f3f6] p-2.5 outline-none focus-visible:ring-3 focus-visible:ring-pri-bg">
-        <table role="grid" aria-label="그리는 판" className="select-none border-collapse bg-white text-xs" style={{ tableLayout: 'fixed' }}>
+        <table role="grid" aria-label="그리는 판" className="select-none border-collapse bg-white text-xs" style={{ tableLayout: 'fixed', width: 30 + Array.from({ length: nCols }, (_, i) => Math.round(Math.max(10, Math.min(30, model.columns[i]?.width ?? 10)) * 7.2)).reduce((a, w) => a + w, 0) }}>
           <colgroup>
             <col style={{ width: 30 }} />
             {Array.from({ length: nCols }, (_, i) => <col key={i} style={{ width: Math.round(Math.max(10, Math.min(30, model.columns[i]?.width ?? 10)) * 7.2) }} />)}
@@ -275,7 +275,7 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
                     boxShadow: shadows.join(',') || undefined, opacity: inCanvas ? 1 : 0.55,
                     cursor: inCanvas ? (moving ? 'copy' : 'cell') : 'default',
                   };
-                  const text = c?.formula ? '자동 합계' : c?.value !== undefined ? (c.role === 'locked-value' ? `🔒 ${c.value}` : String(c.value)) : '';
+                  const text = c?.formula ? (c.role === 'calc' ? `= ${c.note?.replace(/^계산: /, '') ?? '계산'}` : '자동 합계') : c?.value !== undefined ? (c.role === 'locked-value' ? `🔒 ${c.value}` : String(c.value)) : '';
                   // 이름표: 줄 영역·숫자 표는 늘, 입력 칸은 골랐을 때만 (작은 칸끼리 겹치지 않게)
                   const tag = g && cr === g.r1 && ci + 1 === g.c1 && (g.kind !== 'fields' || picked);
                   return (

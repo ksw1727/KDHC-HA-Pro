@@ -1,4 +1,4 @@
-import { validateSchema, blockFields, aggregationLabel, type FormSchema } from '../schema';
+import { validateSchema, blockFields, aggregationLabel, gridOwners, type FormSchema } from '../schema';
 import { availableAggregations } from '../aggregationIds';
 import { SAMPLE, f } from './fixtures';
 
@@ -99,8 +99,9 @@ describe('availableAggregations', () => {
   test('시트 모으기형은 같은 틀 시트 없음', () => {
     expect(availableAggregations(SAMPLE.collect)).toEqual(['collect-sheets', 'submission-status']);
   });
-  test('표형은 네 가지 모두', () => {
-    expect(availableAggregations(SAMPLE.matrix)).toEqual(['same-frame', 'spread', 'collect-sheets', 'submission-status']);
+  test('표형: 시트 모으기는 시트 모으기형에만', () => {
+    expect(availableAggregations(SAMPLE.matrix)).toEqual(['same-frame', 'spread', 'submission-status']);
+    expect(availableAggregations(SAMPLE.collect)).toEqual(['collect-sheets', 'submission-status']);
   });
 });
 
@@ -114,5 +115,47 @@ describe('aggregationLabel', () => {
     expect(aggregationLabel({ org: { mode: 'input', label: '부서' } }, 'spread')).toBe('부서별 펼치기');
     expect(aggregationLabel({ org: { mode: 'none', label: '부서' } }, 'spread')).toBe('파일별 펼치기');
     expect(aggregationLabel({ org: { mode: 'none' } }, 'same-frame')).toBe('같은 틀 시트');
+  });
+});
+
+describe('gridOwners (빈칸채우기 작성처)', () => {
+  const grid = (org: FormSchema['org'], owner?: string): Pick<FormSchema, 'org' | 'blocks'> => ({
+    org,
+    blocks: [{
+      kind: 'grid', id: 'b1', colLabels: ['사업', '수원 지사', '대구지사'], spareRows: 0,
+      rows: [
+        [{ kind: 'fixed', value: '교육' }, { kind: 'input', field: { key: 'a', label: 'a', type: 'number', required: false } }, { kind: 'input', field: { key: 'b', label: 'b', type: 'number', required: false, owner } }],
+        [{ kind: 'fixed', value: '강남지사' }, { kind: 'input', field: { key: 'c', label: 'c', type: 'number', required: false } }, { kind: 'blank' }],
+      ],
+    }],
+  });
+  const preset = { mode: 'preset' as const, orgs: ['강남지사', '수원지사', '대구지사'] };
+  it('직접 지정 > 열 머리글(띄어쓰기 무시) > 행 첫 칸', () => {
+    expect([...gridOwners(grid(preset))]).toEqual([['a', '수원지사'], ['b', '대구지사'], ['c', '수원지사']]);
+    expect(gridOwners(grid(preset, '강남지사')).get('b')).toBe('강남지사');
+  });
+  it('목록에 없는 직접 지정은 작성처 없음, preset이 아니면 비어 있다', () => {
+    expect(gridOwners(grid(preset, '청주지사')).has('b')).toBe(false);
+    expect(gridOwners(grid({ mode: 'none' })).size).toBe(0);
+  });
+});
+
+describe('빈칸채우기 작성처는 지사가 아니어도 된다', () => {
+  it('담당자별 행: 행 첫 칸이 담당자 이름이면 그 사람 칸, 펼치기는 빠진다', () => {
+    const s = {
+      layout: 'fill-in' as const,
+      org: { mode: 'preset' as const, label: '담당자', orgs: ['김현우', '박소영'] },
+      blocks: [{
+        kind: 'grid' as const, id: 'b1', colLabels: ['담당자', '점검 건수', '비고'], spareRows: 0,
+        rows: ['김현우', '박 소영'].map((n, r) => [
+          { kind: 'fixed' as const, value: n },
+          { kind: 'input' as const, field: { key: `n${r}`, label: 'n', type: 'number' as const, required: false } },
+          { kind: 'input' as const, field: { key: `m${r}`, label: 'm', type: 'text' as const, required: false } },
+        ]),
+      }],
+    };
+    expect([...gridOwners(s)]).toEqual([['n0', '김현우'], ['m0', '김현우'], ['n1', '박소영'], ['m1', '박소영']]);
+    expect(availableAggregations(s)).not.toContain('spread');
+    expect(availableAggregations({ ...s, org: { mode: 'none' } })).toContain('spread');
   });
 });

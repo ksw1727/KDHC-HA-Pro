@@ -1,7 +1,8 @@
 import type { CellValue, NormalizedSubmission, RowRecord } from '@contract/meta';
 import { readChunkSheet } from '@contract/metaIO';
-import type { Field, FormSchema } from '@contract/schema';
+import { gridOwners, sameOrg, type Field, type FormSchema } from '@contract/schema';
 import type { IssueCode } from '@contract/fieldTypes';
+import { josa } from '@contract/josa';
 import { issueMessage, normalize, type Ctx } from './normalize';
 import type { IdentifiedFile, ParsedSubmission, Question, RawCell, ReadResult, ReadRow, Slot } from './types';
 
@@ -44,8 +45,17 @@ export function parseSubmission(f: IdentifiedFile, read: ReadResult, schema: For
     }
     if (b.kind === 'grid') {
       out.grid = {};
+      const owners = gridOwners(schema);
       for (const cell of b.rows.flat()) {
         if (cell.kind !== 'input' || !read.grid?.[cell.field.key]) continue;
+        // 작성처가 정해진 칸은 그 제출처 파일에서만 읽는다. 남의 칸에 적은 값은 쓰지 않고 알린다
+        const owner = owners.get(cell.field.key);
+        if (owner && read.org && !sameOrg(owner, read.org)) {
+          const rc = read.grid[cell.field.key];
+          out.issues.push({ id: `${f.file.id}|other|${cell.field.key}`, fileId: f.file.id, code: 'OTHER_ORG_CELL', severity: 'info', sheet, address: rc.address, location: cell.field.label, fieldLabel: cell.field.label, raw: rc.raw,
+            message: `${owner} 칸에 적은 값 ${josa(`'${String(rc.raw)}'`, '은', '는')} 쓰지 않았어요 (이 칸은 ${josa(owner, '이', '가')} 채워요)` });
+          continue;
+        }
         const v = take(read.grid[cell.field.key], cell.field, { part: 'grid', key: cell.field.key }, cell.field.label);
         if (v !== null) out.grid[cell.field.key] = v;
       }

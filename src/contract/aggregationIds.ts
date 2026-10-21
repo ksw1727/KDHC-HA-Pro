@@ -4,7 +4,7 @@ import type { FormSchema, Layout } from './schema';
 export type AggregationId =
   | 'same-frame'         // 같은 틀 시트        — collect를 뺀 모든 layout, 항상 포함
   | 'spread'             // 지사별 펼치기       — matrix(항상 포함), header-list, fill-in
-  | 'collect-sheets'     // 시트 모으기         — 모든 layout. collect는 항상 포함(목차 시트 포함)
+  | 'collect-sheets'     // 시트 모으기         — collect만, 항상 포함(목차 시트 포함)
   | 'submission-status'; // 제출 현황표         — org.mode가 preset·input일 때
 
 export const AGGREGATION_IDS: AggregationId[] = ['same-frame', 'spread', 'collect-sheets', 'submission-status'];
@@ -19,7 +19,7 @@ export const AGGREGATION_LABELS: Record<AggregationId, string> = {
 export const AGGREGATION_SUPPORT: Record<AggregationId, Layout[]> = {
   'same-frame': ['list', 'header-list', 'matrix', 'fill-in', 'free'],
   spread: ['matrix', 'header-list', 'fill-in', 'free'],
-  'collect-sheets': ['list', 'header-list', 'matrix', 'fill-in', 'collect', 'free'],
+  'collect-sheets': ['collect'],   // 다른 구조는 결과 시트에 값이 다 모이므로 원본 시트를 모으지 않는다
   'submission-status': ['list', 'header-list', 'matrix', 'fill-in', 'collect', 'free'],
 };
 
@@ -48,6 +48,8 @@ export function availableAggregations(schema: Pick<FormSchema, 'layout' | 'org'>
   return AGGREGATION_IDS.filter((id) => {
     if (!AGGREGATION_SUPPORT[id].includes(schema.layout)) return false;
     if (id === 'submission-status' && schema.org.mode === 'none') return false;
+    // 빈칸채우기 + 제출처 목록: 칸마다 작성처가 정해져 같은 틀 시트 한 장에 모두 들어가므로 펼치기는 필요 없다
+    if (id === 'spread' && schema.layout === 'fill-in' && schema.org.mode === 'preset') return false;
     return true;
   });
 }
