@@ -18,6 +18,7 @@ type AiEvent =
 interface Msg {
   role: 'user' | 'ai';
   text: string;
+  files?: string[];        // 사용자가 올린 엑셀 파일 이름
   status?: string;         // AI가 지금 하는 일 (끝나면 지움)
   error?: string;
   form?: FormSchema;
@@ -38,6 +39,15 @@ const EXAMPLES = [
   '2027 사업예산 요구표. 사업별로 지사마다 자기 열에 요구액을 적게 해 주세요',
 ];
 const ENGINE_KEY = 'hanan-moa:ai-engine';
+const MAX_FILE = 10 * 1024 * 1024;   // 올릴 수 있는 엑셀 크기
+const isExcel = (f: File) => /\.(xlsx|xlsm|xls)$/i.test(f.name);
+
+async function toBase64(f: File): Promise<string> {
+  const bytes = new Uint8Array(await f.arrayBuffer());
+  let s = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
 const CHAT_KEY = 'hanan-moa:ai-chat';   // 대화를 브라우저에 남겨 새로고침해도 이어 간다. [새 대화]로만 지운다
 
 function loadChat(): { chatId: string | null; msgs: Msg[]; aiVersion: string | null } {
@@ -65,6 +75,15 @@ export function AiPage() {
   // AI 작업 폴더에 있는 양식(마지막으로 AI가 만들었거나 AI에게 넘긴 것). 화면 양식과 다르면 다음 말에 함께 넘긴다
   const [aiVersion, setAiVersion] = useState<string | null>(saved.aiVersion);
   const [input, setInput] = useState('');
+  const [attached, setAttached] = useState<File[]>([]);   // 쓰던 엑셀 올리기
+  const [fileNote, setFileNote] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const addFiles = (list: FileList | File[]) => {
+    const fs = [...list];
+    const bad = fs.filter((f) => !isExcel(f) || f.size > MAX_FILE);
+    setFileNote(bad.length ? `엑셀 파일(.xlsx·.xlsm, 10MB 이하)만 올릴 수 있어요: ${bad.map((f) => f.name).join(', ')}` : '');
+    setAttached((xs) => [...xs, ...fs.filter((f) => isExcel(f) && f.size <= MAX_FILE)].slice(0, 5));
+  };
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -108,11 +127,14 @@ export function AiPage() {
   const patchLast = (f: (m: Msg) => Msg) => setMsgs((xs) => xs.map((m, i) => (i === xs.length - 1 ? f(m) : m)));
 
   const send = async (text = input) => {
-    const message = text.trim();
+    const files = attached;
+    const message = text.trim() || (files.length ? '올린 엑셀 양식으로 같은 양식을 만들어 주세요.' : '');
     if (!message || busy) return;
     setInput('');
+    setAttached([]);
+    setFileNote('');
     setBusy(true);
-    setMsgs((xs) => [...xs, { role: 'user', text: message }, { role: 'ai', text: '', status: '보내는 중' }]);
+    setMsgs((xs) => [...xs, { role: 'user', text: message, ...(files.length ? { files: files.map((f) => f.name) } : {}) }, { role: 'ai', text: '', status: files.length ? '엑셀 올리는 중' : '보내는 중' }]);
     const ctl = new AbortController();
     abort.current = ctl;
     try {
@@ -124,7 +146,8 @@ export function AiPage() {
       if (form) patchLast((m) => ({ ...m, status: '빌더에서 고친 양식을 AI에게 넘기는 중' }));
       if (form) setAiVersion(sig(form));
       const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chatId: chatId ?? undefined, engine, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form }), signal: ctl.signal });
+        body: JSON.stringify({ chatId: chatId ?? undefined, engine, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form,
+          files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) }), signal: ctl.signal });
       if (!res.body) throw new Error('연결 서버가 답하지 않아요');
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -157,7 +180,7 @@ export function AiPage() {
 
   const reset = () => {
     if (msgs.length && !window.confirm('지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
-    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null);
+    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]);
   };
 
   if (health === 'off') {
@@ -190,11 +213,13 @@ export function AiPage() {
         {msgs.length > 0 && <Button size="sm" variant="ghost" onClick={reset}>새 대화</Button>}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto rounded-card border border-line bg-white p-3" aria-live="polite">
+      <div className="min-h-0 flex-1 overflow-auto rounded-card border border-line bg-white p-3" aria-live="polite"
+        onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+        onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } }}>
         {msgs.length === 0 ? (
           <div className="flex flex-col gap-3 text-sub">
             <p className="m-0">받고 싶은 내용을 말로 적어 주세요. AI가 이 프로그램 규칙대로 양식을 만들고, 미리보기를 보여 드려요. 마음에 들면 엑셀로 내보내거나 빌더에서 직접 고칠 수 있어요.</p>
-            <p className="m-0 text-xs">쓰던 엑셀이 있으면 머리글과 칸 내용을 복사해 붙여 넣어도 돼요.</p>
+            <p className="m-0 text-xs"><b>쓰던 엑셀 양식</b>이 있으면 아래 [엑셀 올리기]를 누르거나 여기에 끌어다 놓으세요. 같은 모양으로 만들고, 그대로 옮길 수 없는 부분은 어떻게 바꿨는지 알려 드려요.</p>
             <div className="flex flex-wrap gap-1.5">
               {EXAMPLES.map((x) => <button key={x} type="button" onClick={() => setInput(x)} className="rounded-full border border-line bg-panel px-3 py-1 text-left text-[13px] text-ink hover:border-pri">{x}</button>)}
             </div>
@@ -202,23 +227,44 @@ export function AiPage() {
         ) : (
           <div className="flex flex-col gap-3">
             {msgs.map((m, i) => (m.role === 'user'
-              ? <div key={i} className="ml-auto max-w-[80%] whitespace-pre-wrap rounded-card bg-pri-bg px-3 py-2">{m.text}</div>
+              ? <div key={i} className="ml-auto flex max-w-[80%] flex-col items-end gap-1">
+                  {m.files?.length ? <div className="flex flex-wrap justify-end gap-1">{m.files.map((n) => <FileChip key={n} name={n} />)}</div> : null}
+                  <div className="whitespace-pre-wrap rounded-card bg-pri-bg px-3 py-2">{m.text}</div>
+                </div>
               : <AiBubble key={i} m={m} />))}
             <div ref={end} />
           </div>
         )}
       </div>
 
+      {(attached.length > 0 || fileNote) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {attached.map((f, i) => <FileChip key={`${f.name}-${i}`} name={f.name} onRemove={() => setAttached((xs) => xs.filter((_, k) => k !== i))} />)}
+          {fileNote && <span className="text-xs text-err-ink">{fileNote}</span>}
+        </div>
+      )}
       <div className="flex items-end gap-2">
+        <input ref={fileRef} type="file" accept=".xlsx,.xlsm,.xls" multiple hidden aria-label="엑셀 파일 고르기"
+          onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+        <Button disabled={busy || health === 'checking'} onClick={() => fileRef.current?.click()} title="쓰던 엑셀 양식 올리기">엑셀 올리기</Button>
         <TextArea aria-label="AI에게 보낼 말" className="min-h-[64px] flex-1" value={input} disabled={health === 'checking'}
           placeholder={lastForm ? '고칠 내용을 말해 주세요 (예: 교육비는 빼 주세요, 제출처를 부서로 바꿔 주세요)' : '예: 지사별 동절기 안전교육 이수자 명단. 담당자 연락처도 받고, 교육비는 원 단위로'}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
         {busy ? <Button onClick={() => abort.current?.abort()}>멈추기</Button>
-          : <Button variant="pri" disabled={!input.trim() || !ok(engine)} onClick={() => void send()}>보내기</Button>}
+          : <Button variant="pri" disabled={(!input.trim() && !attached.length) || !ok(engine)} onClick={() => void send()}>보내기</Button>}
       </div>
       <p className="m-0 text-xs text-muted">Enter로 보내고 Shift+Enter로 줄을 바꿔요. 보낸 말은 고른 AI({engine === 'claude' ? 'Claude' : 'Codex'})로 전달돼요. 회신 파일 내용은 보내지 않아요.</p>
     </div>
+  );
+}
+
+function FileChip({ name, onRemove }: { name: string; onRemove?: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-btn border border-line-strong bg-white px-2 py-0.5 text-xs">
+      <span className="rounded-[3px] bg-[#1e7b45] px-1 font-mono text-[10px] text-white">XLSX</span>{name}
+      {onRemove && <button type="button" aria-label={`${name} 빼기`} onClick={onRemove} className="text-muted hover:text-ink">×</button>}
+    </span>
   );
 }
 
@@ -241,7 +287,7 @@ function Changes({ lines }: { lines: string[] }) {
 function AiBubble({ m }: { m: Msg }) {
   return (
     <div className="flex max-w-full flex-col gap-2">
-      {m.text && <div className="whitespace-pre-wrap rounded-card bg-panel px-3 py-2">{bold(m.text)}</div>}
+      {m.text && <div className={cx('whitespace-pre-wrap rounded-card px-3 py-2', /다시 만들 수 없어요/.test(m.text) ? 'border border-[#f3c2bd] bg-[#fffafa]' : 'bg-panel')}>{bold(m.text)}</div>}
       {m.status && <div className="flex items-center gap-2 text-xs text-sub"><span className="inline-block h-2 w-2 animate-pulse rounded-full bg-pri" />{m.status}…</div>}
       {m.badForm && <div className="rounded-card border border-[#f3c2bd] bg-[#fffafa] px-3 py-2 text-sm text-err-ink">AI가 만든 양식이 규칙에 맞지 않아요: {m.badForm}. "규칙에 맞게 다시 고쳐 줘"라고 말해 보세요.</div>}
       {m.form && <FormCard schema={m.form} problems={m.problems ?? []} edited={m.edited} />}

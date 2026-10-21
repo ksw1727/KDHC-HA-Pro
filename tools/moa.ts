@@ -5,6 +5,7 @@
  *   moa check [form.json]        양식 규칙 검사 (계약 + 내보내기 전 검사). 통과하면 "통과"
  *   moa preview [form.json]      빈 양식 엑셀 모양을 글로 보여 준다 (preset이면 첫 제출처 파일)
  *   moa orgs [검색어]            한난 조직(지사·처·부) 이름 찾기
+ *   moa read-excel <파일>        사용자가 올린 엑셀 양식을 글로 (값·수식·병합·입력 규칙·색·메모, 옮기기 어려운 것)
  *
  * 화면 없이 계약·생성 코드를 그대로 쓴다. 실행: tools/ai/moa (vite-node 래퍼)
  */
@@ -14,6 +15,7 @@ import { layoutSheet } from '@contract/layout';
 import { validateForExport } from '@gen/state/validateForExport';
 import { newSchema, randomKey } from '@gen/state/newSchema';
 import { KDHC_TREE, type OrgNode } from '@gen/org/kdhcOrg';
+import { dumpExcel } from './excelDump';
 
 const [cmd = 'help', ...args] = process.argv.slice(2);
 const LAYOUTS = Object.keys(LAYOUT_LABELS) as Layout[];
@@ -105,6 +107,18 @@ switch (cmd) {
     console.log(list.length ? list.slice(0, 80).join('\n') + (list.length > 80 ? `\n… ${list.length - 80}곳 더` : '') : '찾은 곳이 없어요.');
     break;
   }
+  case 'read-excel': {
+    const path = args.join(' ').trim();
+    if (!path) { console.log('읽을 엑셀 파일을 알려 주세요: moa read-excel <파일>'); process.exit(2); }
+    if (/\.xls$/i.test(path)) { console.log('예전 엑셀(.xls)은 읽을 수 없어요. 엑셀에서 .xlsx로 다시 저장해 달라고 안내하세요.'); process.exit(1); }
+    try {
+      console.log((await dumpExcel(new Uint8Array(readFileSync(path)))).text);
+    } catch (e) {
+      console.log(`엑셀을 읽지 못했어요: ${(e as Error).message}. 암호가 걸렸거나 엑셀 파일이 아닐 수 있어요.`);
+      process.exit(1);
+    }
+    break;
+  }
   default:
-    console.log('moa new <구조> | moa check [form.json] | moa preview [form.json] | moa orgs [검색어]');
+    console.log('moa new <구조> | moa check [form.json] | moa preview [form.json] | moa orgs [검색어] | moa read-excel <파일>');
 }

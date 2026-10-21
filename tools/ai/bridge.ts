@@ -102,6 +102,7 @@ function toolStatus(cmd: string): string {
   if (/moa preview/.test(cmd)) return '엑셀 모양 확인 중';
   if (/moa new/.test(cmd)) return '시작 양식 만드는 중';
   if (/moa orgs/.test(cmd)) return '조직 이름 찾는 중';
+  if (/moa read-excel/.test(cmd)) return '올린 엑셀 읽는 중';
   if (/Write|Edit/.test(cmd)) return '양식 고치는 중';
   if (/Read|cat /.test(cmd)) return '양식 읽는 중';
   return '작업 중';
@@ -134,7 +135,7 @@ export function aiBridge(root: string): Plugin {
     res.setHeader('content-type', 'application/x-ndjson; charset=utf-8');
     const send = (e: AiEvent) => res.write(JSON.stringify(e) + '\n');
     try {
-      const { chatId = randomUUID(), engine = 'claude', message, form } = (await body(req)) as { chatId?: string; engine?: Engine; message?: unknown; form?: unknown };
+      const { chatId = randomUUID(), engine = 'claude', message, form, files = [] } = (await body(req)) as { chatId?: string; engine?: Engine; message?: unknown; form?: unknown; files?: { name: string; base64: string }[] };
       if (engine !== 'claude' && engine !== 'codex') throw new Error('엔진은 claude 또는 codex예요');
       if (typeof message !== 'string' || !message.trim()) throw new Error('보낼 말이 비어 있어요');
       moa ??= buildMoa(root);
@@ -142,10 +143,22 @@ export function aiBridge(root: string): Plugin {
       send({ type: 'chat', chatId });
       // 화면(빌더)에서 고친 양식을 함께 보내면 그 양식을 이어서 고친다
       if (form) writeFileSync(join(ws, 'form.json'), JSON.stringify(form, null, 2));
+      // 쓰던 엑셀 올리기: 작업 폴더 source/에 두고 AI에게 어디 있는지 알린다
+      const saved: string[] = [];
+      for (const f of files.slice(0, 5)) {
+        const name = String(f.name).replace(/[\\/:*?"<>|]/g, '_').slice(-120);
+        if (!/\.(xlsx|xlsm|xls)$/i.test(name)) continue;
+        mkdirSync(join(ws, 'source'), { recursive: true });
+        writeFileSync(join(ws, 'source', name), Buffer.from(f.base64, 'base64'));
+        saved.push(`source/${name}`);
+      }
+      const prompt = saved.length
+        ? `(사용자가 쓰던 엑셀 양식을 올렸어요: ${saved.map((s) => `"${s}"`).join(', ')}. 설명서의 "쓰던 엑셀 올리기" 순서대로 ./moa read-excel 로 읽고 판단하세요.)\n${message}`
+        : message;
       const formPath = join(ws, 'form.json');
       const before = mtime(formPath);
       const state = readState(ws);
-      const [bin, args] = command(engine, message, state[engine]);
+      const [bin, args] = command(engine, prompt, state[engine]);
       send({ type: 'status', text: engine === 'claude' ? 'Claude가 생각하는 중' : 'Codex가 생각하는 중' });
       const child = spawn(bin, args, { cwd: ws, env: { ...process.env, MOA_AI: '1' } });
       req.on('close', () => { if (!res.writableEnded) child.kill(); });
