@@ -133,7 +133,9 @@ export function aiBridge(root: string): Plugin {
     }
     if (req.url !== '/api/ai/chat' || req.method !== 'POST') return next();
     res.setHeader('content-type', 'application/x-ndjson; charset=utf-8');
-    const send = (e: AiEvent) => res.write(JSON.stringify(e) + '\n');
+    let last = Date.now();
+    const started = Date.now();
+    const send = (e: AiEvent) => { last = Date.now(); res.write(JSON.stringify(e) + '\n'); };
     try {
       const { chatId = randomUUID(), engine = 'claude', message, form, files = [] } = (await body(req)) as { chatId?: string; engine?: Engine; message?: unknown; form?: unknown; files?: { name: string; base64: string }[] };
       if (engine !== 'claude' && engine !== 'codex') throw new Error('엔진은 claude 또는 codex예요');
@@ -160,8 +162,13 @@ export function aiBridge(root: string): Plugin {
       const state = readState(ws);
       const [bin, args] = command(engine, prompt, state[engine]);
       send({ type: 'status', text: engine === 'claude' ? 'Claude가 생각하는 중' : 'Codex가 생각하는 중' });
-      const child = spawn(bin, args, { cwd: ws, env: { ...process.env, MOA_AI: '1' } });
-      req.on('close', () => { if (!res.writableEnded) child.kill(); });
+      // stdin을 닫아 둔다: codex exec는 stdin이 열려 있으면 입력을 더 기다리며 멈춘다
+      const child = spawn(bin, args, { cwd: ws, env: { ...process.env, MOA_AI: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
+      // 화면이 연결을 끊으면([멈추기], 창 닫기) AI도 멈춘다
+      res.on('close', () => { if (child.exitCode === null) child.kill(); });
+      // 오래 걸려도 연결이 끊기지 않게 20초마다 진행 상태를 보낸다
+      const keep = setInterval(() => { if (Date.now() - last >= 20000) send({ type: 'status', text: `아직 작업 중 (${Math.round((Date.now() - started) / 1000)}초)` }); }, 5000);
+      child.on('close', () => clearInterval(keep));
       let buf = '';
       let err = '';
       child.stdout.on('data', (d: Buffer) => {
