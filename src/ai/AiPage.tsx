@@ -7,6 +7,7 @@ import { downloadBlob, exportFormJson } from '@gen/export/exportJson';
 import { noticeText } from '@gen/export/noticeText';
 import { PreviewGrid } from '@gen/preview/PreviewGrid';
 import { loadForm } from '@gen/storage/localForms';
+import { describeChanges } from './formDiff';
 import { Button, Chip, TextArea, cx } from '@gen/ui/ui';
 
 type Engine = 'claude' | 'codex';
@@ -23,6 +24,7 @@ interface Msg {
   problems?: string[];     // 양식 규칙 위반 (있으면 내보내기 전에 고쳐야 함)
   badForm?: string;        // 양식 정의가 아예 틀렸을 때
   edited?: boolean;        // 빌더에서 고친 양식으로 바뀜
+  base?: FormSchema;       // 빌더에서 고치기 전, AI가 만든 양식 (바뀐 점 보여 주기용)
 }
 
 /** 양식 비교용 (빌더가 저장할 때마다 바뀌는 updatedAt은 빼고) */
@@ -83,7 +85,7 @@ export function AiPage() {
     const apply = (s: FormSchema) => setMsgs((xs) => {
       const i = xs.map((m) => !!m.form).lastIndexOf(true);
       if (i < 0 || xs[i].form!.formId !== s.formId || sig(xs[i].form!) === sig(s)) return xs;
-      return xs.map((m, k) => (k === i ? { ...m, ...checkForm(s), edited: true } : m));
+      return xs.map((m, k) => (k === i ? { ...m, ...checkForm(s), edited: true, base: m.base ?? m.form } : m));
     });
     const on = (e: Event) => apply((e as CustomEvent<FormSchema>).detail);
     window.addEventListener('hanan-moa:form-saved', on);
@@ -91,6 +93,16 @@ export function AiPage() {
     const last = [...saved.msgs].reverse().find((m) => m.form)?.form;
     const stored = last ? loadForm(last.formId)?.schema : undefined;
     if (stored) apply(stored);
+    // 이전 화면에서 바뀐 카드라 원래 양식을 모르면 AI 작업 폴더의 양식을 가져온다
+    const i = saved.msgs.map((m) => !!m.form).lastIndexOf(true);
+    if (i >= 0 && saved.msgs[i].edited && !saved.msgs[i].base && saved.chatId) {
+      fetch(`/api/ai/form?chatId=${encodeURIComponent(saved.chatId)}`).then((r) => (r.ok ? r.json() : null)).then((ai) => {
+        const v = ai && validateSchema(ai);
+        if (!v || !v.ok) return;
+        setAiVersion(sig(v.schema));
+        setMsgs((xs) => xs.map((m, k) => (k === i && !m.base ? { ...m, base: v.schema } : m)));
+      }).catch(() => { /* 연결 서버가 없으면 그냥 둔다 */ });
+    }
     return () => window.removeEventListener('hanan-moa:form-saved', on);
   }, [saved]);
   const patchLast = (f: (m: Msg) => Msg) => setMsgs((xs) => xs.map((m, i) => (i === xs.length - 1 ? f(m) : m)));
@@ -105,12 +117,14 @@ export function AiPage() {
     abort.current = ctl;
     try {
       // 빌더에서 고친 양식이 있으면 그 양식에서 이어 고친다
-      const edited = [...msgs].reverse().find((m) => m.form)?.edited;
+      const lastMsg = [...msgs].reverse().find((m) => m.form);
+      const edited = lastMsg?.edited;
+      const changes = lastMsg?.base && lastMsg.form ? describeChanges(lastMsg.base, lastMsg.form) : [];
       const form = lastForm && (aiVersion !== null ? sig(lastForm) !== aiVersion : edited) ? lastForm : undefined;
       if (form) patchLast((m) => ({ ...m, status: '빌더에서 고친 양식을 AI에게 넘기는 중' }));
       if (form) setAiVersion(sig(form));
       const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chatId: chatId ?? undefined, engine, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.)\n${message}` : message, form }), signal: ctl.signal });
+        body: JSON.stringify({ chatId: chatId ?? undefined, engine, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form }), signal: ctl.signal });
       if (!res.body) throw new Error('연결 서버가 답하지 않아요');
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -213,6 +227,17 @@ function bold(text: string) {
   return text.split(/\*\*(.+?)\*\*/g).map((s, i) => (i % 2 ? <b key={i}>{s}</b> : s));
 }
 
+/** 빌더에서 고친 내용 (AI가 쓴 설명은 그때 양식 기준이라, 바뀐 점은 여기서 따로 알린다) */
+function Changes({ lines }: { lines: string[] }) {
+  if (!lines.length) return null;
+  return (
+    <div className="rounded-card border border-[#f1d2ac] bg-[#fffcf7] px-3 py-2 text-sm">
+      <b className="text-warn-ink">빌더에서 고친 내용</b> <span className="text-xs text-sub">(위 AI 설명보다 이 내용이 최신이에요. 다음에 말하면 AI에게도 전해요)</span>
+      <ul className="m-0 mt-1 pl-5">{lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
+    </div>
+  );
+}
+
 function AiBubble({ m }: { m: Msg }) {
   return (
     <div className="flex max-w-full flex-col gap-2">
@@ -220,6 +245,7 @@ function AiBubble({ m }: { m: Msg }) {
       {m.status && <div className="flex items-center gap-2 text-xs text-sub"><span className="inline-block h-2 w-2 animate-pulse rounded-full bg-pri" />{m.status}…</div>}
       {m.badForm && <div className="rounded-card border border-[#f3c2bd] bg-[#fffafa] px-3 py-2 text-sm text-err-ink">AI가 만든 양식이 규칙에 맞지 않아요: {m.badForm}. "규칙에 맞게 다시 고쳐 줘"라고 말해 보세요.</div>}
       {m.form && <FormCard schema={m.form} problems={m.problems ?? []} edited={m.edited} />}
+      {m.form && m.base && <Changes lines={describeChanges(m.base, m.form)} />}
       {m.error && <div className="text-sm text-err-ink">{m.error}</div>}
     </div>
   );

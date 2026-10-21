@@ -4,6 +4,7 @@
  *
  *   GET  /api/ai/health          쓸 수 있는 엔진
  *   POST /api/ai/chat            { chatId?, engine: 'claude'|'codex', message, form? } → NDJSON 이벤트
+ *   GET  /api/ai/form?chatId=…   그 대화의 AI 작업 폴더에 있는 form.json (빌더에서 고친 것과 비교용)
  *
  * 대화 폴더(~/.hanan-moa/ai/<chatId>): CLAUDE.md·AGENTS.md(설명서), moa(도구), form.json(만든 양식), state.json
  * AI가 쓸 수 있는 것은 이 폴더 안 파일과 ./moa 명령뿐이다.
@@ -119,6 +120,14 @@ export function aiBridge(root: string): Plugin {
     if (req.url === '/api/ai/health' && req.method === 'GET') {
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ ok: true, engines: engines() }));
+      return;
+    }
+    if (req.url?.startsWith('/api/ai/form?') && req.method === 'GET') {
+      const chatId = new URL(req.url, 'http://x').searchParams.get('chatId') ?? '';
+      const p = /^[\w-]{8,64}$/.test(chatId) ? join(HOME, chatId, 'form.json') : '';
+      res.setHeader('content-type', 'application/json');
+      if (!p || !existsSync(p)) { res.statusCode = 404; res.end('null'); return; }
+      res.end(readFileSync(p, 'utf8'));
       return;
     }
     if (req.url !== '/api/ai/chat' || req.method !== 'POST') return next();
