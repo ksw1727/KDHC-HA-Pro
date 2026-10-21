@@ -54,9 +54,9 @@ export function App() {
         <span id="app-header-slot" className="flex min-w-0 flex-1 items-center gap-3" />
       </header>
       <main className="min-h-0 flex-1">
-        {tab === 'ai' ? (
-          <div className="h-full overflow-auto"><AiPage /></div>
-        ) : tab === 'generator' ? (
+        {/* AI로 만들기는 다른 화면에 다녀와도 대화가 이어지도록 늘 켜 두고 숨기기만 한다 */}
+        <div className={tab === 'ai' ? 'h-full overflow-auto' : 'hidden'}><AiPage /></div>
+        {tab === 'ai' ? null : tab === 'generator' ? (
           <GeneratorRoot incoming={incoming} />
         ) : (
           <div className="h-full overflow-auto"><AggregatorRoot formId={formId} /></div>

@@ -6,6 +6,7 @@ import { exportForm } from '@gen/export/exportZip';
 import { downloadBlob, exportFormJson } from '@gen/export/exportJson';
 import { noticeText } from '@gen/export/noticeText';
 import { PreviewGrid } from '@gen/preview/PreviewGrid';
+import { loadForm } from '@gen/storage/localForms';
 import { Button, Chip, TextArea, cx } from '@gen/ui/ui';
 
 type Engine = 'claude' | 'codex';
@@ -31,6 +32,15 @@ const EXAMPLES = [
   '2027 사업예산 요구표. 사업별로 지사마다 자기 열에 요구액을 적게 해 주세요',
 ];
 const ENGINE_KEY = 'hanan-moa:ai-engine';
+const CHAT_KEY = 'hanan-moa:ai-chat';   // 대화를 브라우저에 남겨 새로고침해도 이어 간다. [새 대화]로만 지운다
+
+function loadChat(): { chatId: string | null; msgs: Msg[] } {
+  try {
+    const j = JSON.parse(localStorage.getItem(CHAT_KEY) ?? 'null');
+    if (j && Array.isArray(j.msgs)) return { chatId: j.chatId ?? null, msgs: j.msgs.map((m: Msg) => ({ ...m, status: undefined })) };
+  } catch { /* 없거나 깨졌으면 새로 */ }
+  return { chatId: null, msgs: [] };
+}
 
 /** AI가 준 양식 정의 → 화면용 (계약 검사 → 내보내기 전 검사) */
 function checkForm(x: unknown): Pick<Msg, 'form' | 'problems' | 'badForm'> {
@@ -43,8 +53,9 @@ function checkForm(x: unknown): Pick<Msg, 'form' | 'problems' | 'badForm'> {
 export function AiPage() {
   const [health, setHealth] = useState<'checking' | 'off' | { claude: boolean; codex: boolean }>('checking');
   const [engine, setEngine] = useState<Engine>(() => { try { return (localStorage.getItem(ENGINE_KEY) as Engine) || 'claude'; } catch { return 'claude'; } });
-  const [chatId, setChatId] = useState<string | null>(null);
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [saved] = useState(loadChat);
+  const [chatId, setChatId] = useState<string | null>(saved.chatId);
+  const [msgs, setMsgs] = useState<Msg[]>(saved.msgs);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
@@ -55,6 +66,9 @@ export function AiPage() {
   }, []);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
   useEffect(() => { try { localStorage.setItem(ENGINE_KEY, engine); } catch { /* 저장 못 해도 됨 */ } }, [engine]);
+  useEffect(() => {
+    try { if (msgs.length) localStorage.setItem(CHAT_KEY, JSON.stringify({ chatId, msgs })); else localStorage.removeItem(CHAT_KEY); } catch { /* 저장 못 해도 됨 */ }
+  }, [chatId, msgs]);
 
   const lastForm = [...msgs].reverse().find((m) => m.form)?.form;
   const patchLast = (f: (m: Msg) => Msg) => setMsgs((xs) => xs.map((m, i) => (i === xs.length - 1 ? f(m) : m)));
@@ -68,7 +82,12 @@ export function AiPage() {
     const ctl = new AbortController();
     abort.current = ctl;
     try {
-      const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chatId: chatId ?? undefined, engine, message }), signal: ctl.signal });
+      // 빌더에서 고친 양식이 있으면 그 양식에서 이어 고친다
+      const edited = lastForm ? loadForm(lastForm.formId)?.schema : undefined;
+      const form = edited && JSON.stringify(edited) !== JSON.stringify(lastForm) ? edited : undefined;
+      if (form) patchLast((m) => ({ ...m, status: '빌더에서 고친 양식을 AI에게 넘기는 중' }));
+      const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ chatId: chatId ?? undefined, engine, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.)\n${message}` : message, form }), signal: ctl.signal });
       if (!res.body) throw new Error('연결 서버가 답하지 않아요');
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -99,7 +118,10 @@ export function AiPage() {
     }
   };
 
-  const reset = () => { abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); };
+  const reset = () => {
+    if (msgs.length && !window.confirm('지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
+    abort.current?.abort(); setChatId(null); setMsgs([]); setInput('');
+  };
 
   if (health === 'off') {
     return (
@@ -163,10 +185,15 @@ export function AiPage() {
   );
 }
 
+/** AI 답의 **굵게**만 살린다 (나머지 마크다운은 글자 그대로) */
+function bold(text: string) {
+  return text.split(/\*\*(.+?)\*\*/g).map((s, i) => (i % 2 ? <b key={i}>{s}</b> : s));
+}
+
 function AiBubble({ m }: { m: Msg }) {
   return (
     <div className="flex max-w-full flex-col gap-2">
-      {m.text && <div className="whitespace-pre-wrap rounded-card bg-panel px-3 py-2">{m.text}</div>}
+      {m.text && <div className="whitespace-pre-wrap rounded-card bg-panel px-3 py-2">{bold(m.text)}</div>}
       {m.status && <div className="flex items-center gap-2 text-xs text-sub"><span className="inline-block h-2 w-2 animate-pulse rounded-full bg-pri" />{m.status}…</div>}
       {m.badForm && <div className="rounded-card border border-[#f3c2bd] bg-[#fffafa] px-3 py-2 text-sm text-err-ink">AI가 만든 양식이 규칙에 맞지 않아요: {m.badForm}. "규칙에 맞게 다시 고쳐 줘"라고 말해 보세요.</div>}
       {m.form && <FormCard schema={m.form} problems={m.problems ?? []} />}
