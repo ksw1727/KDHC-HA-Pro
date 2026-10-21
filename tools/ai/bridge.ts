@@ -1,0 +1,176 @@
+/**
+ * AI 연결 서버 (AI로 만들기). 브라우저는 명령어를 실행할 수 없어서, 개발 서버(vite)에 붙어
+ * `claude -p` / `codex exec`를 대화 폴더에서 돌리고 결과를 한 줄씩(NDJSON) 화면으로 보낸다.
+ *
+ *   GET  /api/ai/health          쓸 수 있는 엔진
+ *   POST /api/ai/chat            { chatId?, engine: 'claude'|'codex', message, form? } → NDJSON 이벤트
+ *
+ * 대화 폴더(~/.hanan-moa/ai/<chatId>): CLAUDE.md·AGENTS.md(설명서), moa(도구), form.json(만든 양식), state.json
+ * AI가 쓸 수 있는 것은 이 폴더 안 파일과 ./moa 명령뿐이다.
+ */
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, chmodSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { Plugin } from 'vite';
+
+type Engine = 'claude' | 'codex';
+export type AiEvent =
+  | { type: 'chat'; chatId: string }
+  | { type: 'status'; text: string }
+  | { type: 'text'; text: string }
+  | { type: 'form'; schema: unknown }
+  | { type: 'error'; text: string }
+  | { type: 'done' };
+
+const HOME = process.env.MOA_AI_HOME ?? join(homedir(), '.hanan-moa', 'ai');
+const CODEX_MODEL = process.env.MOA_CODEX_MODEL ?? 'gpt-6-astra';
+
+const has = (cmd: string) => spawnSync(cmd, ['--version'], { encoding: 'utf8' }).status === 0;
+
+/** moa 도구를 node 하나로 도는 파일로 묶는다 (Codex는 대화 폴더 밖에 쓸 수 없어 vite 캐시를 못 쓴다) */
+async function buildMoa(root: string): Promise<string> {
+  const { build } = await import('esbuild');
+  const out = join(HOME, 'moa.mjs');
+  mkdirSync(HOME, { recursive: true });
+  await build({
+    entryPoints: [join(root, 'tools/moa.ts')], outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent',
+    alias: { '@contract': join(root, 'src/contract'), '@gen': join(root, 'src/generator'), '@agg': join(root, 'src/aggregator') },
+    banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
+  });
+  return out;
+}
+
+function workspace(root: string, chatId: string, moa: string): string {
+  if (!/^[\w-]{8,64}$/.test(chatId)) throw new Error('잘못된 대화 번호');
+  const ws = join(HOME, chatId);
+  mkdirSync(ws, { recursive: true });
+  const guide = readFileSync(join(root, 'tools/ai/AGENTS.md'), 'utf8');
+  writeFileSync(join(ws, 'AGENTS.md'), guide);
+  writeFileSync(join(ws, 'CLAUDE.md'), guide);
+  writeFileSync(join(ws, 'moa'), `#!/bin/sh\nexec "${process.execPath}" "${moa}" "$@"\n`);
+  chmodSync(join(ws, 'moa'), 0o755);
+  return ws;
+}
+
+const readState = (ws: string): Partial<Record<Engine, string>> => { try { return JSON.parse(readFileSync(join(ws, 'state.json'), 'utf8')); } catch { return {}; } };
+const mtime = (p: string) => (existsSync(p) ? statSync(p).mtimeMs : 0);
+
+/** 엔진별 명령 줄. 이어서 말하면 그 엔진의 대화(session)를 이어 간다 */
+function command(engine: Engine, message: string, session?: string): [string, string[]] {
+  if (engine === 'claude') {
+    return ['claude', ['-p', message, '--output-format', 'stream-json', '--verbose',
+      '--tools', 'Bash,Read,Write,Edit', '--allowedTools', 'Bash(./moa:*)', 'Read', 'Write', 'Edit',
+      '--permission-mode', 'acceptEdits', '--strict-mcp-config', '--disable-slash-commands',
+      ...(session ? ['--resume', session] : [])]];
+  }
+  const common = ['--json', '--skip-git-repo-check', '--ignore-user-config', '-m', CODEX_MODEL, '-c', 'model_reasoning_effort="low"'];
+  return session
+    ? ['codex', ['exec', 'resume', session, ...common, '-c', 'sandbox_mode="workspace-write"', message]]
+    : ['codex', ['exec', ...common, '-s', 'workspace-write', message]];
+}
+
+/** 엔진 출력 한 줄 → 화면 이벤트 (+ 대화 번호) */
+function parse(engine: Engine, line: string): { events: AiEvent[]; session?: string } {
+  let j: Record<string, any>;
+  try { j = JSON.parse(line); } catch { return { events: [] }; }
+  const events: AiEvent[] = [];
+  if (engine === 'claude') {
+    const session = typeof j.session_id === 'string' && j.type === 'system' && j.subtype === 'init' ? j.session_id : undefined;
+    if (j.type === 'assistant') {
+      for (const c of j.message?.content ?? []) {
+        if (c.type === 'text' && c.text?.trim()) events.push({ type: 'text', text: c.text });
+        if (c.type === 'tool_use') events.push({ type: 'status', text: toolStatus(c.name === 'Bash' ? String(c.input?.command ?? '') : c.name) });
+      }
+    }
+    if (j.type === 'result' && j.is_error) events.push({ type: 'error', text: String(j.result ?? '오류') });
+    return { events, session };
+  }
+  if (j.type === 'thread.started') return { events, session: j.thread_id };
+  if (j.type === 'item.started' && j.item?.type === 'command_execution') events.push({ type: 'status', text: toolStatus(String(j.item.command)) });
+  if (j.type === 'item.completed' && j.item?.type === 'agent_message' && j.item.text?.trim()) events.push({ type: 'text', text: j.item.text });
+  if (j.type === 'item.completed' && j.item?.type === 'file_change') events.push({ type: 'status', text: '양식 고치는 중' });
+  if (j.type === 'turn.failed' || (j.type === 'error' && !/metadata|Skill descriptions/.test(String(j.message)))) events.push({ type: 'error', text: String(j.error?.message ?? j.message ?? '오류') });
+  return { events };
+}
+
+function toolStatus(cmd: string): string {
+  if (/moa check/.test(cmd)) return '양식 검사 중';
+  if (/moa preview/.test(cmd)) return '엑셀 모양 확인 중';
+  if (/moa new/.test(cmd)) return '시작 양식 만드는 중';
+  if (/moa orgs/.test(cmd)) return '조직 이름 찾는 중';
+  if (/Write|Edit/.test(cmd)) return '양식 고치는 중';
+  if (/Read|cat /.test(cmd)) return '양식 읽는 중';
+  return '작업 중';
+}
+
+async function body(req: IncomingMessage): Promise<any> {
+  let s = '';
+  for await (const ch of req) s += ch;
+  return JSON.parse(s || '{}');
+}
+
+export function aiBridge(root: string): Plugin {
+  let moa: Promise<string> | null = null;
+  const engines = () => ({ claude: has('claude'), codex: has('codex') });
+  const handle = async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+    if (req.url === '/api/ai/health' && req.method === 'GET') {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ ok: true, engines: engines() }));
+      return;
+    }
+    if (req.url !== '/api/ai/chat' || req.method !== 'POST') return next();
+    res.setHeader('content-type', 'application/x-ndjson; charset=utf-8');
+    const send = (e: AiEvent) => res.write(JSON.stringify(e) + '\n');
+    try {
+      const { chatId = randomUUID(), engine = 'claude', message, form } = (await body(req)) as { chatId?: string; engine?: Engine; message?: unknown; form?: unknown };
+      if (engine !== 'claude' && engine !== 'codex') throw new Error('엔진은 claude 또는 codex예요');
+      if (typeof message !== 'string' || !message.trim()) throw new Error('보낼 말이 비어 있어요');
+      moa ??= buildMoa(root);
+      const ws = workspace(root, chatId, await moa);
+      send({ type: 'chat', chatId });
+      // 화면(빌더)에서 고친 양식을 함께 보내면 그 양식을 이어서 고친다
+      if (form) writeFileSync(join(ws, 'form.json'), JSON.stringify(form, null, 2));
+      const formPath = join(ws, 'form.json');
+      const before = mtime(formPath);
+      const state = readState(ws);
+      const [bin, args] = command(engine, message, state[engine]);
+      send({ type: 'status', text: engine === 'claude' ? 'Claude가 생각하는 중' : 'Codex가 생각하는 중' });
+      const child = spawn(bin, args, { cwd: ws, env: { ...process.env, MOA_AI: '1' } });
+      req.on('close', () => { if (!res.writableEnded) child.kill(); });
+      let buf = '';
+      let err = '';
+      child.stdout.on('data', (d: Buffer) => {
+        buf += d.toString();
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, i); buf = buf.slice(i + 1);
+          const r = parse(engine, line);
+          if (r.session) writeFileSync(join(ws, 'state.json'), JSON.stringify({ ...readState(ws), [engine]: r.session }));
+          r.events.forEach(send);
+        }
+      });
+      child.stderr.on('data', (d: Buffer) => { err += d.toString(); });
+      child.on('close', (code) => {
+        if (mtime(formPath) > before || form) {
+          try { send({ type: 'form', schema: JSON.parse(readFileSync(formPath, 'utf8')) }); } catch { send({ type: 'error', text: 'AI가 만든 양식 파일을 읽지 못했어요' }); }
+        }
+        if (code !== 0) send({ type: 'error', text: `${engine}가 멈췄어요 (${code}) ${err.trim().split('\n').slice(-2).join(' ')}`.trim() });
+        send({ type: 'done' });
+        res.end();
+      });
+      child.on('error', (e) => { send({ type: 'error', text: `${bin} 명령을 실행하지 못했어요: ${e.message}` }); send({ type: 'done' }); res.end(); });
+    } catch (e) {
+      send({ type: 'error', text: (e as Error).message });
+      send({ type: 'done' });
+      res.end();
+    }
+  };
+  return {
+    name: 'hanan-moa-ai-bridge',
+    configureServer: (s) => { s.middlewares.use((req, res, next) => void handle(req, res, next)); },
+    configurePreviewServer: (s) => { s.middlewares.use((req, res, next) => void handle(req, res, next)); },
+  };
+}
