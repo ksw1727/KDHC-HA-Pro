@@ -6,7 +6,9 @@ import { resolve, STATUS_LABEL, type FileState, type Resolved } from './pipeline
 import { preview, writeResult } from './pipeline/write';
 import { fmtTime, spreadName } from './pipeline/aggregate';
 import { normalize } from './pipeline/normalize';
+import { slotId as slotIdOf } from './pipeline/parse';
 import { emptyDecisions, type Decisions, type Issue, type Question } from './pipeline/types';
+import { ResultPreview } from './ResultPreview';
 
 /** 취합하기 화면 (03-aggregator.md 2절, 모형 docs/mockups/aggregate-review.html) */
 
@@ -27,6 +29,18 @@ const Card = ({ title, right, children }: { title: ReactNode; right?: ReactNode;
     {children}
   </section>
 );
+/** 접는 카드: 꼭 볼 것이 아니면 접어 두고 요약만 (결과 먼저, 03-aggregator.md 2.2) */
+function Fold({ title, summary, open: start = false, children }: { title: ReactNode; summary?: ReactNode; open?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(start);
+  return (
+    <section className="mb-3.5 rounded-card border border-line bg-white">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full flex-wrap items-center gap-2 px-4 py-3 text-left">
+        <span className="text-muted">{open ? '▾' : '▸'}</span><b className="text-[15px]">{title}</b>{summary && <span className="text-sub">{summary}</span>}
+      </button>
+      {open && <div className="px-4 pb-4">{children}</div>}
+    </section>
+  );
+}
 const Banner = ({ tone, children }: { tone: Tone; children: ReactNode }) => <div className={cx('mb-3 flex flex-wrap items-center gap-2 rounded-box border px-3.5 py-2.5', TONE[tone])}>{children}</div>;
 const Val = ({ kind, children }: { kind: 'in' | 'fix'; children: ReactNode }) => (
   <span className={cx('inline-block rounded-[4px] border px-1.5 font-mono text-[12.5px]', kind === 'in' ? 'border-req-line bg-req text-req-ink' : 'border-pri-line bg-pri-bg text-pri-ink')}>{children}</span>
@@ -154,6 +168,11 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const noMeta = analysis.identified.filter((f) => f.status === 'unreadable' && f.skipReason?.startsWith('한난MOA 양식 파일이 아니거나')).length;
   const available = availableAggregations(schema);
   const required = requiredAggregations(schema);
+  const rowsTotal = res.included.reduce((s, x) => s + x.rows.length + (x.gridSpareRows?.length ?? 0), 0);
+  // 파일 목록에서 운영자가 손댈 것: 제출처 이름 확인, 중복 파일
+  const fileAttention = res.files.filter((f) => f.status === 'included' && (f.needsOrgLink || (f.dupGroup?.length ?? 0) > 1)).length;
+  const autoRows = res.included.flatMap((s) => s.autoFixed.filter((a) => s.marks.get(slotIdOf(a.slot))?.mark === 'auto-fixed')
+    .map((a) => ({ who: s.label, where: `${a.address} ${fieldOf.get(a.slot.key)?.label ?? ''}`.trim(), from: a.from, to: a.to })));
 
   const set = (patch: (x: Decisions) => Decisions) => setD((x) => patch(structuredClone(x)));
   const applyAll = () => set((x) => { for (const i of visibleIssues) if (!x.cellFix[i.id] && !rowOut(i)) x.cellFix[i.id] = { mode: i.proposal !== undefined ? 'proposal' : 'keep' }; return x; });
@@ -220,12 +239,16 @@ export function AggregatePage({ formId }: { formId?: string }) {
         ))}
       </div>
 
-      <Card title={<>{collect ? `${L}별 파일` : '파일'} <span className="text-xs font-normal text-sub">줄을 누르면 읽은 내용이 펼쳐져요</span></>}>
-        <FileTable schema={schema} res={res} d={d} set={set} />
-      </Card>
+      {!collect && pv.frame && (
+        <Card title={<>취합 결과 <span className="text-[13px] font-normal text-sub">{schema.org.mode === 'none' ? `파일 ${res.included.length}개` : `${L} ${res.included.length}곳`}{rowsTotal ? ` · ${rowsTotal}줄` : ''}</span></>}
+          right={<Chip tone={pv.verify.ok ? 'ok' : 'err'}>검산 {pv.verify.ok ? '일치' : '불일치'}</Chip>}>
+          <ResultPreview model={pv.frame.model} />
+          <p className="m-0 mt-1.5 text-xs text-sub">노란 칸은 확인할 칸, 파란 칸은 프로그램이 자동으로 고친 칸이에요. 결과 파일에는 표시 없이 값만 들어가요.</p>
+        </Card>
+      )}
 
       {!collect && (
-        <Card title={<>확인할 칸 <Chip tone={pending ? 'req' : 'ok'}>{pending ? `남음 ${pending}` : '모두 고름'}</Chip></>}
+        <Card title={<>{pending ? '이것만 확인해 주세요' : '확인할 칸'} <Chip tone={pending ? 'req' : 'ok'}>{pending ? `남음 ${pending}` : '모두 고름'}</Chip></>}
           right={visibleIssues.length > 0 && <Btn sm onClick={applyAll}>남은 칸 모두 "자동으로 고친 값" 쓰기</Btn>}>
           <div ref={fixRef}>
             {visibleIssues.length + res.questions.length + res.crossIssues.length === 0 ? <p className="m-0 text-sub">확인할 칸이 없어요.</p> : (
@@ -241,15 +264,28 @@ export function AggregatePage({ formId }: { formId?: string }) {
         </Card>
       )}
 
-      {!collect && (
-        <Card title={<>검산 <Chip tone={pv.verify.ok ? 'ok' : 'err'}>{pv.verify.ok ? '일치' : '불일치'}</Chip></>}>
-          <ul className="m-0 pl-5">{pv.verify.lines.map((l, k) => <li key={k} className={cx('py-0.5', !l.ok && 'text-err-ink')}><b>{l.check}</b> — {l.detail}</li>)}</ul>
-        </Card>
+      <Fold title={collect ? `${L}별 파일` : '파일'} open={collect || fileAttention > 0}
+        summary={<>{res.files.length}개{fileAttention ? <> · <span className="text-warn-ink">살펴볼 파일 {fileAttention}개</span></> : ''} <span className="text-xs">(줄을 누르면 읽은 내용이 펼쳐져요)</span></>}>
+        <FileTable schema={schema} res={res} d={d} set={set} />
+      </Fold>
+
+      {!collect && autoRows.length > 0 && (
+        <Fold title="자동으로 처리한 것" summary={`${autoRows.length}건 · 검토 파일 "자동 정리" 시트에도 남아요`}>
+          <ul className="m-0 pl-5">{autoRows.slice(0, 200).map((a, k) => <li key={k} className="py-0.5"><b>{a.who}</b> · {a.where} <Val kind="in">{show(a.from)}</Val> → <Val kind="fix">{show(a.to)}</Val></li>)}</ul>
+          {autoRows.length > 200 && <p className="m-0 text-xs text-sub">… {autoRows.length - 200}건 더</p>}
+        </Fold>
       )}
 
-      <Card title="결과에 넣을 시트">
-        <p className="m-0 mb-2 text-xs text-sub">{collect ? '항상 들어가는 시트: 파일목록 · 판단 기록 (그림이 빠진 시트가 있으면 오류 시트에 안내)' : `파일 두 개를 받아요. 결과 파일: 취합한 표와 아래에서 고른 시트. 검토 파일: 출처 파일·원본 줄·상태가 붙은 표와 오류 · 파일목록 · 검산 · 판단 기록${noteCount ? ` · 메모(작성자가 단 엑셀 메모 ${noteCount}개)` : ''}`}</p>
-        <div className="flex flex-wrap gap-4">
+      {!collect && (
+        <Fold title="검산" open={!pv.verify.ok} summary={<Chip tone={pv.verify.ok ? 'ok' : 'err'}>{pv.verify.ok ? '일치' : '불일치'}</Chip>}>
+          <ul className="m-0 pl-5">{pv.verify.lines.map((l, k) => <li key={k} className={cx('py-0.5', !l.ok && 'text-err-ink')}><b>{l.check}</b> — {l.detail}</li>)}</ul>
+        </Fold>
+      )}
+
+      <Card title="결과 받기">
+        <p className="m-0 mb-2 text-xs text-sub">{collect ? '항상 들어가는 시트: 파일목록 · 판단 기록 (그림이 빠진 시트가 있으면 오류 시트에 안내)' : `파일 두 개를 받아요. 결과 파일: 취합한 표와 고른 시트. 검토 파일: 출처 파일·원본 줄·상태가 붙은 표와 오류 · 파일목록 · 검산 · 판단 기록${noteCount ? ` · 메모(작성자가 단 엑셀 메모 ${noteCount}개)` : ''}`}</p>
+        <details className="mb-1"><summary className="cursor-pointer text-[13px] text-pri-ink">결과 파일에 넣을 시트: {available.filter((m) => required.includes(m) || methods.includes(m)).map((m) => (collect && m === 'collect-sheets' ? `목차 + ${L}별 시트` : m === 'spread' ? `${spreadName(schema)} 펼치기` : AGGREGATION_LABELS[m])).join(' · ')} (바꾸기)</summary>
+        <div className="mt-2 flex flex-wrap gap-4">
           {available.map((m) => {
             const req = required.includes(m);
             const label = collect && m === 'collect-sheets' ? `목차 + ${L}별 시트` : m === 'spread' ? `${spreadName(schema)} 펼치기` : AGGREGATION_LABELS[m];
@@ -260,7 +296,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
               </label>
             );
           })}
-        </div>
+        </div></details>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           {manualCount > 0 && (
             <>
