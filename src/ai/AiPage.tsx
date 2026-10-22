@@ -186,6 +186,7 @@ export function AiPage() {
   const reset = () => {
     if (msgs.length && !window.confirm(cloudEnabled ? '화면 대화를 새로 시작할까요? 서버 대화 기록은 삭제되지 않고, 현재 저장 초안만 비워요. 만든 양식은 빌더·양식 파일에 남아요.' : '지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
     if (busy || (cloudEnabled && !draftSync.ready)) return;
+    draftSync.markCleared();
     abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]);
   };
 

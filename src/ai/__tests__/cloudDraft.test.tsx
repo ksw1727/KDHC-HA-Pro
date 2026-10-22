@@ -42,9 +42,25 @@ describe('cloud draft synchronization', () => {
     const { result, rerender } = renderHook(({ busy }) => useHarness(busy), { initialProps: { busy: true } });
     await waitFor(() => expect(result.current.ready).toBe(true)); act(() => result.current.set(draft('stream')));
     await new Promise((r) => setTimeout(r, 500)); expect(sdk.write).not.toHaveBeenCalled(); rerender({ busy: false });
-    await waitFor(() => expect(sdk.write).toHaveBeenCalledTimes(1)); act(() => result.current.set(draft('old'))); act(() => result.current.set(empty));
+    await waitFor(() => expect(sdk.write).toHaveBeenCalledTimes(1)); act(() => result.current.set(draft('old'))); act(() => { result.current.markCleared(); result.current.set(empty); });
     await new Promise((r) => setTimeout(r, 500)); expect(sdk.write).toHaveBeenCalledTimes(1);
     await act(async () => finish()); await waitFor(() => expect(sdk.write).toHaveBeenCalledTimes(2)); expect(sdk.write.mock.calls[1][0]).toMatchObject(empty);
+  });
+  it('never auto-saves an empty conversation over a saved one unless [새 대화] was pressed', async () => {
+    sdk.read.mockResolvedValue(draft('saved'));
+    const { result } = renderHook(() => useHarness(false));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    act(() => result.current.set(empty));
+    await new Promise((r) => setTimeout(r, 700)); expect(sdk.write).not.toHaveBeenCalled();
+    act(() => { result.current.markCleared(); result.current.set({ ...empty, chatId: 'x' }); });
+    await waitFor(() => expect(sdk.write).toHaveBeenCalledTimes(1));
+  });
+  it('keeps this device conversation when the server returns an empty draft', async () => {
+    localStorage.setItem('alice:hanan-moa:ai-chat', JSON.stringify({ ...draft('local only'), unsynced: false })); sdk.read.mockResolvedValue(null);
+    const { result } = renderHook(() => useHarness(false));
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.value.msgs).toHaveLength(1);
+    await waitFor(() => expect(sdk.write).toHaveBeenCalledTimes(1)); expect(sdk.write.mock.calls[0][0]).toMatchObject(draft('local only'));
   });
   it('halts autosave on CAS conflict and requires another read/choice', async () => {
     sdk.write.mockRejectedValue(new Error('다른 기기에서 변경')); const { result } = renderHook(() => useHarness(false));

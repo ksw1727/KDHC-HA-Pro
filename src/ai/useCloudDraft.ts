@@ -32,6 +32,9 @@ export function useCloudDraft(payload: Draft, busy: boolean, apply: (draft: Draf
   const writing = useRef(false);
   const confirmed = useRef('');
   const resolving = useRef(false);
+  // 서버에 메시지가 있는 대화가 있으면, 사용자가 [새 대화]를 누른 경우에만 빈 대화로 바꾼다
+  const serverHasMsgs = useRef(false);
+  const clearRequested = useRef(false);
 
   const read = async (choice?: 'server' | 'local') => {
     if (resolving.current) return;
@@ -48,7 +51,10 @@ export function useCloudDraft(payload: Draft, busy: boolean, apply: (draft: Draf
         setConflict(true); setNotice('이 기기와 서버의 대화가 달라요. 사용할 대화를 선택해 주세요.'); return;
       }
       confirmed.current = signature(remote);
-      const chosen = choice === 'local' ? local : remote;
+      serverHasMsgs.current = remote.msgs.length > 0;
+      // 서버가 비어 있는데 이 기기에 대화가 있으면 지우지 않고 이 기기 대화를 올린다
+      const keepLocal = !choice && remote.msgs.length === 0 && local.msgs.length > 0;
+      const chosen = choice === 'local' || keepLocal ? local : remote;
       latest.current = chosen;
       applyRef.current(chosen);
       cache(chosen, signature(chosen) !== confirmed.current);
@@ -74,12 +80,16 @@ export function useCloudDraft(payload: Draft, busy: boolean, apply: (draft: Draf
     }
     cache(payload, signature(payload) !== confirmed.current);
     if (!ready || !allowed.current || busy || writing.current || signature(payload) === confirmed.current) return;
+    if (payload.msgs.length === 0 && serverHasMsgs.current && !clearRequested.current) return;
     const timer = setTimeout(() => {
       if (!allowed.current || busyRef.current || writing.current || !alive.current) return;
       const next = latest.current;
+      if (next.msgs.length === 0 && serverHasMsgs.current && !clearRequested.current) return;
       writing.current = true;
       void writeCloudChat({ ...next, savedAt: new Date().toISOString() }).then(() => {
         confirmed.current = signature(next);
+        serverHasMsgs.current = next.msgs.length > 0;
+        if (next.msgs.length === 0) clearRequested.current = false;
         if (alive.current) { cache(latest.current, signature(latest.current) !== confirmed.current); setNotice(''); }
       }).catch((error: Error) => {
         if (alive.current) {
@@ -93,5 +103,5 @@ export function useCloudDraft(payload: Draft, busy: boolean, apply: (draft: Draf
     return () => clearTimeout(timer);
   }, [payload.chatId, payload.msgs, payload.aiVersion, busy, ready, tick]);
 
-  return { ready, notice, conflict, reload: () => void read(), chooseServer: () => void read('server'), chooseLocal: () => void read('local') };
+  return { ready, notice, conflict, markCleared: () => { clearRequested.current = true; }, reload: () => void read(), chooseServer: () => void read('server'), chooseLocal: () => void read('local') };
 }
