@@ -1,5 +1,5 @@
 /**
- * OpenAI Agents SDK 엔진 (AI로 만들기). `codex exec` 대신 API로 직접 돌린다.
+ * OpenAI Agents SDK 엔진 (AI로 만들기). API로 직접 돌린다.
  * 셸 대신 함수 도구 3개만 준다 — moa(./moa 명령), read_file, write_file(대화 폴더 안, form.json만 쓰기).
  * 대화 기록은 대화 폴더 openai-history.json에 두고 이어서 말할 때 붙여 보낸다.
  *
