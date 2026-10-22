@@ -1,3 +1,6 @@
+/** 서버가 보낸 안내 문구(한도 초과 등). 화면에 앞말 없이 그대로 보여 준다 */
+export class ServerMessageError extends Error {}
+
 export async function requireOk(response: Response): Promise<Response> {
   if (response.ok) return response;
   const raw = await response.text();
@@ -6,6 +9,7 @@ export async function requireOk(response: Response): Promise<Response> {
   if (response.status === 401) throw new Error('로그인이 만료되었어요. 다시 로그인해 주세요.');
   if (response.status === 403) throw new Error('AI 사용 권한이 없어요. 관리자에게 문의해 주세요.');
   if (response.status === 413) throw new Error('전송 내용이 너무 커요. 양식이나 첨부를 줄여 주세요.');
+  if (typeof detail === 'string' && detail.trim() && detail.length <= 300) throw new ServerMessageError(detail.trim());
   throw new Error(`요청 실패 (${response.status}): ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
 }
 

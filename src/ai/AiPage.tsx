@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
 import { buildCloudChatBody, prepareCloudSources } from './cloudAttachments';
-import { readNdjson, requireOk } from './http';
+import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
 import { validateForExport } from '@gen/state/validateForExport';
@@ -174,7 +174,7 @@ export function AiPage() {
         else if (e.type === 'error') patchLast((m) => ({ ...m, error: e.text }));
       });
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') patchLast((m) => ({ ...m, error: `연결이 끊겼어요: ${(err as Error).message}` }));
+      if ((err as Error).name !== 'AbortError') patchLast((m) => ({ ...m, error: err instanceof ServerMessageError ? err.message : `연결이 끊겼어요: ${(err as Error).message}` }));
       else patchLast((m) => ({ ...m, error: '멈췄어요' }));
     } finally {
       patchLast((m) => ({ ...m, status: undefined, text: m.text || (m.form || m.error ? m.text : '(답이 없어요)') }));
