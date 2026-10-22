@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { SheetModel } from '@contract/layout';
+import type { Field } from '@contract/schema';
 import type { Table } from './pipeline/aggregate';
 import { cellStyle } from '@contract/layout/styles';
 import { parseAddr } from '@contract/layout/address';
@@ -66,7 +67,7 @@ export function TablePreview({ table }: { table: Table }) {
             <tr key={ri} className={cx(r[0] === '합계' && 'bg-panel font-semibold')}>
               {r.map((v, i) => (
                 <td key={i} className="h-6 max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap border border-line px-1.5" style={{ textAlign: typeof v === 'number' ? 'right' : undefined }}>
-                  {v === null || v === undefined ? '' : typeof v === 'number' ? v.toLocaleString('ko-KR', { maximumFractionDigits: 4 }) : String(v)}
+                  {v === null || v === undefined ? '' : typeof v === 'number' ? num(v, table.columns[i]?.field) : String(v)}
                 </td>
               ))}
             </tr>
@@ -75,6 +76,14 @@ export function TablePreview({ table }: { table: Table }) {
       </table>
     </div>
   );
+}
+
+/** 양식 서식대로 숫자 보여 주기 (쉼표·소수 자리·단위) */
+function num(v: number, f?: Field): string {
+  if (!f || (f.type !== 'number' && f.type !== 'calc')) return v.toLocaleString('ko-KR', { maximumFractionDigits: 4 });
+  const d = Math.max(0, Math.min(4, f.decimals ?? 0));
+  const s = v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: f.thousands !== false });
+  return f.unit?.trim() ? `${s}${f.unit.trim()}` : s;
 }
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');

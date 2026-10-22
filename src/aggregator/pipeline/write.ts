@@ -69,10 +69,12 @@ function excelValue(v: string | number | undefined | null, field?: Field): Excel
   return v;
 }
 
-function writeTable(ws: ExcelJS.Worksheet, t: Table, fieldOf?: Map<string, Field>, keys?: (string | undefined)[]) {
+function writeTable(ws: ExcelJS.Worksheet, t: Table) {
   ws.addRow(t.columns.map((c) => c.header));
-  for (const r of t.rows) ws.addRow(r.map((v, i) => excelValue(v, keys?.[i] ? fieldOf?.get(keys[i]!) : undefined)));
-  keys?.forEach((k, i) => { const f = k ? fieldOf?.get(k) : undefined; if (f && f.type !== 'text' && f.type !== 'memo') ws.getColumn(i + 1).numFmt = FIELD_TYPES[f.type].excelNumFmt(f) ?? ''; });
+  for (const r of t.rows) ws.addRow(r.map((v, i) => excelValue(v, t.columns[i]?.field)));
+  // 양식의 서식(쉼표·소수 자리·단위·날짜)을 열에 입힌다
+  t.columns.forEach(({ field: f }, i) => { if (f && f.type !== 'text' && f.type !== 'memo') ws.getColumn(i + 1).numFmt = FIELD_TYPES[f.type].excelNumFmt(f) ?? ''; });
+  if (t.rows.at(-1)?.[0] === '합계') ws.lastRow!.font = { bold: true };
   const head = ws.getRow(1);
   head.font = { bold: true };
   head.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb('#EEF2F7') } }; });
@@ -150,8 +152,7 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
     writeModel(wb.addWorksheet(name(clean.model.sheetName)), clean.model, fieldOf);
     if (chosen.includes('spread')) {
       const t = spreadTable(schema, res);
-      const byLabel = new Map([...fieldOf.values()].map((f) => [f.label.trim(), f.key]));
-      writeTable(wb.addWorksheet(name(t.name)), t, fieldOf, t.columns.map((c) => byLabel.get(c.header.trim())));
+      writeTable(wb.addWorksheet(name(t.name)), t);
     }
     if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
 
