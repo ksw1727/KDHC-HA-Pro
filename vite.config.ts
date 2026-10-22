@@ -3,6 +3,7 @@ import { loadEnv, type Plugin, type ViteDevServer, type PreviewServer } from 'vi
 import { authProxy } from './server/authProxy';
 import { handler } from './server/http';
 import { adminHandler } from './server/admin';
+import { meHandler } from './server/me';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
@@ -19,6 +20,7 @@ function cloudApi(env: NodeJS.ProcessEnv): Plugin {
   const routes = new Map([
     ['/api/account', handler('account', { env })],
     ['/api/admin', adminHandler({ env })],
+    ['/api/me', meHandler({ env })],
     ['/api/ai/health', handler('health', { env })],
     ['/api/ai/chat', handler('chat', { env })],
     ['/api/ai/form', handler('form', { env })],

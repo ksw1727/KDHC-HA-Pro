@@ -17,7 +17,7 @@ export async function verifyAuthToken(token:string,env:NodeJS.ProcessEnv,resolve
     let key=resolveKey ?? keySets.get(jwks.href);
     if(!key) {key=createRemoteJWKSet(jwks,{timeoutDuration:5_000,cooldownDuration:30_000,cacheMaxAge:600_000});keySets.set(jwks.href,key);}
     const {payload}=await jwtVerify(token,key,{issuer:origin,audience:origin,algorithms:['EdDSA'],requiredClaims:['exp','iat','sub','email','emailVerified'],maxTokenAge:'20m',clockTolerance:5});
-    if(!uuid(payload.sub) || typeof payload.email!=='string' || payload.email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || payload.emailVerified!==true || (payload.banned!==undefined && payload.banned!==false)) throw new Error('claims');
+    if(!uuid(payload.sub) || typeof payload.email!=='string' || payload.email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email) || payload.emailVerified!==true || (payload.banned!==undefined && payload.banned!==null && payload.banned!==false)) throw new Error('claims');
     return {id:payload.sub.toLowerCase(),email:normalizeEmail(payload.email),emailVerified:true};
   } catch {throw new SafeError(401,'인증을 확인하지 못했어요. 다시 로그인해 주세요.');}
 }

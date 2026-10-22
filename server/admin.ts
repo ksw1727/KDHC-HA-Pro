@@ -9,6 +9,7 @@ import { makeStore, type Query, type Store } from './store';
  *   POST { action: 'add' | 'enable' | 'disable' | 'remove', email }
  *   POST { action: 'setLimit', email, limit: number | null }   사용자별 하루 AI 한도 (null = 기본값)
  *   POST { action: 'setSettings', globalDailyLimit, defaultUserDailyLimit }   (null = 무제한)
+ *   POST { action: 'changeEmail', email, newEmail }   사용자 로그인 이메일 변경(새 이메일은 인증 전으로)
  * 관리자 = 승인 목록에서 is_admin=true인 계정. 매 요청마다 JWT + DB로 다시 확인한다.
  */
 export type AdminRequest = IncomingMessage & { body?: unknown };
@@ -70,6 +71,13 @@ export async function applyAction(sql: Query, actor: { id: string; email: string
     return;
   }
   const email = normalizeEmail(emailRaw);
+  if (action === 'changeEmail') {
+    const rows = await sql`select coalesce(a.user_id, u.id)::text as id from moa_private.moa_allowed_users a left join neon_auth."user" u on a.user_id is null and lower(u.email) = a.email where a.email = ${email}`;
+    if (rows.length !== 1 || !rows[0].id) throw new SafeError(404, '로그인 계정이 없는 이메일이에요.');
+    const { changeEmail } = await import('./me');
+    await changeEmail(sql, String(rows[0].id), body.newEmail);
+    return;
+  }
   if (action === 'setLimit') {
     const limit = parseLimit(body.limit);
     const rows = await sql`update moa_private.moa_allowed_users set ai_daily_limit = ${limit}::integer, updated_at = now() where email = ${email} returning email`;
@@ -81,7 +89,7 @@ export async function applyAction(sql: Query, actor: { id: string; email: string
   if (action === 'add') {
     // 로그인 계정이 없으면 만든다(비밀번호 없음 → 이메일 코드로 로그인). 회원가입은 꺼져 있으므로 관리자만 계정을 만들 수 있다.
     const name = email.split('@')[0].slice(0, 60);
-    await sql`insert into neon_auth."user"(name, email, "emailVerified") select ${name}, ${email}, false
+    await sql`insert into neon_auth."user"(name, email, "emailVerified", banned) select ${name}, ${email}, false, false
       where not exists (select 1 from neon_auth."user" where lower(email) = ${email})`;
     await sql`insert into moa_private.moa_allowed_users(email, user_id, enabled, is_admin, updated_at)
       select ${email}, u.id, true, false, now() from neon_auth."user" u where lower(u.email) = ${email} limit 1
