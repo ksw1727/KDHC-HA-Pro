@@ -201,7 +201,10 @@ class Layouter {
     if (schema.org.mode !== 'none') {
       this.put({ address: 'A4', value: `${orgLabel(schema)}명`, role: 'label', required: schema.org.mode === 'input' });
       if (this.input.mode === 'aggregate') {
-        this.put({ address: 'B4', value: '(줄별 자동 칸 참고)', role: 'input', mark: 'muted' });
+        // 줄이 없는 숫자 표는 모든 제출처를 더한 값이라, 제출처별 값은 펼치기 시트에 있다고 알린다
+        const rows = schema.blocks.some((b) => b.kind === 'list' || (b.kind === 'grid' && b.spareRows > 0));
+        const sums = !rows && schema.blocks.some((b) => b.kind === 'matrix');
+        this.put({ address: 'B4', value: sums ? `(모든 ${orgLabel(schema)} 합계 · ${orgLabel(schema)}별 시트 참고)` : '(줄별 자동 칸 참고)', role: 'input', mark: 'muted' });
       } else if (schema.org.mode === 'preset') {
         this.put({ address: 'B4', value: this.input.orgName ?? schema.org.orgs?.[0], role: 'locked-value' });
       } else {
@@ -439,7 +442,8 @@ class Layouter {
         const colField = col >= calcColStart ? calcColField(col) : undefined;
         const isDataCol = col <= lastDataCol;
         if (isData && isDataCol) {
-          this.put({ address: a, value: v, role: 'input', required: f.required, numFmt: fmt, fieldKey: f.key });
+          // 취합 결과의 합은 필수 칸이 아니라 노란색을 쓰지 않는다 (화면에서 노란 칸 = 확인할 칸)
+          this.put({ address: a, value: v, role: 'input', required: this.isTemplate && f.required, numFmt: fmt, fieldKey: f.key });
           rowCells.push(a);
         } else if (colField) {
           // 계산 열: 그 행에 계산 열의 식을 적용 (합계 행·계산 행 포함)
@@ -507,7 +511,7 @@ class Layouter {
             return;
           }
           const g = this.agg?.grid?.[f.key];
-          this.put({ address: a, value: this.isTemplate ? undefined : asCell(g?.value), note: g?.note, role: 'input', required: f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key });
+          this.put({ address: a, value: this.isTemplate ? undefined : asCell(g?.value), note: g?.note, role: 'input', required: this.isTemplate && f.required, numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key });
           map.inputCells[f.key] = a;
           this.validate(a, f);
         } else {

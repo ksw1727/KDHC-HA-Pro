@@ -23,6 +23,9 @@ export const fmtTime = (iso: string) => {
 /** 같은 틀 시트의 각 목록 줄이 어느 제출의 몇 행인지 (작성자 메모를 같은 칸에 옮길 때 씀) */
 export interface FrameRowRef { fileId: string; sourceRow: number }
 
+/** 소수 더하기 찌꺼기(0.1 + 0.2 = 0.30000000000000004)를 지운다 */
+const tidy = (n: number) => Number(n.toFixed(10));
+
 export interface SameFrame { model: SheetModel; rowRefs: FrameRowRef[]; spareRefs: FrameRowRef[]; matrixNotes: Record<string, string> }
 
 const statusOf = (s: FinalSubmission, sourceRow: number, keys: string[], flags: string[] = []): string => {
@@ -104,7 +107,7 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
         if (typeof v === 'number') { sum += v; any = true; } else if (v !== null && v !== undefined) skipped++;
       }
       if (skipped && !clean) matrixNotes[`${m.id}:${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
-      return any ? sum : null;
+      return any ? tidy(sum) : null;
     }));
   }
 
@@ -154,7 +157,7 @@ export function spreadTable(schema: FormSchema, res: Resolved): Table {
   if (mats.length) {
     const start = 1 + hf.length;
     const end = start + mats.reduce((n, m) => n + m.rowLabels.length * m.colLabels.length, 0);
-    rows.push(columns.map((_, i) => (i === 0 ? '합계' : i >= start && i < end ? rows.reduce((t, r) => t + (typeof r[i] === 'number' ? (r[i] as number) : 0), 0) : null)));
+    rows.push(columns.map((_, i) => (i === 0 ? '합계' : i >= start && i < end ? tidy(rows.reduce((t, r) => t + (typeof r[i] === 'number' ? (r[i] as number) : 0), 0)) : null)));
   }
   return { name: spreadName(schema), columns: columns.map((header) => ({ header })), rows };
 }

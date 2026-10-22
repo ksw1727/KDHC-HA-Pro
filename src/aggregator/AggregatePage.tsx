@@ -4,11 +4,11 @@ import { blockFields, LAYOUT_LABELS, orgLabel, type Field, type FormSchema } fro
 import { analyze, loadInputs, patchCopies, type Analysis, type InputFile } from './pipeline/run';
 import { resolve, STATUS_LABEL, type FileState, type Resolved } from './pipeline/resolve';
 import { preview, writeResult } from './pipeline/write';
-import { fmtTime, spreadName } from './pipeline/aggregate';
+import { fmtTime, spreadName, spreadTable } from './pipeline/aggregate';
 import { normalize } from './pipeline/normalize';
 import { slotId as slotIdOf } from './pipeline/parse';
 import { emptyDecisions, type Decisions, type Issue, type Question } from './pipeline/types';
-import { ResultPreview } from './ResultPreview';
+import { ResultPreview, TablePreview } from './ResultPreview';
 
 /** 취합하기 화면 (03-aggregator.md 2절, 모형 docs/mockups/aggregate-review.html) */
 
@@ -168,6 +168,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const noMeta = analysis.identified.filter((f) => f.status === 'unreadable' && f.skipReason?.startsWith('한난MOA 양식 파일이 아니거나')).length;
   const available = availableAggregations(schema);
   const required = requiredAggregations(schema);
+  const spreadOn = available.includes('spread') && (required.includes('spread') || methods.includes('spread'));
   const rowsTotal = res.included.reduce((s, x) => s + x.rows.length + (x.gridSpareRows?.length ?? 0), 0);
   // 파일 목록에서 운영자가 손댈 것: 제출처 이름 확인, 중복 파일
   const fileAttention = res.files.filter((f) => f.status === 'included' && (f.needsOrgLink || (f.dupGroup?.length ?? 0) > 1)).length;
@@ -244,6 +245,13 @@ export function AggregatePage({ formId }: { formId?: string }) {
           right={<Chip tone={pv.verify.ok ? 'ok' : 'err'}>검산 {pv.verify.ok ? '일치' : '불일치'}</Chip>}>
           <ResultPreview model={pv.frame.model} />
           <p className="m-0 mt-1.5 text-xs text-sub">노란 칸은 확인할 칸, 파란 칸은 프로그램이 자동으로 고친 칸이에요. 결과 파일에는 표시 없이 값만 들어가요.</p>
+        </Card>
+      )}
+
+      {/* 숫자 표는 위 결과가 모든 제출처의 합이라, 제출처별 값을 따로 보여 준다 (결과 파일의 펼치기 시트와 같은 표) */}
+      {!collect && spreadOn && (
+        <Card title={<>{spreadName(schema)} 값 <span className="text-[13px] font-normal text-sub">결과 파일의 "{spreadName(schema)}" 시트</span></>}>
+          <TablePreview table={spreadTable(schema, res)} />
         </Card>
       )}
 
