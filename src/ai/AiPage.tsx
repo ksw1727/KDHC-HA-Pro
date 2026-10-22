@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
+import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
+import { buildCloudChatBody, prepareCloudSources } from './cloudAttachments';
+import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
 import { validateForExport } from '@gen/state/validateForExport';
@@ -10,6 +14,7 @@ import { loadForm } from '@gen/storage/localForms';
 import { describeChanges } from './formDiff';
 import { Button, Chip, TextArea, cx } from '@gen/ui/ui';
 
+const aiFetch: typeof fetch = (url, init) => cloudEnabled ? cloudFetch(String(url), init) : fetch(url, init);
 type AiEvent =
   | { type: 'chat'; chatId: string } | { type: 'status'; text: string } | { type: 'text'; text: string }
   | { type: 'form'; schema: unknown } | { type: 'error'; text: string } | { type: 'done' };
@@ -47,14 +52,9 @@ async function toBase64(f: File): Promise<string> {
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
 }
-const CHAT_KEY = 'hanan-moa:ai-chat';   // 대화를 브라우저에 남겨 새로고침해도 이어 간다. [새 대화]로만 지운다
-
 function loadChat(): { chatId: string | null; msgs: Msg[]; aiVersion: string | null } {
-  try {
-    const j = JSON.parse(localStorage.getItem(CHAT_KEY) ?? 'null');
-    if (j && Array.isArray(j.msgs)) return { chatId: j.chatId ?? null, aiVersion: j.aiVersion ?? null, msgs: j.msgs.map((m: Msg) => ({ ...m, status: undefined })) };
-  } catch { /* 없거나 깨졌으면 새로 */ }
-  return { chatId: null, msgs: [], aiVersion: null };
+  const draft = loadDraft();
+  return { ...draft, msgs: draft.msgs as Msg[] };
 }
 
 /** AI가 준 양식 정의 → 화면용 (계약 검사 → 내보내기 전 검사) */
@@ -73,9 +73,11 @@ const toPanel = (schema: FormSchema, o: { auto?: boolean; preferStored?: boolean
 /** AI로 만들기: 하고 싶은 말을 하면 AI(OpenAI SDK)가 이 프로그램 규칙대로 양식을 만든다 (tools/ai/bridge.ts).
  *  panelOpen: 오른쪽 설정 패널이 켜져 있으면 마지막 양식 카드가 패널과 연결돼, 고칠 때마다 미리보기가 바로 바뀐다 */
 export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
+  const [healthError, setHealthError] = useState('');
+  // 로컬: tools/ai/bridge.ts(OpenAI SDK, 모델 선택). 온라인: server/ai.ts(관리자 공용 OpenAI)
   const [health, setHealth] = useState<'checking' | 'off' | 'nokey' | 'ok'>('checking');
   const [models, setModels] = useState<string[]>([]);
-  const [model, setModel] = useState<string>(() => { try { return localStorage.getItem(MODEL_KEY) ?? ''; } catch { return ''; } });
+  const [model, setModel] = useState<string>(() => { try { return localStorage.getItem(scopedStorageKey(MODEL_KEY)) ?? ''; } catch { return ''; } });
   const [saved] = useState(loadChat);
   const [chatId, setChatId] = useState<string | null>(saved.chatId);
   const [msgs, setMsgs] = useState<Msg[]>(saved.msgs);
@@ -84,26 +86,33 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const [input, setInput] = useState('');
   const [attached, setAttached] = useState<File[]>([]);   // 쓰던 엑셀 올리기
   const [fileNote, setFileNote] = useState('');
+  const [consent, setConsent] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const addFiles = (list: FileList | File[]) => {
+    if (busy) return;
     const fs = [...list];
+    setConsent(false);
     const bad = fs.filter((f) => !isExcel(f) || f.size > MAX_FILE);
-    setFileNote(bad.length ? `엑셀 파일(.xlsx·.xlsm, 10MB 이하)만 올릴 수 있어요: ${bad.map((f) => f.name).join(', ')}` : '');
-    setAttached((xs) => [...xs, ...fs.filter((f) => isExcel(f) && f.size <= MAX_FILE)].slice(0, 5));
+    setFileNote(cloudEnabled && fs.some((f) => /\.xls$/i.test(f.name)) ? '.xls는 분석할 수 없어요. .xlsx로 다시 저장해 주세요.' : bad.length ? `엑셀 파일(.xlsx·.xlsm, 10MB 이하)만 올릴 수 있어요: ${bad.map((f) => f.name).join(', ')}` : '');
+    setAttached((xs) => [...xs, ...fs.filter((f) => isExcel(f) && f.size <= MAX_FILE && (!cloudEnabled || !/\.xls$/i.test(f.name)))].slice(0, 5));
   };
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
+  const draftSync = useCloudDraft({ chatId, msgs, aiVersion }, busy, (draft: Draft) => {
+    setChatId(draft.chatId); setMsgs(draft.msgs as Msg[]); setAiVersion(draft.aiVersion);
+  });
   useEffect(() => {
-    fetch('/api/ai/health').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { setHealth(j.openai ? 'ok' : 'nokey'); setModels(j.openaiModels ?? []); }).catch(() => setHealth('off'));
+    aiFetch('/api/ai/health').then(requireOk).then((r) => r.json()).then((j) => {
+      if (cloudEnabled) setHealth(j.engines?.codex === true ? 'ok' : 'nokey');
+      else { setHealth(j.openai ? 'ok' : 'nokey'); setModels(Array.isArray(j.openaiModels) ? j.openaiModels : []); }
+    }).catch((error: Error) => { setHealthError(error.message); setHealth('off'); });
   }, []);
-  useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
-  useEffect(() => { try { if (model) localStorage.setItem(MODEL_KEY, model); } catch { /* 저장 못 해도 됨 */ } }, [model]);
+  useEffect(() => { try { if (model) localStorage.setItem(scopedStorageKey(MODEL_KEY), model); } catch { /* 저장 못 해도 됨 */ } }, [model]);
   const openaiModel = models.includes(model) ? model : models[0];
-  useEffect(() => {
-    try { if (msgs.length) localStorage.setItem(CHAT_KEY, JSON.stringify({ chatId, msgs, aiVersion })); else localStorage.removeItem(CHAT_KEY); } catch { /* 저장 못 해도 됨 */ }
-  }, [chatId, msgs, aiVersion]);
+  useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
+
 
   const lastForm = [...msgs].reverse().find((m) => m.form)?.form;
   const lastFormAt = msgs.map((m) => !!m.form).lastIndexOf(true);
@@ -129,35 +138,39 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     window.addEventListener('hanan-moa:form-opened', opened);
     const picked = (e: Event) => setSelKey((e as CustomEvent<{ key: string | null }>).detail.key);
     window.addEventListener('hanan-moa:field-selected', picked);
+    const off = () => {
+      window.removeEventListener('hanan-moa:form-saved', on); window.removeEventListener('hanan-moa:form-edit', on);
+      window.removeEventListener('hanan-moa:form-opened', opened); window.removeEventListener('hanan-moa:field-selected', picked);
+    };
+    if (cloudEnabled && !draftSync.ready) return off;
+    const current = cloudEnabled ? { msgs, chatId } : saved;
     // 새로고침 전에 고친 것도 맞춘다
-    const last = [...saved.msgs].reverse().find((m) => m.form)?.form;
+    const last = [...current.msgs].reverse().find((m) => m.form)?.form;
     const stored = last ? loadForm(last.formId)?.schema : undefined;
     if (stored) apply(stored);
     // 새로고침해도 패널이 대화의 마지막 양식을 연다
     if (last) toPanel(stored ?? last, { auto: true, preferStored: true });
     // 이전 화면에서 바뀐 카드라 원래 양식을 모르면 AI 작업 폴더의 양식을 가져온다
-    const i = saved.msgs.map((m) => !!m.form).lastIndexOf(true);
-    if (i >= 0 && saved.msgs[i].edited && !saved.msgs[i].base && saved.chatId) {
-      fetch(`/api/ai/form?chatId=${encodeURIComponent(saved.chatId)}`).then((r) => (r.ok ? r.json() : null)).then((ai) => {
+    const i = current.msgs.map((m) => !!m.form).lastIndexOf(true);
+    if (i >= 0 && current.msgs[i].edited && !current.msgs[i].base && current.chatId) {
+      aiFetch(`/api/ai/form?chatId=${encodeURIComponent(current.chatId)}`).then(requireOk).then((r) => r.json()).then((ai) => {
         const v = ai && validateSchema(ai);
         if (!v || !v.ok) return;
         setAiVersion(sig(v.schema));
         setMsgs((xs) => xs.map((m, k) => (k === i && !m.base ? { ...m, base: v.schema } : m)));
       }).catch(() => { /* 연결 서버가 없으면 그냥 둔다 */ });
     }
-    return () => {
-      window.removeEventListener('hanan-moa:form-saved', on); window.removeEventListener('hanan-moa:form-edit', on);
-      window.removeEventListener('hanan-moa:form-opened', opened); window.removeEventListener('hanan-moa:field-selected', picked);
-    };
-  }, [saved]);
+    return off;
+  }, [saved, draftSync.ready]);
   const patchLast = (f: (m: Msg) => Msg) => setMsgs((xs) => xs.map((m, i) => (i === xs.length - 1 ? f(m) : m)));
 
   const send = async (text = input) => {
     const files = attached;
     const message = text.trim() || (files.length ? '올린 엑셀 양식으로 같은 양식을 만들어 주세요.' : '');
-    if (!message || busy) return;
+    if (!message || busy || !draftSync.ready || health !== 'ok') return;
+    if (cloudEnabled && files.length && !consent) { setFileNote('요약 내용이 외부 AI로 전달되는 것에 동의해 주세요.'); return; }
+    if (cloudEnabled && message.length > 6000) { setFileNote('메시지는 6,000자 이하로 줄여 주세요.'); return; }
     setInput('');
-    setAttached([]);
     setFileNote('');
     setBusy(true);
     setMsgs((xs) => [...xs, { role: 'user', text: message, ...(files.length ? { files: files.map((f) => f.name) } : {}) }, { role: 'ai', text: '', status: files.length ? '엑셀 올리는 중' : '보내는 중' }]);
@@ -171,31 +184,24 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       const form = lastForm && (aiVersion !== null ? sig(lastForm) !== aiVersion : edited || lastMsg?.opened) ? lastForm : undefined;
       if (form) patchLast((m) => ({ ...m, status: lastMsg?.opened && !edited ? '패널에서 연 양식을 AI에게 넘기는 중' : '패널에서 고친 양식을 AI에게 넘기는 중' }));
       if (form) setAiVersion(sig(form));
-      const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form,
-          files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) }), signal: ctl.signal });
-      if (!res.body) throw new Error('연결 서버가 답하지 않아요');
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let i;
-        while ((i = buf.indexOf('\n')) >= 0) {
-          const line = buf.slice(0, i); buf = buf.slice(i + 1);
-          if (!line.trim()) continue;
-          const e = JSON.parse(line) as AiEvent;
-          if (e.type === 'chat') setChatId(e.chatId);
-          else if (e.type === 'status') patchLast((m) => ({ ...m, status: e.text }));
-          else if (e.type === 'text') patchLast((m) => ({ ...m, text: m.text ? `${m.text}\n\n${e.text}` : e.text }));
-          else if (e.type === 'form') { const c = checkForm(e.schema); patchLast((m) => ({ ...m, ...c })); if (c.form) { setAiVersion(sig(c.form)); toPanel(c.form, { auto: true }); } }
-          else if (e.type === 'error') patchLast((m) => ({ ...m, error: e.text }));
-        }
-      }
+      const text = form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message;
+      // 온라인 서버는 engine(codex = OpenAI)·요약(sources)만 받고, 로컬 연결 서버는 model·원본 파일을 받는다
+      const body = cloudEnabled
+        ? buildCloudChatBody({ chatId: chatId ?? undefined, engine: 'codex', message: text, form, sources: await prepareCloudSources(files, consent) })
+        : JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: text, form, files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) });
+      if (ctl.signal.aborted) throw new DOMException('취소됨', 'AbortError');
+      setAttached([]); setConsent(false);
+      const res = await aiFetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: ctl.signal });
+      await readNdjson(res, (event) => {
+        const e = event as AiEvent;
+        if (e.type === 'chat') setChatId(e.chatId);
+        else if (e.type === 'status') patchLast((m) => ({ ...m, status: e.text }));
+        else if (e.type === 'text') patchLast((m) => ({ ...m, text: m.text ? `${m.text}\n\n${e.text}` : e.text }));
+        else if (e.type === 'form') { const c = checkForm(e.schema); patchLast((m) => ({ ...m, ...c })); if (c.form) { setAiVersion(sig(c.form)); toPanel(c.form, { auto: true }); } }
+        else if (e.type === 'error') patchLast((m) => ({ ...m, error: e.text }));
+      });
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') patchLast((m) => ({ ...m, error: `연결이 끊겼어요: ${(err as Error).message}` }));
+      if ((err as Error).name !== 'AbortError') patchLast((m) => ({ ...m, error: err instanceof ServerMessageError ? err.message : `연결이 끊겼어요: ${(err as Error).message}` }));
       else patchLast((m) => ({ ...m, error: '멈췄어요' }));
     } finally {
       patchLast((m) => ({ ...m, status: undefined, text: m.text || (m.form || m.error ? m.text : '(답이 없어요)') }));
@@ -205,7 +211,9 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   };
 
   const reset = () => {
-    if (msgs.length && !window.confirm('지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
+    if (msgs.length && !window.confirm(cloudEnabled ? '화면 대화를 새로 시작할까요? 서버 대화 기록은 삭제되지 않고, 현재 저장 초안만 비워요. 만든 양식은 빌더·양식 파일에 남아요.' : '지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
+    if (busy || (cloudEnabled && !draftSync.ready)) return;
+    draftSync.markCleared();
     abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]);
   };
 
@@ -214,8 +222,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       <div className="mx-auto flex max-w-[640px] flex-col gap-3 p-6">
         <h1 className="m-0 text-xl font-bold">AI로 만들기</h1>
         <div className="rounded-card border border-line bg-panel p-4 text-sub">
-          <p className="m-0 mb-2 font-semibold text-ink">{health === 'off' ? 'AI 연결 서버가 꺼져 있어요' : 'OpenAI API 키가 없어요'}</p>
-          <p className="m-0">AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 오른쪽 위 [양식 설정 패널] 스위치와 [취합하기]는 지금도 그대로 쓸 수 있어요.</p>
+          <p className="m-0 mb-2 font-semibold text-ink">{cloudEnabled ? (health === 'nokey' ? '관리자 AI 설정이 아직 없어요' : healthError || '클라우드 AI 연결을 확인하지 못했어요') : health === 'off' ? 'AI 연결 서버가 꺼져 있어요' : 'OpenAI API 키가 없어요'}</p>
+          <p className="m-0">{cloudEnabled ? <>{health === 'nokey' ? 'AI 키 또는 모델이 설정되지 않아 비용이 발생하는 AI 기능은 사용할 수 없어요. ' : '로그인 상태를 확인하고 다시 접속해 주세요. 계속되면 관리자에게 문의해 주세요. '}양식 설정 패널·취합하기는 그대로 사용할 수 있어요.</> : <>AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 오른쪽 위 [양식 설정 패널] 스위치와 [취합하기]는 지금도 그대로 쓸 수 있어요.</>}</p>
         </div>
       </div>
     );
@@ -227,15 +235,20 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="m-0 text-xl font-bold">무엇을 받고 싶으세요?</h1>
         <span className="flex-1" />
-        {models.length > 0 && (
+        {!cloudEnabled && models.length > 0 && (
           <select aria-label="OpenAI 모델" className="rounded-box border border-line bg-white px-2 py-1 text-[13px]" value={openaiModel} disabled={busy}
             onChange={(e) => setModel(e.target.value)}>
             {models.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         )}
-        {msgs.length > 0 && <Button size="sm" variant="ghost" onClick={reset}>새 대화</Button>}
+        {msgs.length > 0 && <Button size="sm" variant="ghost" disabled={busy || !draftSync.ready} onClick={reset}>새 대화</Button>}
       </div>
 
+      {cloudEnabled && (!draftSync.ready || draftSync.notice) && <div role="status" className="rounded-box border border-line p-3 text-sm">
+        {draftSync.notice || '서버 대화를 불러오는 중이에요. 완료되면 AI에게 보낼 수 있어요.'}
+        {draftSync.conflict ? <div className="mt-2 flex gap-2"><Button onClick={draftSync.chooseServer}>서버 대화 불러오기</Button><Button onClick={draftSync.chooseLocal}>이 기기 대화 저장</Button></div>
+          : draftSync.notice && <Button onClick={draftSync.reload}>다시 불러오기</Button>}
+      </div>}
       <div className="min-h-0 flex-1 overflow-auto rounded-card border border-line bg-white p-3" aria-live="polite"
         onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
         onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } }}>
@@ -266,6 +279,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
           {fileNote && <span className="text-xs text-err-ink">{fileNote}</span>}
         </div>
       )}
+      {cloudEnabled && attached.length > 0 && <label className="text-sm"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} disabled={busy} /> 원본은 브라우저에서만 분석하고 서버에 저장하지 않아요. 민감한 셀 값이 포함될 수 있는 요약 내용이 외부 AI로 전달되는 것에 동의해요.</label>}
       <div className="flex items-end gap-2">
         <input ref={fileRef} type="file" accept=".xlsx,.xlsm,.xls" multiple hidden aria-label="엑셀 파일 고르기"
           onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
@@ -275,9 +289,9 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
         {busy ? <Button onClick={() => abort.current?.abort()}>멈추기</Button>
-          : <Button variant="pri" disabled={(!input.trim() && !attached.length) || !ok} onClick={() => void send()}>보내기</Button>}
+          : <Button variant="pri" disabled={(!input.trim() && !attached.length) || !ok || !draftSync.ready || (cloudEnabled && attached.length > 0 && !consent)} onClick={() => void send()}>보내기</Button>}
       </div>
-      <p className="m-0 text-xs text-muted">Enter로 보내고 Shift+Enter로 줄을 바꿔요. 보낸 말은 OpenAI {openaiModel ?? ''}로 전달돼요. 회신 파일 내용은 보내지 않아요.</p>
+      <p className="m-0 text-xs text-muted">Enter로 보내고 Shift+Enter로 줄을 바꿔요. 보낸 말은 OpenAI{!cloudEnabled && openaiModel ? ` ${openaiModel}` : ''}로 전달돼요. {cloudEnabled ? '첨부 원본은 보내거나 저장하지 않으며, 동의한 엑셀 요약은 외부 AI에 전달돼요.' : '회신 파일 내용은 보내지 않아요.'}</p>
     </div>
   );
 }

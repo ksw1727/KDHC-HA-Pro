@@ -2,6 +2,14 @@
 
 취합 해커톤 프로젝트 ('26.10.12). 기획 문서는 [`docs/prd/`](docs/prd/00-overview.md)에 있습니다.
 
+## 온라인 실행
+
+- 운영 주소: https://hanan-moa.vercel.app
+- Vercel + Neon 인증·데이터베이스 + 관리자 공용 OpenAI
+- 승인된 이메일 계정만 로그인할 수 있습니다. 회신 엑셀은 서버로 보내지 않고 브라우저에서 취합합니다.
+- 환경변수·사용자 승인·배포·보안 확인은 [`docs/deployment.md`](docs/deployment.md)를 참고하세요.
+- 기존 로컬 실행은 클라우드 설정 없이 `npm run dev`로 유지합니다.
+
 ## 처음 한 번만
 
 ```bash

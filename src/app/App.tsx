@@ -1,17 +1,26 @@
+import { CloudGate } from '../cloud';
 import { useEffect, useLayoutEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { FormPanel, type Incoming } from '@gen/FormPanel';
 import { AggregatorRoot } from '@agg/index';
 import { AiPage } from '../ai/AiPage';
+import { AdminPage, probeAdmin } from '../admin/AdminPage';
 import type { FormSchema } from '@contract/schema';
 
-type Tab = 'ai' | 'aggregator';
+type Tab = 'ai' | 'aggregator' | 'admin';
 const PANEL_KEY = 'hanan-moa:builder-panel';   // 양식 설정 패널을 켜 두었는지 (새로고침해도 그대로)
 const WIDTH_KEY = 'hanan-moa:settings-panel-width';
 /** 패널은 340px 이상, AI 대화는 480px 이상 남긴다 */
 const clampWidth = (w: number) => Math.round(Math.max(340, Math.min(w, window.innerWidth - 480)));
 
 export function App() {
+  return <CloudGate><Workspace /></CloudGate>;
+}
+
+function Workspace() {
   const [tab, setTab] = useState<Tab>('ai');
+  // 관리자에게만 관리자 탭을 보인다 (권한은 서버가 매 요청 다시 확인)
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => { let alive = true; void probeAdmin().then((ok) => { if (alive) setAdmin(ok); }); return () => { alive = false; }; }, []);
   const [formId, setFormId] = useState<string>();
   const [panel, setPanel] = useState(() => { try { return localStorage.getItem(PANEL_KEY) !== '0'; } catch { return true; } });
   useEffect(() => { try { localStorage.setItem(PANEL_KEY, panel ? '1' : '0'); } catch { /* 저장 못 해도 됨 */ } }, [panel]);
@@ -61,6 +70,7 @@ export function App() {
             [
               ['ai', 'AI로 만들기'],
               ['aggregator', '취합하기'],
+              ...(admin ? [['admin', '관리자']] as const : []),
             ] as const
           ).map(([id, label]) => (
             <button
@@ -103,6 +113,7 @@ export function App() {
           </aside>
         </div>
         {tab === 'aggregator' && <div className="h-full overflow-auto"><AggregatorRoot formId={formId} /></div>}
+        {tab === 'admin' && admin && <div className="h-full overflow-auto"><AdminPage /></div>}
       </main>
     </div>
   );
