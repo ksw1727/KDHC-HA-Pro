@@ -75,3 +75,6 @@ export async function cloudFetch(url: string, init?: RequestInit): Promise<Respo
   if (response.status === 401 || response.status === 403) throw new Error('인증 또는 접근 권한이 없습니다. 다시 로그인하거나 관리자에게 문의하세요.');
   return response;
 }
+
+/** Neon 인증 원래 클라이언트 (비밀번호·이름 변경 등 내 계정 기능용) */
+export function nativeAuth() { return cloudClient().auth.getBetterAuthInstance(); }

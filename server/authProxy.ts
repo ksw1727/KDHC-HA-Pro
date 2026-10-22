@@ -7,6 +7,8 @@ const METHODS = new Set(['GET', 'POST']);
 const ROUTES = new Set([
   'get-session', 'token', 'sign-in/email', 'sign-in/email-otp', 'sign-out', 'request-password-reset', 'reset-password',
   'verify-email', 'send-verification-email', 'email-otp/send-verification-otp', 'email-otp/verify-email',
+  // 내 계정: 비밀번호 변경·이메일 코드로 비밀번호 설정, 이름 변경, 이메일 변경
+  'change-password', 'email-otp/reset-password', 'update-user', 'change-email',
 ]);
 export function proxyCookie(cookie: string): string {
   // Upstream 전용 Domain/Path는 제거하고 이 사이트의 /api/auth에서만 전달한다.

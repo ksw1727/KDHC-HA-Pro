@@ -132,6 +132,12 @@ export function AdminPage() {
                       {u.enabled
                         ? <button type="button" disabled={busy} onClick={() => void act('disable', u.email, `${u.email} 사용을 중지했어요.`)} className="rounded-btn border border-line px-2 py-0.5">중지</button>
                         : <button type="button" disabled={busy} onClick={() => void act('enable', u.email, `${u.email}을(를) 다시 허용했어요.`)} className="rounded-btn border border-line px-2 py-0.5">다시 허용</button>}
+                      <button type="button" disabled={busy} onClick={() => {
+                        const n = window.prompt(`${u.email}의 새 로그인 이메일을 적어 주세요. 바꾸면 그 사람은 새 이메일로 코드를 받아 인증해야 해요.`)?.trim().toLowerCase();
+                        if (!n) return;
+                        if (window.prompt('확인을 위해 새 이메일을 한 번 더 적어 주세요.')?.trim().toLowerCase() !== n) { setError('두 번 적은 이메일이 서로 달라요.'); return; }
+                        void run(() => post({ action: 'changeEmail', email: u.email, newEmail: n }), `${u.email} → ${n}(으)로 바꿨어요. 새 이메일로 인증 코드를 받아 인증하면 쓸 수 있어요.`);
+                      }} className="rounded-btn border border-line px-2 py-0.5">이메일 변경</button>
                       <button type="button" disabled={busy} onClick={() => { if (window.confirm(`${u.email}을(를) 승인 목록에서 삭제할까요? 다시 추가하면 쓸 수 있어요.`)) void act('remove', u.email, `${u.email}을(를) 삭제했어요.`); }} className="rounded-btn border border-[#f1c0c0] px-2 py-0.5 text-err-ink">삭제</button>
                     </span>
                   )}

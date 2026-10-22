@@ -1,13 +1,14 @@
-import { CloudGate } from '../cloud';
+import { CloudGate, cloudEnabled } from '../cloud';
 import { useEffect, useState } from 'react';
 import { GeneratorRoot } from '@gen/index';
 import { AggregatorRoot } from '@agg/index';
 import { AiPage } from '../ai/AiPage';
 import { AdminPage, probeAdmin } from '../admin/AdminPage';
+import { AccountPage } from '../account/AccountPage';
 import { WorkspacePage } from '../workspace/WorkspacePage';
 import type { FormSchema } from '@contract/schema';
 
-type Tab = 'home' | 'ai' | 'generator' | 'aggregator' | 'admin';
+type Tab = 'home' | 'ai' | 'generator' | 'aggregator' | 'account' | 'admin';
 
 export function App() {
   return <CloudGate><Workspace /></CloudGate>;
@@ -46,6 +47,7 @@ function Workspace() {
               ['ai', 'AI로 만들기'],
               ['generator', '양식 만들기'],
               ['aggregator', '취합하기'],
+              ...(cloudEnabled ? [['account', '내 계정']] as const : []),
               ...(admin ? [['admin', '관리자']] as const : []),
             ] as const
           ).map(([id, label]) => (
@@ -72,6 +74,8 @@ function Workspace() {
           <div className="h-full overflow-auto"><WorkspacePage /></div>
         ) : tab === 'generator' ? (
           <GeneratorRoot incoming={incoming} />
+        ) : tab === 'account' && cloudEnabled ? (
+          <div className="h-full overflow-auto"><AccountPage /></div>
         ) : tab === 'admin' && admin ? (
           <div className="h-full overflow-auto"><AdminPage /></div>
         ) : (
