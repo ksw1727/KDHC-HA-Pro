@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LAYOUT_LABELS, aggregationLabel, blockFields, orgLabel, validateSchema } from '@contract/schema';
+import { LAYOUT_LABELS, aggregationLabel, blockFields, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
 import { useBuilder, type PanelId } from '../state/useBuilder';
 import { validateForExport, type ExportProblem } from '../state/validateForExport';
@@ -27,10 +27,29 @@ function useHeaderSlot() {
   return el;
 }
 
-/** onHome: [← 처음 화면] (구조 고르기 첫 화면으로) */
-export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: () => void }) {
+interface Props {
+  start?: StoredForm;
+  /** [← 처음 화면] (구조 고르기 첫 화면으로). homeLabel로 글자를 바꾼다 */
+  onHome?: () => void;
+  homeLabel?: string;
+  /** 설정 패널: 미리보기 없이 ①~⑤만, 버튼 줄도 패널 안에 (AI로 만들기 화면 오른쪽) */
+  compact?: boolean;
+  /** 패널의 [크게 열기]: 미리보기·그리는 판이 있는 전체 빌더로 */
+  onExpand?: () => void;
+  /** 고칠 때마다 (AI 화면의 양식 카드가 바로 따라 바뀐다) */
+  onChange?: (schema: FormSchema) => void;
+  /** 고른 항목이 바뀔 때 */
+  onSelectKey?: (key: string | null) => void;
+  /** 밖에서 항목 고르기 (카드 미리보기의 머리글을 눌렀을 때) */
+  focus?: { key: string; at: number };
+}
+
+export function BuilderPage({ start, onHome, homeLabel = '← 처음 화면', compact, onExpand, onChange, onSelectKey, focus }: Props) {
   const b = useBuilder(start);
   const s = b.schema;
+  useEffect(() => { onChange?.(s); }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onSelectKey?.(b.selected?.key ?? null); }, [b.selected?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (focus) b.selectKey(focus.key); }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
   const slot = useHeaderSlot();
   const [mode, setMode] = useState<'template' | 'aggregate'>('template');
   const [previewOrg, setPreviewOrg] = useState<string | undefined>();
@@ -80,11 +99,12 @@ export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: ()
 
   const header = (
     <>
-      {onHome && <Button variant="ghost" onClick={() => { b.flush(); onHome(); }}>← 처음 화면</Button>}
+      {onHome && <Button variant="ghost" onClick={() => { b.flush(); onHome(); }}>{homeLabel}</Button>}
       <span className="truncate text-sub">{s.title || '새 양식'}</span>
       <Chip>{LAYOUT_LABELS[s.layout]}</Chip>
       <Chip tone={b.saved === false ? 'warn' : 'gray'}>v{b.version} · {b.saved === false ? '이 브라우저에 자동 저장되지 않아요' : '자동 저장됨'}</Chip>
       <span className="flex-1" />
+      {onExpand && <Button variant="ghost" title="미리보기·그리는 판이 있는 큰 화면으로" onClick={() => { b.flush(); onExpand(); }}>크게 열기</Button>}
       <Button variant="ghost" onClick={() => fileRef.current?.click()}>양식 파일 열기</Button>
       <Button onClick={() => exportFormJson(s)}>양식 파일 저장</Button>
       <Button variant="pri" onClick={onExport}>엑셀 내보내기{s.org.mode === 'preset' && s.org.orgs?.length ? ` (${s.org.orgs.length}개 · zip)` : ''}</Button>
@@ -105,10 +125,20 @@ export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: ()
     </>
   );
 
+  const dialogs = (
+    <>
+      {check && <CheckDialog problems={check} onFix={onFix} onClose={() => setCheck(null)} />}
+      {exporting && <ExportFlow schema={s} lastExported={b.lastExported} onClose={() => setExporting(false)} onExported={b.markExported} />}
+      {loadErr && <Dialog tone="err" title={loadErr} onClose={() => setLoadErr('')} footer={<><span className="flex-1" /><Button variant="pri" onClick={() => setLoadErr('')}>확인</Button></>}><p className="m-0">한난MOA에서 저장한 .form.json 파일을 골라 주세요.</p></Dialog>}
+    </>
+  );
+
   return (
-    <div className="grid h-full min-h-0 grid-cols-[400px_1fr]">
-      {slot && createPortal(header, slot)}
-      <aside className="flex min-h-0 flex-col gap-2.5 overflow-auto border-r border-line bg-panel p-3.5" aria-label="양식 설정">
+    <div className={compact ? 'flex h-full min-h-0 flex-col' : 'grid h-full min-h-0 grid-cols-[400px_1fr]'}>
+      {compact
+        ? <div className="flex flex-wrap items-center gap-1.5 border-b border-line bg-white px-3 py-2 [&_button]:px-2 [&_button]:text-xs">{header}</div>
+        : slot && createPortal(header, slot)}
+      <aside className={'flex min-h-0 flex-col gap-2.5 overflow-auto bg-panel p-3.5 ' + (compact ? 'flex-1' : 'border-r border-line')} aria-label="양식 설정">
         <Panel n={1} title="기본 정보" open={b.openPanel === 'meta'} onToggle={() => toggle('meta')} bad={bad('meta')}
           summary={[s.title || '제목 없음', s.deadline && `기한 ${s.deadline.slice(5).replace('-', '/')}`].filter(Boolean).join(' · ')}>
           <MetaPanel b={b} />
@@ -118,6 +148,7 @@ export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: ()
         </Panel>
         <Panel n={3} title={s.layout === 'collect' ? '시트 시작 모양' : free ? '고른 영역' : '항목·서식'} open={b.openPanel === 'fields'} onToggle={() => toggle('fields')} bad={bad('fields')}
           summary={free ? `영역 ${freeRegions(s).length}개` : s.layout === 'collect' ? (s.collect?.scope === 'all' ? '모든 시트 모음' : '보고서 시트만') : s.layout === 'fill-in' ? `입력칸 ${s.blocks.reduce((n, x) => n + blockFields(x).length, 0)}개` : s.layout === 'matrix' ? '표 1개' : `${s.blocks.reduce((n, x) => n + blockFields(x).length, 0)}개`}>
+          {free && compact && <div className="mb-2 rounded-box border border-pri-line bg-pri-bg px-2.5 py-2 text-xs text-pri-ink">자유 제작형은 판에 직접 그려요. <button type="button" className="font-semibold underline" onClick={() => { b.flush(); onExpand?.(); }}>크게 열기</button>를 누르면 그리는 판이 열려요.</div>}
           {free ? <FreePanel b={b} sel={freeSel} onSel={setFreeSel} onMove={(g) => { setMoving(g); setFreeMsg(''); }} /> : <FieldsPanel b={b} />}
         </Panel>
         <Panel n={4} title="취합 방식" open={b.openPanel === 'aggregations'} onToggle={() => toggle('aggregations')} bad={bad('aggregations')}
@@ -129,6 +160,7 @@ export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: ()
           <OrgPanel b={b} />
         </Panel>
       </aside>
+      {compact ? dialogs : <>
 
       <section className="flex min-h-0 flex-col gap-2.5 overflow-auto p-4" aria-label="미리보기">
         <div className="flex flex-wrap items-center gap-2.5">
@@ -165,10 +197,8 @@ export function BuilderPage({ start, onHome }: { start?: StoredForm; onHome?: ()
         )}
         {versionUp && <div className="rounded-btn bg-warn px-2.5 py-1.5 text-xs text-warn-ink">칸 구조를 바꿨어요. 내보내면 버전 {b.version}이 됩니다.</div>}
       </section>
-
-      {check && <CheckDialog problems={check} onFix={onFix} onClose={() => setCheck(null)} />}
-      {exporting && <ExportFlow schema={s} lastExported={b.lastExported} onClose={() => setExporting(false)} onExported={b.markExported} />}
-      {loadErr && <Dialog tone="err" title={loadErr} onClose={() => setLoadErr('')} footer={<><span className="flex-1" /><Button variant="pri" onClick={() => setLoadErr('')}>확인</Button></>}><p className="m-0">한난MOA에서 저장한 .form.json 파일을 골라 주세요.</p></Dialog>}
+      {dialogs}
+      </>}
     </div>
   );
 }

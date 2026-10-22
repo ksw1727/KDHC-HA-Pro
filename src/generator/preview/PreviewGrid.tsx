@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { Field, FormSchema } from '@contract/schema';
 import { blockFields } from '@contract/schema';
 import { cellStyle, colLetter, expandRange, parseAddr, BORDER_COLOR, type ModelCell, type SheetModel } from '@contract/layout';
@@ -14,6 +14,8 @@ interface Props {
   onSelect?: (key: string) => void;
   /** 빈 양식이면 선택한 항목의 첫 입력칸에 예시 값을 흐리게 보여준다 */
   showSampleForSelected?: boolean;
+  /** 바로 전 그림과 글자·모양이 달라진 칸을 잠깐 반짝인다 (설정 패널에서 고칠 때) */
+  flash?: boolean;
 }
 
 type Row = { kind: 'row'; r: number } | { kind: 'gap'; text: string };
@@ -30,7 +32,11 @@ function formatDate(v: string | number, fmt: NonNullable<Field['dateFormat']>): 
   return fmt === 'yyyy' ? y : fmt === 'yyyy-mm' ? `${y}-${mo}` : fmt === 'yyyy.mm.dd' ? `${y}.${mo}.${d}` : `${y}-${mo}-${d}`;
 }
 
-export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleForSelected }: Props) {
+export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleForSelected, flash }: Props) {
+  // 칸 주소 → 그때 글자·모양. 다음 그림에서 달라진 칸을 찾는다
+  const prev = useRef<Map<string, string> | null>(null);
+  const seen = new Map<string, string>();
+  useEffect(() => { prev.current = seen; });
   const fieldsByKey = useMemo(() => {
     const m = new Map<string, Field>();
     for (const b of schema.blocks) for (const f of blockFields(b)) m.set(f.key, f);
@@ -129,6 +135,9 @@ export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleFo
                   if (!c) return <td key={a} colSpan={span?.colSpan} rowSpan={span?.rowSpan} className="h-6" style={{ border: `1px solid ${BORDER_COLOR}` }} />;
                   const st = cellStyle(c.role, c.required, c.mark);
                   const { text, sample } = display(c);
+                  const sig = `${text}|${st.fill}|${st.bold}|${span?.colSpan}`;
+                  seen.set(a, sig);
+                  const changed = flash && prev.current && prev.current.get(a) !== sig;
                   const clickable = !!(onSelect && c.fieldKey && (c.role === 'header' || c.role === 'label'));
                   const selected = !!selectedKey && c.fieldKey === selectedKey;
                   const style: CSSProperties = {
@@ -145,12 +154,12 @@ export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleFo
                   };
                   return (
                     <td
-                      key={a}
+                      key={changed ? `${a}-${sig}` : a}
                       colSpan={span?.colSpan}
                       rowSpan={span?.rowSpan}
                       title={c.note}
                       style={style}
-                      className={'h-6 overflow-hidden text-ellipsis px-1.5 ' + (clickable ? 'cursor-pointer hover:outline-2 hover:-outline-offset-2 hover:outline-dashed hover:outline-pri' : '')}
+                      className={'h-6 overflow-hidden text-ellipsis px-1.5 ' + (changed ? 'animate-[cellflash_1.2s_ease-out] ' : '') + (clickable ? 'cursor-pointer hover:outline-2 hover:-outline-offset-2 hover:outline-dashed hover:outline-pri' : '')}
                       onClick={clickable ? () => onSelect!(c.fieldKey!) : undefined}
                       onKeyDown={clickable ? (e) => (e.key === 'Enter' || e.key === ' ') && onSelect!(c.fieldKey!) : undefined}
                       tabIndex={clickable ? 0 : undefined}
