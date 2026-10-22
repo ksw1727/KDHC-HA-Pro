@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LAYOUT_LABELS, type Layout } from '@contract/schema';
 import { listForms } from '@gen/storage/localForms';
-import { StructureStory } from '@gen/landing/StructureStory';
+import { StructureStory } from '@gen/builder/StructureStory';
 import { Button, Chip, cx } from '@gen/ui/ui';
 import { listLocalAggregations, loadAggregations, type AggregationRecord } from './history';
 import { byDeadline, counts, DAY, dayDiff, midnight, weekBars, workItems, type WorkItem } from './plan';
@@ -23,7 +23,9 @@ const TONES = [
 ];
 const DONE_TONE = { bg: '#f1f4f8', fg: '#56616e', solid: '#8a95a2' };
 
-const go = (tab: 'ai' | 'generator' | 'aggregator', formId?: string) => window.dispatchEvent(new CustomEvent('hanan-moa:tab', { detail: { tab, formId } }));
+const go = (tab: 'ai' | 'aggregator', formId?: string) => window.dispatchEvent(new CustomEvent('hanan-moa:tab', { detail: { tab, formId } }));
+/** 새 양식: AI로 만들기 화면의 오른쪽 설정 패널에서 시작 (빈 양식 만들기·양식 파일 열기) */
+const newForm = () => window.dispatchEvent(new CustomEvent('hanan-moa:tab', { detail: { tab: 'ai', panel: true } }));
 const openForm = (i: WorkItem) => window.dispatchEvent(new CustomEvent('hanan-moa:open-form', { detail: { schema: i.schema, lastExported: i.entry.lastExported } }));
 
 export function WorkspacePage() {
@@ -60,7 +62,7 @@ export function WorkspacePage() {
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => go('ai')}>AI로 만들기</Button>
           <Button onClick={() => go('aggregator')}>받은 파일 취합하기</Button>
-          <Button variant="pri" onClick={() => go('generator')}>＋ 새 양식 만들기</Button>
+          <Button variant="pri" onClick={() => newForm()}>＋ 새 양식 만들기</Button>
         </div>
       </section>
 
@@ -249,7 +251,7 @@ function Forms({ items }: { items: WorkItem[] }) {
         </Filters>
       )}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <button type="button" onClick={() => go('generator')}
+        <button type="button" onClick={() => newForm()}
           className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-card border border-dashed border-line-strong bg-panel p-4 text-center text-sub hover:bg-pri-bg">
           <span className="grid size-9 place-items-center rounded-full border border-pri-line bg-white text-[20px] text-pri">＋</span>
           <b className="text-ink">새 양식 만들기</b>

@@ -1,7 +1,6 @@
-import type { FormSchema } from '@contract/schema';
 import { validateSchema } from '@contract/schema';
 import { readMeta } from '@contract/metaIO';
-import { loadForm, type StoredForm } from '../storage/localForms';
+import { loadForm, type StoredForm } from './localForms';
 
 export type OpenResult = { ok: true; entry: StoredForm } | { ok: false; message: string };
 
@@ -31,18 +30,4 @@ export async function openFormXlsx(bytes: ArrayBuffer): Promise<OpenResult> {
   const r = m.meta ? validateSchema(m.meta.schema) : null;
   if (!r?.ok) return { ok: false, message: '양식 정보가 손상돼 되살릴 수 없어요.' };
   return { ok: true, entry: { schema: r.schema, lastExported: r.schema, savedAt: '' } };
-}
-
-/** [복제]: "{이름} (복사)", 새 formId, 버전 1, 내보내기 기록 없음 */
-export function duplicateForm(s: FormSchema, now: Date, formId: string): StoredForm {
-  const at = now.toISOString();
-  return { schema: { ...structuredClone(s), formId, formVersion: 1, title: `${s.title || '양식'} (복사)`, createdAt: at, updatedAt: at }, savedAt: '' };
-}
-
-/** 최근 양식 카드의 시각: 오늘이면 "오늘 14:20", 아니면 "10/13" */
-export function shortTime(iso: string, now: Date): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return d.toDateString() === now.toDateString() ? `오늘 ${pad(d.getHours())}:${pad(d.getMinutes())}` : `${d.getMonth() + 1}/${pad(d.getDate())}`;
 }

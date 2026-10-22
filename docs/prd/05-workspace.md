@@ -62,8 +62,8 @@
 ## 5. 다른 화면으로 가기
 
 화면 이동은 기존 이벤트를 쓴다.
-- `hanan-moa:tab` `{ tab: 'ai' | 'generator' | 'aggregator', formId? }` — [받은 파일 취합하기]는 그 양식 `formId`를 넘겨, 취합하기가 그 양식을 기준 양식으로 잡는다
-- `hanan-moa:open-form` `{ schema, lastExported? }` — 양식 열기. 내보낸 기록을 같이 넘겨 빌더의 버전 판단이 이어진다
+- `hanan-moa:tab` `{ tab: 'ai' | 'aggregator', formId?, panel? }` — [받은 파일 취합하기]는 그 양식 `formId`를 넘겨, 취합하기가 그 양식을 기준 양식으로 잡는다. [새 양식 만들기]는 `{ tab: 'ai', panel: true }`로 AI로 만들기 화면의 오른쪽 설정 패널(빈 양식 만들기·양식 파일 열기)을 연다
+- `hanan-moa:open-form` `{ schema, lastExported? }` — 양식 열기. AI로 만들기 화면의 오른쪽 설정 패널에 연다. 내보낸 기록을 같이 넘겨 버전 판단이 이어진다
 
 ## 6. 아직 안 한 것
 

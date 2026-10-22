@@ -85,6 +85,33 @@ h1{font-size:28px;margin:4px 0 8px}
 .q{background:var(--pri-bg);border:1px solid var(--pri-line);border-radius:12px;padding:14px 18px;margin-top:14px}
 .q ol{margin:6px 0 0;padding-left:20px}
 .q li{margin:6px 0}
+
+/* 10.22: 양식 만들기 = AI로 만들기 화면 오른쪽 패널 */
+.mx-nav{display:flex;gap:2px;background:#eef2f7;border-radius:8px;padding:3px}
+.mx-nav span{padding:4px 12px;border-radius:6px;color:#5b6573;font-size:13px}
+.mx-nav span.on{background:#fff;color:#1b2430;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mx-sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#5b6573;white-space:nowrap}
+.mx-sw i{position:relative;width:32px;height:18px;border-radius:9px;background:#1f5fbf;display:inline-block}
+.mx-sw i::after{content:"";position:absolute;left:16px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.app.mx-app{min-width:1560px}
+.mx-ws{display:flex;align-items:stretch}
+.mx-ai{flex:0 0 380px;display:flex;flex-direction:column;gap:10px;padding:14px;border-right:1px solid #cbd3dd;background:#fff;font-size:13px}
+.mx-ai h4{margin:0;font-size:16px}
+.mx-ai .u{align-self:flex-end;max-width:85%;background:#eaf1fc;border-radius:10px;padding:8px 10px}
+.mx-ai .a{max-width:92%;background:#f6f7f9;border-radius:10px;padding:8px 10px;color:#1b2430}
+.mx-ai .fc{border:1px solid #e3e7ec;border-radius:10px;overflow:hidden}
+.mx-ai .fc b{display:block;padding:6px 10px;background:#f6f7f9;border-bottom:1px solid #e3e7ec}
+.mx-ai .fc span{display:block;height:44px;margin:8px 10px;background:repeating-linear-gradient(#fff 0 10px,#e3e7ec 10px 11px)}
+.mx-ai .in{margin-top:auto;border:1px solid #cbd3dd;border-radius:8px;padding:10px;color:#8a939d}
+.mx-p{flex:1;min-width:0;border-left:3px solid #b9cff2}
+.mx-pt{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #e3e7ec;min-height:30px}
+.mx-ai .ex{display:flex;flex-wrap:wrap;gap:6px}
+.mx-ai .ex i{font-style:normal;border:1px solid #e3e7ec;background:#f6f7f9;border-radius:999px;padding:3px 10px;font-size:12px}
+.mx-ai .fc b em{font-style:normal;font-weight:600;font-size:11px;border-radius:4px;padding:1px 6px;margin-left:4px}
+.mx-ai em.ok{background:#e6f4ea;color:#2f7a3b}.mx-ai em.err{background:#fdecea;color:#b42318}
+.mx-ai .fc .dn{margin:0;padding:6px 10px;border-top:1px solid #e3e7ec;background:#f3faf5;font-size:12px}
+.mx-ai .fx{display:inline-block;background:#1e7b45;color:#fff;border-radius:3px;padding:0 4px;font-size:10px;font-family:monospace}
+.mx-note{margin:6px 0 0;font-size:12.5px;color:#5b6573}
 </style>
 </head>
 <body>
@@ -92,6 +119,7 @@ h1{font-size:28px;margin:4px 0 8px}
 <div class="eyebrow">한난MOA · 새 양식 구조 제안 · "시트 모으기형"</div>
 <h1>시트 모으기형: 지사·부서가 자유롭게 쓴 시트를 한 파일에 모으기</h1>
 <p class="lead">칸 규칙이 없는 보고서처럼, <b>지사·부서마다 모양이 달라도 시트 그대로 한 파일에 모으는</b> 양식입니다. 양식 만들기 단계에서 "시트 모으기형"을 고르면, 프로그램은 <b>누가 낸 파일인지</b>만 확실히 알 수 있게 만들고, 시트 내용은 지사가 마음대로 쓰게 둡니다. 예시: 본사가 15개 지사에서 "10월 안전점검 결과 보고서"를 받는 상황입니다.</p>
+  <p class="mx-note">10.22부터 양식 만들기는 따로 탭 없이 [AI로 만들기] 화면 오른쪽 패널로 열려요. 아래 화면도 그 배치로 고쳤습니다(왼쪽 = AI 대화, 오른쪽 = 양식 만들기 패널).</p>
 
 <div class="summary">
   <div class="s"><b>① 양식 만들기</b>시트 모으기형 선택</div><span class="ar">→</span>
@@ -105,8 +133,8 @@ h1{font-size:28px;margin:4px 0 8px}
 <section class="step">
   <div class="step-h"><span class="no">1</span><h2>양식 만들기: "시트 모으기형"을 고른다</h2><span class="who">운영자(본사)</span></div>
   <p class="desc">구조 고르기 화면에 5번째 카드 <b>시트 모으기형</b>을 추가합니다. 고르면 빌더가 단순해집니다. 항목·서식을 정할 필요가 없고, 정할 것은 "제목, 안내, 지사 목록, 시트 시작 모양"뿐입니다.</p>
-  <div class="scroller"><div class="app">
-    <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="chip">양식 만들기</span><span style="color:var(--sub)">10월 안전점검 결과 보고</span><span class="chip pri">시트 모으기형</span><span class="sp"></span><button class="btn">양식 JSON 저장</button><button class="btn pri">엑셀 내보내기 (15개 · zip)</button></div>
+  <div class="scroller"><div class="app mx-app">
+    <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4><div class="u">지사별 10월 안전점검 결과 보고서를 시트째 모으고 싶어요. 모양은 지사마다 달라도 돼요</div><div class="a"><b>시트 모으기형</b>으로 만들었어요. 1~2행에 제목·지사명만 정해 두고, 4행부터는 지사가 자유롭게 써요. 취합하면 목차 + 지사별 시트로 모여요.</div><div class="fc"><b>10월 안전점검 결과 보고 <em class="ok">검사 통과</em></b><span></span></div><div class="in">예: 기본 틀에 점검 항목 표를 넣어 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span style="color:var(--sub)">10월 안전점검 결과 보고</span><span class="chip pri">시트 모으기형</span><span class="sp"></span><button class="btn">양식 JSON 저장</button><button class="btn pri">엑셀 내보내기 (15개 · zip)</button></div>
     <div class="g2">
       <div class="left">
         <div class="acc"><div class="ah"><span class="n">1</span>기본 정보<span class="r">제목 · 기한 11/5 · 문의처</span></div></div>
@@ -139,7 +167,7 @@ h1{font-size:28px;margin:4px 0 8px}
         <div class="note">시트를 <b>잠그지 않습니다</b>(엑셀은 잠긴 시트에서 셀 합치기를 막기 때문). 1~2행 제목·지사명은 안내용이라 고쳐도 괜찮고, "어느 양식, 어느 지사"인지는 눈에 보이지 않는 숨김 시트와 파일 속성에 기록됩니다. 사진·도형은 아직 옮겨지지 않아요(향후 추가).</div>
       </div>
     </div>
-  </div></div>
+  </div></div></div></div>
 </section>
 
 <!-- STEP 2 -->

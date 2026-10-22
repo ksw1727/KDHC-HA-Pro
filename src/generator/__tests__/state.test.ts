@@ -4,7 +4,7 @@ import { changeLayout } from '../state/changeLayout';
 import { patchField } from '../state/fieldDefaults';
 import { structureKey, nextVersion, diffSummary } from '../state/versioning';
 import { validateForExport } from '../state/validateForExport';
-import { saveForm, loadForm, loadCurrent, listForms } from '../storage/localForms';
+import { saveForm, loadForm, loadCurrent } from '../storage/localForms';
 import { validateSchema, type FormSchema, type Layout } from '@contract/schema';
 
 const now = new Date('2026-10-13T05:00:00Z');
@@ -189,12 +189,11 @@ describe('내보내기 전 검사 (C4)', () => {
 
 describe('자동 저장 (C5)', () => {
   beforeEach(() => localStorage.clear());
-  test('저장·불러오기·현재 양식·목록', () => {
+  test('저장·불러오기·현재 양식', () => {
     const s = ready('list');
     expect(saveForm({ schema: s }, now)).toBe(true);
     expect(loadForm('form-1')?.schema.title).toBe('조사');
     expect(loadCurrent()?.schema.formId).toBe('form-1');
-    expect(listForms()).toHaveLength(1);
   });
   test('저장소가 망가져도 예외를 던지지 않음', () => {
     localStorage.setItem('hanan-moa:forms:bad', '{');

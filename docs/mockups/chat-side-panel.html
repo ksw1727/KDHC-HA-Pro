@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한난MOA 대화 + 설정 패널</title>
+<style>
+:root{
+  --page:#eef1f5;--bg:#ffffff;--panel:#f6f8fb;--chip:#f1f4f8;
+  --ink:#18202b;--sub:#56616e;--muted:#8a95a2;--line:#e2e7ee;--line2:#cbd3dd;
+  --pri:#1f5fbf;--pri-ink:#174a96;--pri-bg:#e8f0fc;--pri-line:#b9cff2;
+  --req:#fff5d1;--req-line:#efd88a;--auto:#e5f4ee;--auto-ink:#0f6e56;
+  --head:#eef2f7;--sheet-line:#d9dfe7;--err:#fdecea;--err-ink:#b42318;--warn:#fff4e5;--warn-ink:#9a5b00;--ok:#e6f4ea;--ok-ink:#2f7a3b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;font-size:15px;line-height:1.6}
+.page{max-width:1520px;margin:0 auto;padding:36px 16px 80px}
+.eyebrow{font-size:13px;color:var(--muted)}
+h1{font-size:28px;margin:4px 0 8px}
+h2{font-size:21px;margin:0 0 6px}
+.lead{color:var(--sub);margin:0;max-width:960px}
+.idea{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.idea div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px}
+.idea b{display:block;margin-bottom:2px}
+.n{display:inline-grid;place-items:center;background:#e22718;color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;font-weight:700;margin-right:6px;vertical-align:1px}
+@media (max-width:860px){.idea{grid-template-columns:1fr}}
+.scroller{overflow-x:auto;border-radius:14px;box-shadow:0 1px 2px rgba(16,24,40,.06),0 10px 28px rgba(16,24,40,.10);margin-top:18px}
+
+/* 앱 */
+.app{min-width:1180px;height:860px;background:var(--bg);border:1px solid #cfd6df;border-radius:14px;overflow:hidden;font-size:13px;display:flex;flex-direction:column;position:relative}
+.chrome{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#e3e6ea;border-bottom:1px solid #cfd4da}
+.chrome .d{width:10px;height:10px;border-radius:50%;background:#c6ccd3}
+.chrome .u{flex:1;margin-left:8px;background:#fff;border-radius:6px;padding:3px 10px;color:#8a939d;font-size:12px}
+.bar{display:flex;align-items:center;gap:14px;padding:9px 16px;border-bottom:1px solid var(--line)}
+.logo{font-weight:800;color:var(--pri);letter-spacing:-.02em;font-size:15px}.logo span{color:var(--ink)}
+.tabs{display:flex;gap:2px;background:var(--chip);border-radius:8px;padding:3px}
+.tabs span{padding:4px 12px;border-radius:6px;color:var(--sub)}
+.tabs span.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.sp{flex:1}
+.sw{display:inline-flex;align-items:center;gap:8px;color:var(--sub);cursor:pointer;border:0;background:none;font:inherit;padding:4px 6px;border-radius:7px}
+.sw:hover{background:var(--chip)}
+.sw i{position:relative;width:32px;height:18px;border-radius:9px;background:var(--line2);transition:background .15s}
+.sw i::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15);transition:left .15s}
+.sw[aria-checked=true] i{background:var(--pri)}.sw[aria-checked=true] i::after{left:16px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:7px;padding:5px 11px;font-size:12.5px;font-family:inherit;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}
+.btn.ghost{border-color:transparent;background:none;color:var(--sub)}
+.btn.sm{padding:2px 8px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:5px;padding:1px 7px;font-size:11.5px;background:var(--chip);color:var(--sub);white-space:nowrap}
+.chip.pri{background:var(--pri-bg);color:var(--pri-ink)}.chip.ok{background:var(--ok);color:var(--ok-ink)}.chip.err{background:var(--err);color:var(--err-ink)}.chip.warn{background:var(--warn);color:var(--warn-ink)}
+.chip.live::before{content:"";width:7px;height:7px;border-radius:50%;background:#22a06b;animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.3}}
+
+.ws{flex:1;min-height:0;display:flex}
+/* 대화 (메인) */
+.chat{flex:1;min-width:0;display:flex;flex-direction:column;background:#fff}
+.chat-h{display:flex;align-items:center;gap:8px;padding:12px 20px 0}
+.chat-h h3{margin:0;font-size:18px}
+.msgs{flex:1;min-height:0;overflow:auto;padding:14px 20px;display:flex;flex-direction:column;gap:12px}
+.msgs-in{max-width:1040px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.u{align-self:flex-end;max-width:70%;background:var(--pri-bg);border-radius:12px;padding:8px 12px;white-space:pre-wrap}
+.a{max-width:80%;background:var(--panel);border-radius:12px;padding:8px 12px}
+.card{border:1px solid var(--line);border-radius:12px;overflow:hidden;transition:box-shadow .2s,border-color .2s}
+.card.linked{border-color:var(--pri-line);box-shadow:0 0 0 3px var(--pri-bg)}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.card-h b{font-size:14px}
+.card-pv{background:#f7f8fa;padding:10px;max-height:380px;overflow:auto}
+.card-probs{margin:0;padding:6px 12px 6px 30px;border-top:1px solid var(--line);color:var(--err-ink);font-size:12.5px}
+.card-f{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--line)}
+.diff{border:1px solid #f1d2ac;background:#fffcf7;border-radius:10px;padding:8px 12px;font-size:13px}
+.diff b{color:var(--warn-ink)}.diff ul{margin:4px 0 0;padding-left:20px}
+.input{display:flex;gap:8px;align-items:flex-end;padding:10px 20px 14px;border-top:1px solid var(--line)}
+.input .ta{flex:1;min-height:56px;border:1px solid var(--line2);border-radius:8px;padding:8px 10px;color:var(--muted)}
+.input-wrap{max-width:1040px;width:100%;margin:0 auto;display:flex;gap:8px;align-items:flex-end}
+
+/* 미리보기 표 */
+table.sheet{border-collapse:collapse;background:#fff;font-size:12px;min-width:100%}
+.sheet th,.sheet td{border:1px solid var(--sheet-line);height:26px;padding:2px 7px;white-space:nowrap}
+.sheet .ch{background:#f1f3f6;color:var(--muted);font-weight:400;text-align:center;font-size:11px;height:20px}
+.sheet .rh{background:#f1f3f6;color:var(--muted);text-align:center;width:30px;font-size:11px}
+.sheet .title{font-size:15px;font-weight:700;border-color:transparent}
+.sheet .note{color:var(--sub);border-color:transparent}
+.sheet .hd{background:var(--head);font-weight:700;cursor:pointer}
+.sheet .hd:hover{background:#e3e9f2}
+.sheet .lock{background:#f6f7f9;color:var(--sub)}
+.sheet .req{background:var(--req)}
+.sheet .hint{color:#b3bbc4}
+.sheet .gap{color:var(--muted);text-align:center;font-size:11.5px;border-color:transparent}
+.sheet .blank{border-color:transparent;height:10px;padding:0}
+.sheet .sel{box-shadow:inset 0 0 0 2px var(--pri)}
+.sheet .flash{animation:flash 1.1s ease-out}
+@keyframes flash{0%{background:#ffe28a}100%{}}
+
+/* 오른쪽 설정 패널 */
+.grip{flex:0 0 6px;cursor:col-resize;background:var(--line);position:relative}
+.grip:hover,.grip.on{background:var(--pri-line)}
+.side{flex:0 0 auto;width:20%;min-width:300px;max-width:460px;display:flex;flex-direction:column;background:var(--panel);min-height:0}
+.side.off,.grip.off{display:none}
+.side-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:#fff}
+.side-h .t{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.side-b{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.pn{background:#fff;border:1px solid var(--line);border-radius:10px}
+.pn.bad{border-color:#f3c2bd}
+.pn-h{display:flex;align-items:center;gap:8px;padding:9px 11px;cursor:pointer;user-select:none}
+.pn-h .no{width:20px;height:20px;border-radius:50%;background:var(--chip);color:var(--sub);display:grid;place-items:center;font-size:11.5px;font-weight:700;flex:0 0 auto}
+.pn.open .pn-h .no{background:var(--pri);color:#fff}
+.pn.bad .pn-h .no{background:var(--err-ink);color:#fff}
+.pn-h b{font-size:13.5px}
+.pn-h .s{margin-left:auto;color:var(--muted);font-size:11.5px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
+.pn-b{display:none;padding:2px 11px 12px;border-top:1px solid var(--line)}
+.pn.open .pn-b{display:block}
+.lab{display:block;font-size:12px;color:var(--sub);margin:9px 0 3px}
+.inp,select.inp,textarea.inp{width:100%;border:1px solid var(--line2);border-radius:7px;padding:5px 8px;font:inherit;font-size:13px;background:#fff;color:var(--ink)}
+textarea.inp{min-height:64px;resize:vertical}
+.seg{display:flex;background:var(--chip);border-radius:8px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{flex:1;border:0;background:none;border-radius:6px;padding:4px 6px;font:inherit;font-size:12.5px;color:var(--sub);cursor:pointer;white-space:nowrap}
+.seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.grp{font-size:11.5px;color:var(--muted);margin:10px 0 4px;display:flex;align-items:center}
+.fl{display:flex;flex-direction:column;gap:4px}
+.fi{border:1px solid var(--line);border-radius:8px;background:#fff}
+.fi.sel{border-color:var(--pri);box-shadow:0 0 0 2px var(--pri-bg)}
+.fi-r{display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer}
+.fi-r .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fi-r .rq{color:#c27c00;font-size:11px}
+.fi-e{padding:0 8px 8px;display:none}
+.fi.sel .fi-e{display:block}
+.row2{display:flex;gap:6px;align-items:center}
+.row2 > *{flex:1}
+.ck{display:flex;align-items:center;gap:6px;font-size:12.5px;margin-top:8px;cursor:pointer}
+.mini{display:flex;gap:4px;margin-top:8px}
+.add{margin-top:6px;border:1px dashed var(--line2);background:none;border-radius:7px;padding:5px;color:var(--pri-ink);font:inherit;font-size:12.5px;cursor:pointer;width:100%}
+.agg label{display:flex;gap:6px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px;cursor:pointer}
+.agg small{display:block;color:var(--muted)}
+
+/* 그림 번호 */
+.pin{position:absolute;z-index:5;width:24px;height:24px;border-radius:50%;background:#e22718;color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;box-shadow:0 0 0 3px #fff;pointer-events:none}
+.notes{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.notes > div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:14px}
+.notes ul,.notes ol{margin:4px 0 0;padding-left:20px}
+@media (max-width:860px){.notes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">한난MOA · 시안 · 10.22 · AI로 만들기 화면</div>
+  <h1>대화가 주인공, 오른쪽은 설정 패널만</h1>
+  <p class="lead">대화창이 화면의 약 80%를 쓰고, 오른쪽 패널에는 양식 만들기 첫 화면(구조 카드) 없이 <b>① 기본 정보 ~ ⑤ 제출처 설정만</b> 둡니다. 따로 있던 빌더 미리보기는 없애고, <b>대화 속 양식 카드의 미리보기</b>가 패널에서 고치는 즉시 바뀝니다. 아래 화면은 실제로 눌러 볼 수 있어요.</p>
+  <div class="idea">
+    <div><span class="n">1</span><b>대화창 = 메인 (약 80%)</b>말하고, 결과를 보고, 다시 말하는 곳. 미리보기도 여기 카드 안에 있어요.</div>
+    <div><span class="n">2</span><b>오른쪽 = 설정 패널 (약 20%)</b>첫 화면·큰 미리보기 없이 ①~⑤ 설정만. 스위치로 켜고 끄고, 경계를 끌어 너비 조절.</div>
+    <div><span class="n">3</span><b>고치면 카드가 바로 바뀜</b>패널에서 바꾼 칸은 노랗게 반짝이고, 카드 아래에 "패널에서 고친 내용"이 쌓여요. 다음에 말하면 AI도 고친 양식에서 이어 가요.</div>
+  </div>
+
+  <div class="scroller"><div class="app" id="app">
+    <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">localhost:5173 — 한난MOA</span></div>
+    <div class="bar">
+      <span class="logo">한난<span>MOA</span></span>
+      <span class="tabs"><span class="on">AI로 만들기</span><span>취합하기</span></span>
+      <span class="sp"></span>
+      <button class="sw" id="sw" role="switch" aria-checked="true">양식 설정 패널 <i></i></button>
+    </div>
+    <div class="ws" id="ws">
+      <section class="chat">
+        <div class="chat-h"><h3>무엇을 받고 싶으세요?</h3><span class="sp"></span><select class="inp" style="width:auto;padding:2px 6px;font-size:12px"><option>gpt-5.1</option></select><button class="btn ghost sm">새 대화</button></div>
+        <div class="msgs"><div class="msgs-in">
+          <div class="u">지사별 하반기 교육 참가자 명단을 받고 싶어요. 담당자 연락처도 받고, 직급은 목록에서 고르게, 교육비는 원 단위로</div>
+          <div class="a"><b>혼합형</b>으로 만들었어요. 위에 담당자·연락처를 한 번 받고, 아래에 참가자 명단(이름·직급·참가 희망일·교육비)을 여러 줄 받아요. 오른쪽 패널에서 고치면 아래 미리보기에 바로 반영돼요.</div>
+          <div class="card linked" id="card">
+            <div class="card-h" id="cardH"></div>
+            <div class="card-pv"><table class="sheet" id="sheet"></table></div>
+            <ul class="card-probs" id="probs"></ul>
+            <div class="card-f">
+              <button class="btn pri sm" id="openPanel">패널에서 고치기</button>
+              <button class="btn sm" id="xls">엑셀 내보내기</button>
+              <button class="btn ghost sm">양식 파일 저장</button>
+              <span class="sp"></span>
+              <span id="orgPick"></span>
+            </div>
+          </div>
+          <div class="diff" id="diff" hidden></div>
+        </div></div>
+        <div class="input"><div class="input-wrap">
+          <button class="btn">엑셀 올리기</button>
+          <div class="ta" id="ph">고칠 내용을 말해 주세요 (예: 교육비는 빼 주세요)</div>
+          <button class="btn pri">보내기</button>
+        </div></div>
+      </section>
+      <div class="grip" id="grip" title="끌어서 너비 조절 · 두 번 누르면 기본 너비"></div>
+      <aside class="side" id="side" aria-label="양식 설정 패널">
+        <div class="side-h"><span class="t" id="sideT"></span><span class="chip" id="ver">v1 · 자동 저장됨</span><button class="btn pri sm" id="xls2">엑셀 내보내기</button></div>
+        <div class="side-b" id="panels"></div>
+      </aside>
+    </div>
+    <span class="pin" style="left:240px;top:118px">1</span>
+    <span class="pin" id="pin2" style="right:318px;top:118px">2</span>
+    <span class="pin" id="pin3" style="left:24px;top:330px">3</span>
+  </div></div>
+
+  <div class="notes">
+    <div><b>이렇게 눌러 보세요</b>
+      <ol>
+        <li>오른쪽 ① 기본 정보에서 <b>제목</b>을 바꿔 보세요 → 카드 미리보기 1행이 바로 바뀌고 반짝여요.</li>
+        <li>③ 항목·서식에서 <b>직급</b>을 누르고 필수를 켜거나 이름을 바꿔 보세요. 미리보기의 머리글을 눌러도 그 항목이 패널에서 열려요.</li>
+        <li>⑤ 제출처에서 부르는 말을 <b>부서</b>로 바꾸거나 목록을 지워 보세요 → "지사명"이 "부서명"으로, 검사 결과가 "고칠 곳"으로 바뀌어요.</li>
+        <li>위쪽 <b>양식 설정 패널</b> 스위치를 끄면 대화가 화면 전체를 써요.</li>
+      </ol>
+    </div>
+    <div><b>지금 화면에서 바뀌는 점</b>
+      <ul>
+        <li><b>대화 : 패널 = 약 8 : 2</b> (이전엔 4 : 6). 패널은 300px 밑으로 줄지 않아요.</li>
+        <li>패널에서 <b>양식 만들기 첫 화면(구조 카드·최근 양식)을 뺌</b>. 구조는 ② 양식 구조에서 고르고, 새 양식은 대화로 시작해요.</li>
+        <li>패널 안 <b>큰 미리보기를 뺌</b>. 미리보기는 대화 속 마지막 양식 카드 하나로 통일.</li>
+        <li>카드와 패널은 같은 양식을 봐요(지금의 "빌더에서 고침" 연동을 저장할 때가 아니라 <b>고칠 때마다</b>).</li>
+        <li>열려 있는 양식이 없으면 패널에 "대화로 양식을 만들거나 양식 파일을 여세요" 안내만 보여 줘요. (이 목업에는 없음)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const TYPES = { text: '텍스트', number: '숫자', date: '날짜', select: '목록 선택', pattern: '전화번호' };
+const HINT = { text: '', number: '0', date: 'yyyy-mm-dd', select: '▼', pattern: '010-0000-0000' };
+let uid = 0; const F = (name, type, req, extra = {}) => ({ id: ++uid, name, type, req, ...extra });
+const BASE = {
+  title: '2026 하반기 교육 참가자 조사', deadline: '2026-10-31', notice: '참가 희망자가 없으면 빈 칸으로 보내 주세요.',
+  layout: 'header-list',
+  top: [F('담당자', 'text', true), F('연락처', 'pattern', true)],
+  list: [F('이름', 'text', true), F('직급', 'select', false, { options: '사원, 대리, 과장, 차장, 부장' }), F('참가 희망일', 'date', true), F('교육비', 'number', false, { unit: '원' })],
+  agg: { sheet: true, sum: true, status: true },
+  org: { label: '지사', mode: 'preset', list: '서울지사\n부산지사\n대구지사\n광주지사\n대전지사' },
+};
+const clone = (x) => JSON.parse(JSON.stringify(x));
+let S = clone(BASE);
+let open = 'fields', sel = S.list[1].id, previewOrg = 0, prev = new Map(), version = 1;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const orgs = () => S.org.list.split('\n').map((s) => s.trim()).filter(Boolean);
+const lname = () => S.org.label + '명';
+const allFields = () => [...(S.layout === 'header-list' ? S.top : []), ...S.list];
+const LAYOUTS = { list: '목록형', 'header-list': '혼합형' };
+
+function problems() {
+  const p = [];
+  if (!S.title.trim()) p.push('기본 정보: 제목을 적어 주세요');
+  if (!S.list.length) p.push('항목: 명단 항목이 하나도 없어요');
+  for (const f of allFields()) {
+    if (!f.name.trim()) p.push('항목: 이름이 빈 항목이 있어요');
+    if (f.type === 'select' && !(f.options || '').split(',').some((s) => s.trim())) p.push(`${f.name || '항목'}: 선택지를 1개 이상 넣어 주세요`);
+  }
+  const names = allFields().map((f) => f.name.trim()).filter(Boolean);
+  for (const n of new Set(names.filter((n, i) => names.indexOf(n) !== i))) p.push(`${n}: 같은 이름의 항목이 이미 있어요`);
+  if (S.org.mode === 'preset' && !orgs().length) p.push(`제출처: ${S.org.label} 목록이 비어 있어요`);
+  return p;
+}
+
+function changes() {
+  const c = [], B = BASE;
+  if (S.title !== B.title) c.push(`제목: "${B.title}" → "${S.title}"`);
+  if (S.deadline !== B.deadline) c.push(`제출 기한: ${B.deadline} → ${S.deadline || '없음'}`);
+  if (S.notice !== B.notice) c.push('안내 문구를 바꿈');
+  if (S.layout !== B.layout) c.push(`구조: ${LAYOUTS[B.layout]} → ${LAYOUTS[S.layout]}`);
+  const bf = [...B.top, ...B.list], sf = [...S.top, ...S.list];
+  for (const f of sf) {
+    const o = bf.find((x) => x.id === f.id);
+    if (!o) { c.push(`항목 추가: ${f.name || '(이름 없음)'}`); continue; }
+    if (o.name !== f.name) c.push(`항목 이름: ${o.name} → ${f.name}`);
+    if (o.type !== f.type) c.push(`${f.name}: ${TYPES[o.type]} → ${TYPES[f.type]}`);
+    if (o.req !== f.req) c.push(`${f.name}: ${f.req ? '필수로' : '필수 아님으로'}`);
+    if ((o.options || '') !== (f.options || '') && f.type === 'select') c.push(`${f.name}: 선택지 바꿈`);
+    if ((o.unit || '') !== (f.unit || '') && f.type === 'number') c.push(`${f.name}: 단위 ${o.unit || '없음'} → ${f.unit || '없음'}`);
+  }
+  for (const o of bf) if (!sf.find((x) => x.id === o.id)) c.push(`항목 뺌: ${o.name}`);
+  if (S.org.label !== B.org.label) c.push(`제출처를 부르는 말: ${B.org.label} → ${S.org.label}`);
+  if (S.org.mode !== B.org.mode) c.push(`제출처 방식: ${({ preset: '목록 있음', input: '이름 입력', none: '식별 안 함' })[S.org.mode]}`);
+  else if (S.org.mode === 'preset' && S.org.list !== B.org.list) c.push(`${S.org.label} 목록: ${B.org.list.split('\n').length}곳 → ${orgs().length}곳`);
+  for (const k of ['sum', 'status']) if (S.agg[k] !== B.agg[k]) c.push(`취합 방식: ${k === 'sum' ? `${S.org.label}별 합계` : '제출 현황'} ${S.agg[k] ? '켬' : '끔'}`);
+  return c;
+}
+
+/* ---------- 카드 미리보기 (대화 속) ---------- */
+function renderSheet() {
+  const cols = Math.max(3, S.list.length + 1);
+  const rows = [];
+  const span = (t, cls, n = cols) => ({ t, cls, span: n });
+  rows.push([span(S.title || '(제목 없음)', 'title')]);
+  const due = S.deadline ? `제출 기한 ${S.deadline.slice(5).replace('-', '/')}까지` : '';
+  if (S.org.mode === 'none') rows.push([span(due, 'note')]);
+  else {
+    const o = orgs();
+    const v = S.org.mode === 'preset' ? `🔒 ${o[Math.min(previewOrg, o.length - 1)] ?? `(${lname()})`}` : '';
+    rows.push([{ t: lname(), cls: 'hd' }, { t: v, cls: S.org.mode === 'preset' ? 'lock' : 'req' }, span(due, 'note', cols - 2)]);
+  }
+  if (S.notice.trim()) rows.push([span(S.notice, 'note')]);
+  rows.push([span('', 'blank')]);
+  if (S.layout === 'header-list' && S.top.length) {
+    for (const f of S.top) rows.push([{ t: f.name + (f.req ? ' *' : ''), cls: 'hd', key: f.id }, { t: HINT[f.type], cls: (f.req ? 'req ' : '') + 'hint', key: f.id, span: cols - 1 }]);
+    rows.push([span('', 'blank')]);
+  }
+  rows.push([{ t: '번호', cls: 'hd' }, ...S.list.map((f) => ({ t: f.name + (f.req ? ' *' : '') + (f.type === 'number' && f.unit ? ` (${f.unit})` : ''), cls: 'hd', key: f.id })), ...Array(Math.max(0, cols - 1 - S.list.length)).fill({ t: '', cls: '' })]);
+  for (let i = 1; i <= 3; i++) rows.push([{ t: i, cls: 'lock' }, ...S.list.map((f) => ({ t: i === 1 ? HINT[f.type] : f.type === 'select' ? '▼' : '', cls: (f.req ? 'req ' : '') + 'hint', key: f.id })), ...Array(Math.max(0, cols - 1 - S.list.length)).fill({ t: '', cls: '' })]);
+  rows.push([span('… (입력 줄 100줄)', 'gap')]);
+
+  const letters = 'ABCDEFGHIJ';
+  let h = '<tr><th class="ch"></th>' + Array.from({ length: cols }, (_, i) => `<th class="ch">${letters[i]}</th>`).join('') + '</tr>';
+  const next = new Map();
+  rows.forEach((r, ri) => {
+    h += `<tr><td class="rh">${ri + 1}</td>`;
+    let c = 0;
+    for (const cell of r) {
+      const k = `${ri}:${c}`, sig = `${cell.t}|${cell.cls}`;
+      next.set(k, sig);
+      const changed = prev.size && prev.get(k) !== sig && cell.cls !== 'blank';
+      const cls = [cell.cls, cell.key === sel ? 'sel' : '', changed ? 'flash' : ''].filter(Boolean).join(' ');
+      h += `<td class="${cls}"${cell.span > 1 ? ` colspan="${cell.span}"` : ''}${cell.key ? ` data-k="${cell.key}"` : ''}>${esc(cell.t)}</td>`;
+      c += cell.span || 1;
+    }
+    h += '</tr>';
+  });
+  prev = next;
+  $('sheet').innerHTML = h;
+}
+
+function renderCard() {
+  const p = problems(), c = changes();
+  const who = S.org.mode === 'preset' ? `${S.org.label} ${orgs().length}곳에 파일이 하나씩 나가요` : S.org.mode === 'input' ? `작성자가 ${lname()}을 직접 적어요` : '누가 냈는지 구분하지 않아요';
+  $('cardH').innerHTML = `<b>${esc(S.title || '(제목 없음)')}</b><span class="chip pri">${LAYOUTS[S.layout]}</span><span style="font-size:12px;color:var(--sub)">${who}</span>`
+    + (side() ? '<span class="chip live">설정 패널과 연결됨 · 고치면 바로 반영</span>' : '')
+    + '<span class="sp"></span>' + (p.length ? `<span class="chip err">고칠 곳 ${p.length}</span>` : '<span class="chip ok">검사 통과</span>');
+  $('probs').innerHTML = p.map((x) => `<li>${esc(x)}</li>`).join('');
+  $('probs').hidden = !p.length;
+  $('xls').disabled = $('xls2').disabled = !!p.length;
+  $('diff').hidden = !c.length;
+  $('diff').innerHTML = `<b>패널에서 고친 내용</b> <span style="font-size:12px;color:var(--sub)">(위 AI 설명보다 이 내용이 최신이에요. 다음에 말하면 AI에게도 전해요)</span><ul>${c.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  $('ph').textContent = c.length ? '다음 말은 패널에서 고친 양식에서 이어 가요 (예: 참가 희망일은 11월만 고르게)' : '고칠 내용을 말해 주세요 (예: 교육비는 빼 주세요)';
+  const o = orgs();
+  $('orgPick').innerHTML = S.org.mode === 'preset' && o.length ? `<label style="font-size:12px;color:var(--sub)">미리보기 ${esc(S.org.label)} <select class="inp" id="pvOrg" style="width:auto;padding:2px 6px;font-size:12px">${o.map((x, i) => `<option value="${i}"${i === previewOrg ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label>` : '';
+  $('sideT').textContent = S.title || '(제목 없음)';
+  $('ver').textContent = `v${version} · 자동 저장됨`;
+  renderSheet();
+}
+
+/* ---------- 오른쪽 설정 패널 ---------- */
+function fieldItem(f, group) {
+  const t = Object.entries(TYPES).map(([k, v]) => `<option value="${k}"${f.type === k ? ' selected' : ''}>${v}</option>`).join('');
+  const extra = f.type === 'select' ? `<label class="lab">선택지 (쉼표로 구분)</label><input class="inp" data-f="${f.id}" data-p="options" value="${esc(f.options || '')}">`
+    : f.type === 'number' ? `<label class="lab">단위</label><input class="inp" data-f="${f.id}" data-p="unit" value="${esc(f.unit || '')}" placeholder="예: 원, 명">` : '';
+  return `<div class="fi${f.id === sel ? ' sel' : ''}" data-id="${f.id}">
+    <div class="fi-r" data-pick="${f.id}"><span class="nm">${esc(f.name || '(이름 없음)')}</span>${f.req ? '<span class="rq">필수</span>' : ''}<span class="chip">${TYPES[f.type]}</span></div>
+    <div class="fi-e">
+      <div class="row2"><input class="inp" data-f="${f.id}" data-p="name" value="${esc(f.name)}" aria-label="항목 이름"><select class="inp" data-f="${f.id}" data-p="type" style="flex:0 0 100px">${t}</select></div>
+      ${extra}
+      <label class="ck"><input type="checkbox" data-f="${f.id}" data-p="req"${f.req ? ' checked' : ''}> 필수 입력칸</label>
+      <div class="mini"><button class="btn sm" data-mv="${f.id}" data-d="-1">↑</button><button class="btn sm" data-mv="${f.id}" data-d="1">↓</button><span class="sp"></span><button class="btn sm" data-del="${f.id}" style="color:var(--err-ink)">빼기</button></div>
+    </div></div>`;
+}
+function panel(id, no, title, summary, body, bad) {
+  return `<div class="pn${open === id ? ' open' : ''}${bad ? ' bad' : ''}" data-pn="${id}"><div class="pn-h" data-tg="${id}"><span class="no">${no}</span><b>${title}</b><span class="s">${esc(summary)}</span></div><div class="pn-b">${body}</div></div>`;
+}
+function renderPanels() {
+  const p = problems();
+  const badOf = (w) => p.some((x) => x.startsWith(w));
+  const segL = Object.entries(LAYOUTS).map(([k, v]) => `<button data-layout="${k}" class="${S.layout === k ? 'on' : ''}">${v}</button>`).join('');
+  const segO = ['지사', '부서', '기관'].map((v) => `<button data-label="${v}" class="${S.org.label === v ? 'on' : ''}">${v}</button>`).join('');
+  const segM = [['preset', '목록 있음'], ['input', `${lname()} 입력`], ['none', '식별 안 함']].map(([k, v]) => `<button data-mode="${k}" class="${S.org.mode === k ? 'on' : ''}">${v}</button>`).join('');
+  const fields = (S.layout === 'header-list' ? `<div class="grp">위쪽 정보 (한 번 받기)</div><div class="fl">${S.top.map((f) => fieldItem(f)).join('')}</div><button class="add" data-add="top">+ 위쪽 정보 추가</button>` : '')
+    + `<div class="grp">명단 항목 (여러 줄)</div><div class="fl">${S.list.map((f) => fieldItem(f)).join('')}</div><button class="add" data-add="list">+ 항목 추가</button>`;
+  $('panels').innerHTML =
+    panel('meta', 1, '기본 정보', [S.title || '제목 없음', S.deadline && `기한 ${S.deadline.slice(5).replace('-', '/')}`].filter(Boolean).join(' · '),
+      `<label class="lab">제목</label><input class="inp" data-s="title" value="${esc(S.title)}"><label class="lab">제출 기한</label><input class="inp" type="date" data-s="deadline" value="${S.deadline}"><label class="lab">안내 문구</label><textarea class="inp" data-s="notice">${esc(S.notice)}</textarea>`, badOf('기본 정보'))
+    + panel('layout', 2, '양식 구조', LAYOUTS[S.layout], `<div class="seg" style="margin-top:10px">${segL}</div><p style="font-size:12px;color:var(--muted);margin:6px 0 0">이 목업은 6가지 중 2가지만 보여 줘요.</p>`)
+    + panel('fields', 3, '항목·서식', `${allFields().length}개`, fields, p.some((x) => !x.startsWith('기본 정보') && !x.startsWith('제출처')))
+    + panel('agg', 4, '취합 방식', ['같은 틀 시트', S.agg.sum && `${S.org.label}별 합계`, S.agg.status && '제출 현황'].filter(Boolean).join(' · '),
+      `<div class="agg"><label><input type="checkbox" checked disabled><span>같은 틀 시트<small>모든 ${S.org.label}의 줄을 한 표로 (항상)</small></span></label><label><input type="checkbox" data-agg="sum"${S.agg.sum ? ' checked' : ''}><span>${S.org.label}별 합계<small>숫자 항목을 ${S.org.label}마다 더해요</small></span></label><label><input type="checkbox" data-agg="status"${S.agg.status ? ' checked' : ''}><span>제출 현황<small>낸 곳·안 낸 곳</small></span></label></div>`)
+    + panel('org', 5, '제출처', S.org.mode === 'none' ? '식별 안 함' : S.org.mode === 'input' ? `${lname()} 입력` : `목록 있음 · ${orgs().length}곳`,
+      `<label class="lab">제출처를 부르는 말</label><div class="seg">${segO}</div><label class="lab">누가 냈는지 아는 방법</label><div class="seg">${segM}</div>`
+      + (S.org.mode === 'preset' ? `<label class="lab">${S.org.label} 목록 (한 줄에 하나 · ${orgs().length}곳)</label><textarea class="inp" data-org="list" style="min-height:110px">${esc(S.org.list)}</textarea>` : ''), badOf('제출처'));
+}
+
+function render() { renderPanels(); renderCard(); }
+const side = () => !$('side').classList.contains('off');
+const fieldById = (id) => [...S.top, ...S.list].find((f) => f.id === +id);
+const keepFocus = (fn) => {
+  const a = document.activeElement, key = a && (a.dataset.s || a.dataset.p && `${a.dataset.f}.${a.dataset.p}` || a.dataset.org), pos = a && a.selectionStart;
+  fn();
+  if (!key) return;
+  const el = [...$('panels').querySelectorAll('input,textarea,select')].find((e) => (e.dataset.s || e.dataset.p && `${e.dataset.f}.${e.dataset.p}` || e.dataset.org) === key);
+  if (el) { el.focus(); try { if (pos != null) el.setSelectionRange(pos, pos); } catch {} }
+};
+const bump = () => { version = changes().some((c) => /항목|구조|→ .*(텍스트|숫자|날짜|목록|전화)/.test(c)) ? 2 : 1; };
+
+$('panels').addEventListener('input', (e) => {
+  const t = e.target;
+  if (t.dataset.s) S[t.dataset.s] = t.value;
+  else if (t.dataset.p) { const f = fieldById(t.dataset.f); f[t.dataset.p] = t.type === 'checkbox' ? t.checked : t.value; }
+  else if (t.dataset.org) S.org.list = t.value;
+  else if (t.dataset.agg) S.agg[t.dataset.agg] = t.checked;
+  else return;
+  bump();
+  if (t.tagName === 'SELECT' || t.type === 'checkbox') render(); else keepFocus(render);
+});
+$('panels').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-tg],[data-pick],[data-layout],[data-label],[data-mode],[data-add],[data-mv],[data-del]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.tg) open = open === d.tg ? null : d.tg;
+  else if (d.pick) sel = sel === +d.pick ? null : +d.pick;
+  else if (d.layout) S.layout = d.layout;
+  else if (d.label) S.org.label = d.label;
+  else if (d.mode) S.org.mode = d.mode;
+  else if (d.add) { const f = F('새 항목', 'text', false); S[d.add].push(f); sel = f.id; }
+  else if (d.mv) { for (const g of [S.top, S.list]) { const i = g.findIndex((f) => f.id === +d.mv), j = i + +d.d; if (i >= 0 && j >= 0 && j < g.length) [g[i], g[j]] = [g[j], g[i]]; } }
+  else if (d.del) { S.top = S.top.filter((f) => f.id !== +d.del); S.list = S.list.filter((f) => f.id !== +d.del); sel = null; }
+  bump(); render();
+});
+// 미리보기 머리글을 누르면 패널에서 그 항목을 연다
+$('sheet').addEventListener('click', (e) => {
+  const td = e.target.closest('td[data-k]');
+  if (!td) return;
+  sel = +td.dataset.k; open = 'fields';
+  if (!side()) toggle(true);
+  render();
+  $('panels').querySelector('.fi.sel')?.scrollIntoView({ block: 'nearest' });
+});
+document.addEventListener('change', (e) => { if (e.target.id === 'pvOrg') { previewOrg = +e.target.value; renderCard(); } });
+
+function toggle(on) {
+  $('side').classList.toggle('off', !on); $('grip').classList.toggle('off', !on);
+  $('sw').setAttribute('aria-checked', on); $('pin2').style.display = on ? '' : 'none';
+  $('card').classList.toggle('linked', on);
+  renderCard();
+}
+$('sw').onclick = () => toggle(!side());
+$('openPanel').onclick = () => { toggle(true); open = 'fields'; render(); };
+// 경계 끌기 (패널 300~460px)
+$('grip').addEventListener('pointerdown', (e) => {
+  const g = e.currentTarget, ws = $('ws').getBoundingClientRect();
+  g.setPointerCapture(e.pointerId); g.classList.add('on');
+  const mv = (ev) => { $('side').style.width = Math.max(300, Math.min(460, ws.right - ev.clientX)) + 'px'; };
+  const up = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', up); g.classList.remove('on'); };
+  g.addEventListener('pointermove', mv); g.addEventListener('pointerup', up);
+});
+$('grip').ondblclick = () => { $('side').style.width = ''; };
+render();
+</script>
+</body>
+</html>
