@@ -4,7 +4,6 @@ import { SafeError, limits, uuid, parseInput, providerConfig, context, callProvi
 import { makeStore, type Store } from './store';
 export type Request = IncomingMessage & {body?:unknown};
 export interface Dependencies { env?:NodeJS.ProcessEnv; store?:Store; provider?:typeof callProvider }
-const cap = (v:string|undefined,d:number) => v && /^[1-9]\d*$/.test(v) ? Math.min(Number(v),10_000) : d;
 async function body(req:Request):Promise<unknown> {
   if(req.body!==undefined) { if(typeof req.body==='string') { if(Buffer.byteLength(req.body)>limits.request) throw new SafeError(413,'요청이 너무 커요.'); return JSON.parse(req.body); } return req.body; }
   const chunks:Buffer[]=[]; let n=0;
@@ -53,7 +52,7 @@ export function handler(route:'health'|'chat'|'form'|'account', deps:Dependencie
       const prompt=context(input,previous,history);
       lease=randomUUID();
       if(controller.signal.aborted) throw new SafeError(408,'요청 시간이 지났어요.');
-      await store.reserve(user,chatId,lease,cap(env.AI_DAILY_USER_LIMIT,10),cap(env.AI_DAILY_GLOBAL_LIMIT,100));reserved=true;
+      await store.reserve(user,chatId,lease);reserved=true;
       res.statusCode=200;res.setHeader('content-type','application/x-ndjson; charset=utf-8');res.setHeader('X-Accel-Buffering','no');streaming=true;
       emit({type:'chat',chatId});emit({type:'status',text:'양식을 준비하고 있어요.'});
       let result:ReturnType<typeof checkedResult>=null;

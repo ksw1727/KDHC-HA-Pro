@@ -1,5 +1,5 @@
 -- 내 업무공간: 취합 기록(요약만). 결과 엑셀·받은 회신 파일은 저장하지 않는다.
--- 202610220001_cloud_ai.sql 다음에 적용한다 (moa_is_allowed 필요). 브라우저는 본인 행만 읽고 추가·삭제한다.
+-- 202610220001_cloud_ai.sql 다음에 적용한다 (적용 완료 2026-10-22) (moa_is_allowed 필요). 브라우저는 본인 행만 읽고 추가·삭제한다.
 begin;
 create table public.moa_aggregations (
   id uuid primary key,

@@ -13,3 +13,12 @@ describe('AI response transport', () => {
     await expect(readNdjson(new Response('not json'), () => {})).rejects.toThrow('응답 형식');
   });
 });
+
+describe('서버 안내 문구', () => {
+  it('한도 초과 같은 서버 안내는 앞말 없이 그대로 전달한다', async () => {
+    const { requireOk, ServerMessageError } = await import('../http');
+    const res = new Response(JSON.stringify({ error: '오늘 AI 사용 한도에 도달했어요.' }), { status: 429 });
+    await expect(requireOk(res)).rejects.toBeInstanceOf(ServerMessageError);
+    await expect(requireOk(new Response(JSON.stringify({ error: '오늘 AI 사용 한도에 도달했어요.' }), { status: 429 }))).rejects.toThrow(/^오늘 AI 사용 한도에 도달했어요\.$/);
+  });
+});

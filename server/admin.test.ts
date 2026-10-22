@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import type { ServerResponse } from 'node:http';
-import { adminHandler, normalizeEmail, type AdminRequest } from './admin';
+import { adminHandler, normalizeEmail, parseLimit, type AdminRequest } from './admin';
 import { SafeError } from './ai';
 import type { Query, Store } from './store';
 
@@ -18,7 +18,9 @@ function fakeSql(isAdmin = true, target: { is_admin: boolean } | null = { is_adm
     calls.push(q);
     if (q.includes('is_admin is true limit 1')) return isAdmin ? [{ '?column?': 1 }] : [];
     if (q.startsWith('select is_admin from')) return target ? [target] : [];
-    if (q.includes('left join neon_auth')) return [{ email: 'ksw1727@gmail.com', enabled: true, is_admin: true, user_id: ADMIN.id, updated_at: new Date(), verified: true, created: new Date() }];
+    if (q.includes('moa_ai_settings s where s.id')) return [{ global_daily_limit: null, default_user_daily_limit: 20, used: 7 }];
+    if (q.startsWith('update moa_private.moa_allowed_users set ai_daily_limit')) return target ? [{ email: 'x' }] : [];
+    if (q.includes('left join neon_auth')) return [{ email: 'ksw1727@gmail.com', enabled: true, is_admin: true, user_id: ADMIN.id, updated_at: new Date(), verified: true, created: new Date(), ai_daily_limit: null, used_today: 3 }];
     return [];
   }) as unknown as Query;
   return { sql, calls };
@@ -93,6 +95,33 @@ describe('관리자 API', () => {
     expect((await run({ method: 'POST', body: { action: 'drop', email: 'a@b.co' }, sql: fakeSql().sql })).status).toBe(400);
     expect(() => normalizeEmail('not-an-email')).toThrow();
     expect(() => normalizeEmail(`${'a'.repeat(250)}@x.co`)).toThrow();
+  });
+  it('목록에 오늘 사용량·한도와 전체 설정을 함께 준다', async () => {
+    const r = await run({ sql: fakeSql().sql });
+    expect(r.body.users[0]).toMatchObject({ aiDailyLimit: null, usedToday: 3 });
+    expect(r.body.settings).toEqual({ globalDailyLimit: null, defaultUserDailyLimit: 20, usedTodayGlobal: 7 });
+  });
+  it('사용자별 한도와 전체·기본 한도를 바꾼다 (빈 값 = 무제한/기본값)', async () => {
+    const a = fakeSql();
+    expect((await run({ method: 'POST', body: { action: 'setLimit', email: 'user@kdhc.co.kr', limit: 5 }, sql: a.sql })).status).toBe(200);
+    expect(vi.mocked(a.sql).mock.calls.some((c) => c[0].join('?').startsWith('update moa_private.moa_allowed_users set ai_daily_limit') && c.slice(1).includes(5))).toBe(true);
+    const b = fakeSql();
+    expect((await run({ method: 'POST', body: { action: 'setLimit', email: ADMIN.email, limit: '' }, sql: b.sql })).status).toBe(200);
+    const c = fakeSql();
+    expect((await run({ method: 'POST', body: { action: 'setSettings', globalDailyLimit: 100, defaultUserDailyLimit: null }, sql: c.sql })).status).toBe(200);
+    const params = vi.mocked(c.sql).mock.calls.find((x) => x[0].join('?').startsWith('update moa_private.moa_ai_settings'))!.slice(1);
+    expect(params).toEqual([100, null]);
+  });
+  it('잘못된 한도 값과 없는 사용자는 거절한다', async () => {
+    expect(parseLimit(null)).toBeNull(); expect(parseLimit('')).toBeNull(); expect(parseLimit('12')).toBe(12); expect(parseLimit(0)).toBe(0);
+    for (const v of [-1, 1.5, 'abc', 100001]) expect(() => parseLimit(v)).toThrow();
+    expect((await run({ method: 'POST', body: { action: 'setLimit', email: 'user@kdhc.co.kr', limit: -3 }, sql: fakeSql().sql })).status).toBe(400);
+    expect((await run({ method: 'POST', body: { action: 'setLimit', email: 'none@x.co', limit: 3 }, sql: fakeSql(true, null).sql })).status).toBe(404);
+  });
+  it('관리자가 아니면 한도를 바꿀 수 없다', async () => {
+    const { sql, calls } = fakeSql(false);
+    expect((await run({ method: 'POST', body: { action: 'setSettings', globalDailyLimit: 1 }, sql })).status).toBe(403);
+    expect(calls.some((q) => q.startsWith('update'))).toBe(false);
   });
   it('DB 오류 내용은 밖으로 내보내지 않는다', async () => {
     const sql = vi.fn(async () => { throw new Error('secret connection detail'); }) as unknown as Query;

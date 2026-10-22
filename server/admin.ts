@@ -7,11 +7,21 @@ import { makeStore, type Query, type Store } from './store';
  * 관리자 페이지 API (/api/admin)
  *   GET  → 승인 사용자 목록
  *   POST { action: 'add' | 'enable' | 'disable' | 'remove', email }
+ *   POST { action: 'setLimit', email, limit: number | null }   사용자별 하루 AI 한도 (null = 기본값)
+ *   POST { action: 'setSettings', globalDailyLimit, defaultUserDailyLimit }   (null = 무제한)
  * 관리자 = 승인 목록에서 is_admin=true인 계정. 매 요청마다 JWT + DB로 다시 확인한다.
  */
 export type AdminRequest = IncomingMessage & { body?: unknown };
 export interface AdminDeps { env?: NodeJS.ProcessEnv; store?: Store; sql?: Query }
-export interface AdminUser { email: string; enabled: boolean; isAdmin: boolean; userId: string | null; emailVerified: boolean | null; createdAt: string | null; updatedAt: string }
+export interface AdminUser { email: string; enabled: boolean; isAdmin: boolean; userId: string | null; emailVerified: boolean | null; createdAt: string | null; updatedAt: string; aiDailyLimit: number | null; usedToday: number }
+export interface AiSettings { globalDailyLimit: number | null; defaultUserDailyLimit: number | null; usedTodayGlobal: number }
+/** 한도 값: 빈 값(null)은 무제한/기본값, 0~100000 정수 */
+export function parseLimit(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'string' ? Number(v.trim()) : v;
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > 100000) throw new SafeError(400, '한도는 0~100000 사이의 정수로 입력하거나 비워 두세요(무제한).');
+  return n;
+}
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,63}$/;
 export const normalizeEmail = (v: unknown): string => {
@@ -34,16 +44,38 @@ export async function isAdmin(sql: Query, userId: string): Promise<boolean> {
 }
 
 export async function listUsers(sql: Query): Promise<AdminUser[]> {
-  const rows = await sql`select a.email, a.enabled, a.is_admin, a.user_id::text as user_id, a.updated_at, u."emailVerified" as verified, u."createdAt" as created
+  const rows = await sql`select a.email, a.enabled, a.is_admin, a.user_id::text as user_id, a.updated_at, a.ai_daily_limit, u."emailVerified" as verified, u."createdAt" as created,
+      coalesce((select used from moa_private.moa_ai_usage g where g.day = (now() at time zone 'UTC')::date and g.scope = coalesce(a.user_id, u.id)::text), 0) as used_today
     from moa_private.moa_allowed_users a left join neon_auth."user" u on u.id = a.user_id or (a.user_id is null and lower(u.email) = a.email)
     order by a.is_admin desc, a.email asc limit 500`;
   const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : String(v));
   return rows.map((r) => ({ email: String(r.email), enabled: r.enabled === true, isAdmin: r.is_admin === true, userId: r.user_id ? String(r.user_id) : null,
-    emailVerified: typeof r.verified === 'boolean' ? r.verified : null, createdAt: iso(r.created), updatedAt: iso(r.updated_at) ?? '' }));
+    emailVerified: typeof r.verified === 'boolean' ? r.verified : null, createdAt: iso(r.created), updatedAt: iso(r.updated_at) ?? '',
+    aiDailyLimit: r.ai_daily_limit == null ? null : Number(r.ai_daily_limit), usedToday: Number(r.used_today ?? 0) }));
 }
 
-export async function applyAction(sql: Query, actor: { id: string; email: string }, action: unknown, emailRaw: unknown): Promise<void> {
+export async function readSettings(sql: Query): Promise<AiSettings> {
+  const rows = await sql`select s.global_daily_limit, s.default_user_daily_limit,
+      coalesce((select used from moa_private.moa_ai_usage g where g.day = (now() at time zone 'UTC')::date and g.scope = 'global'), 0) as used
+    from moa_private.moa_ai_settings s where s.id`;
+  const r = rows[0] ?? {};
+  const num = (v: unknown) => (v == null ? null : Number(v));
+  return { globalDailyLimit: num(r.global_daily_limit), defaultUserDailyLimit: num(r.default_user_daily_limit), usedTodayGlobal: Number(r.used ?? 0) };
+}
+
+export async function applyAction(sql: Query, actor: { id: string; email: string }, action: unknown, emailRaw: unknown, body: Record<string, unknown> = {}): Promise<void> {
+  if (action === 'setSettings') {
+    const g = parseLimit(body.globalDailyLimit), d = parseLimit(body.defaultUserDailyLimit);
+    await sql`update moa_private.moa_ai_settings set global_daily_limit = ${g}::integer, default_user_daily_limit = ${d}::integer, updated_at = now() where id`;
+    return;
+  }
   const email = normalizeEmail(emailRaw);
+  if (action === 'setLimit') {
+    const limit = parseLimit(body.limit);
+    const rows = await sql`update moa_private.moa_allowed_users set ai_daily_limit = ${limit}::integer, updated_at = now() where email = ${email} returning email`;
+    if (rows.length !== 1) throw new SafeError(404, '승인 목록에 없는 이메일이에요.');
+    return;
+  }
   if (!['add', 'enable', 'disable', 'remove'].includes(String(action))) throw new SafeError(400, '지원하지 않는 작업이에요.');
   if (email === actor.email && action !== 'add' && action !== 'enable') throw new SafeError(400, '자기 자신의 관리자 계정은 중지하거나 삭제할 수 없어요.');
   if (action === 'add') {
@@ -87,11 +119,12 @@ export function adminHandler(deps: AdminDeps = {}) {
       if (!admin) throw new SafeError(403, '관리자만 사용할 수 있어요.');
       if (req.method === 'POST') {
         let body: unknown; try { body = await readBody(req); } catch (e) { if (e instanceof SafeError) throw e; throw new SafeError(400, '요청 형식이 올바르지 않아요.'); }
-        const b = (body ?? {}) as { action?: unknown; email?: unknown };
-        try { await applyAction(sql, actor, b.action, b.email); } catch (e) { if (e instanceof SafeError) throw e; throw new SafeError(503, '사용자 목록을 바꾸지 못했어요.'); }
+        const b = (body ?? {}) as Record<string, unknown>;
+        try { await applyAction(sql, actor, b.action, b.email, b); } catch (e) { if (e instanceof SafeError) throw e; throw new SafeError(503, '사용자 목록을 바꾸지 못했어요.'); }
       }
-      let users: AdminUser[]; try { users = await listUsers(sql); } catch { throw new SafeError(503, '사용자 목록을 불러오지 못했어요.'); }
-      json(200, { users });
+      let users: AdminUser[]; let settings: AiSettings;
+      try { [users, settings] = await Promise.all([listUsers(sql), readSettings(sql)]); } catch { throw new SafeError(503, '사용자 목록을 불러오지 못했어요.'); }
+      json(200, { users, settings });
     } catch (error) {
       const safe = error instanceof SafeError ? error : new SafeError(500, '요청을 처리하지 못했어요.');
       json(safe.status, { error: safe.message });
