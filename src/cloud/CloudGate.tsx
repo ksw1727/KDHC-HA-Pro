@@ -13,7 +13,8 @@ function Notice({ title, children }: { title: string; children: ReactNode }) {
 type OtpPurpose = 'email-verification' | 'sign-in';
 function AuthenticatedGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
+  // 내 계정에서 이메일을 바꾼 직후에는 새 이메일을 미리 채운다
+  const [email, setEmail] = useState(() => { try { const v = sessionStorage.getItem('hanan-moa:login-email') ?? ''; sessionStorage.removeItem('hanan-moa:login-email'); return v; } catch { return ''; } });
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [otpPurpose, setOtpPurpose] = useState<OtpPurpose>('email-verification');
