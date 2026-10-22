@@ -1,7 +1,7 @@
 // @vitest-environment node
 import ExcelJS from 'exceljs';
 import { writeWorkbook } from '../export/writeWorkbook';
-import { duplicateForm, openFormJson, openFormXlsx, shortTime } from '../landing/openForm';
+import { openFormJson, openFormXlsx } from '../storage/openForm';
 import { SAMPLE } from '@contract/__tests__/fixtures';
 
 const now = new Date('2026-10-13T05:00:00Z');
@@ -29,16 +29,4 @@ describe('이미 만든 양식 열기', () => {
     const r = await openFormXlsx((await wb.xlsx.writeBuffer()) as ArrayBuffer);
     expect(r).toEqual({ ok: false, message: '한난MOA로 만든 파일이 아니에요.' });
   });
-});
-
-test('복제: (복사), 새 formId, 버전 1', () => {
-  const d = duplicateForm({ ...SAMPLE.list, formVersion: 3 }, now, 'new-id');
-  expect(d.schema).toMatchObject({ formId: 'new-id', formVersion: 1, title: `${SAMPLE.list.title} (복사)` });
-  expect(d.lastExported).toBeUndefined();
-});
-
-test('최근 양식 시각', () => {
-  const local = new Date(2026, 9, 13, 14, 20);
-  expect(shortTime(local.toISOString(), new Date(2026, 9, 13, 18))).toBe('오늘 14:20');
-  expect(shortTime(local.toISOString(), new Date(2026, 9, 20))).toBe('10/13');
 });

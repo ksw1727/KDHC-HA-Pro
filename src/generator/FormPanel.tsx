@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LAYOUT_LABELS, type FormSchema, type Layout } from '@contract/schema';
 import { newSchema, randomFormId, randomKey } from './state/newSchema';
 import { loadForm, type StoredForm } from './storage/localForms';
-import { openFormJson, openFormXlsx, type OpenResult } from './landing/openForm';
+import { openFormJson, openFormXlsx, type OpenResult } from './storage/openForm';
 import { BuilderPage } from './pages/BuilderPage';
 import { Button, Dialog } from './ui/ui';
 

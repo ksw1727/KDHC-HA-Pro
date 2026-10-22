@@ -53,28 +53,3 @@ export function loadCurrent(): StoredForm | null {
     return null;
   }
 }
-
-export function listForms(): StoredForm[] {
-  const s = store();
-  if (!s) return [];
-  const out: StoredForm[] = [];
-  try {
-    for (let i = 0; i < s.length; i++) {
-      const k = s.key(i);
-      if (!k?.startsWith(PREFIX)) continue;
-      const v = loadForm(k.slice(PREFIX.length));
-      if (v) out.push(v);
-    }
-  } catch {
-    return out;
-  }
-  return out.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
-}
-
-export function removeForm(formId: string): void {
-  try {
-    store()?.removeItem(PREFIX + formId);
-  } catch {
-    /* 무시 */
-  }
-}

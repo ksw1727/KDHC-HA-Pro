@@ -1,23 +1,22 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { GeneratorRoot } from '../index';
+import { BuilderPage } from '../pages/BuilderPage';
+import { newSchema, randomFormId, randomKey } from '../state/newSchema';
 
 beforeEach(() => localStorage.clear());
+
+const renderFree = () => render(<><span id="app-header-slot" /><BuilderPage start={{ schema: newSchema('free', new Date(), { formId: randomFormId(), key: randomKey }), savedAt: '' }} /></>);
 
 const cell = (name: string) => within(screen.getByRole('grid', { name: '그리는 판' })).getByLabelText(new RegExp(`^${name}( 입력| 숫자|$)`));
 
 test('자유 제작형: 영역 칸에서 타자 치면 막고 안내', () => {
-  render(<><span id="app-header-slot" /><GeneratorRoot /></>);
-  fireEvent.click(screen.getByRole('button', { name: '자유 제작형 크게 보기' }));
-  fireEvent.click(screen.getByRole('button', { name: '자유 제작형으로 새 양식 만들기 →' }));
+  renderFree();
   fireEvent.mouseDown(cell('B6'));
   fireEvent.change(screen.getByLabelText('B6 글자'), { target: { value: 'ㄱ' } });
   expect(screen.getByRole('status').textContent).toContain('왼쪽 ③에서 고쳐요');
 });
 
 test('자유 제작형: 판에 글자 쓰고 입력 칸 지정 → ③ 이름, 줄 영역 아래로 옮기면 ④에서 고치면 됨', () => {
-  render(<><span id="app-header-slot" /><GeneratorRoot /></>);
-  fireEvent.click(screen.getByRole('button', { name: '자유 제작형 크게 보기' }));
-  fireEvent.click(screen.getByRole('button', { name: '자유 제작형으로 새 양식 만들기 →' }));
+  renderFree();
 
   // 화면 주소(판 A1 = 6행): C6을 고르고 바로 "점검일"을 친 뒤 D6을 입력 칸으로
   fireEvent.mouseDown(cell('C6'));

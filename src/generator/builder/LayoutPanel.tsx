@@ -5,7 +5,7 @@ import type { Builder } from '../state/useBuilder';
 import { changeLayout } from '../state/changeLayout';
 import { randomKey } from '../state/newSchema';
 import { Button, Dialog } from '../ui/ui';
-import { StructureStory } from '../landing/StructureStory';
+import { StructureStory } from './StructureStory';
 
 const ORDER: Layout[] = ['list', 'matrix', 'header-list', 'fill-in', 'collect', 'free'];
 const ONE_LINE: Record<Layout, string> = {
