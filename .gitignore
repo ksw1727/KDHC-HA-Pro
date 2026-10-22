@@ -9,3 +9,4 @@ coverage/
 .vscode/
 .idea/
 .claude/worktrees/
+tools/ai/eval/out/

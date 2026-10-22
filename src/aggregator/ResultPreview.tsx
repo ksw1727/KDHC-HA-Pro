@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import type { SheetModel } from '@contract/layout';
+import type { Field } from '@contract/schema';
+import type { Table } from './pipeline/aggregate';
 import { cellStyle } from '@contract/layout/styles';
 import { parseAddr } from '@contract/layout/address';
 
@@ -50,6 +52,38 @@ export function ResultPreview({ model, maxRows = 40 }: { model: SheetModel; maxR
       {more > 0 && <p className="m-0 px-2 py-1 text-xs text-muted">… {more}줄 더 (전체 {nRows}행 · {nCols}열)</p>}
     </div>
   );
+}
+
+/** 결과 파일의 표 시트(지사별 펼치기 등)를 화면 표로. 마지막 줄이 '합계'면 굵게 */
+export function TablePreview({ table }: { table: Table }) {
+  return (
+    <div className="overflow-auto rounded-box border border-line" style={{ maxHeight: 420 }}>
+      <table className="border-collapse text-xs" aria-label={`${table.name} 미리보기`}>
+        <thead className="sticky top-0">
+          <tr>{table.columns.map((c, i) => <th key={i} className="whitespace-nowrap border border-line bg-[#eef2f7] px-1.5 py-1 font-semibold">{c.header}</th>)}</tr>
+        </thead>
+        <tbody>
+          {table.rows.map((r, ri) => (
+            <tr key={ri} className={cx(r[0] === '합계' && 'bg-panel font-semibold')}>
+              {r.map((v, i) => (
+                <td key={i} className="h-6 max-w-[220px] overflow-hidden text-ellipsis whitespace-nowrap border border-line px-1.5" style={{ textAlign: typeof v === 'number' ? 'right' : undefined }}>
+                  {v === null || v === undefined ? '' : typeof v === 'number' ? num(v, table.columns[i]?.field) : String(v)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** 양식 서식대로 숫자 보여 주기 (쉼표·소수 자리·단위) */
+function num(v: number, f?: Field): string {
+  if (!f || (f.type !== 'number' && f.type !== 'calc')) return v.toLocaleString('ko-KR', { maximumFractionDigits: 4 });
+  const d = Math.max(0, Math.min(4, f.decimals ?? 0));
+  const s = v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping: f.thousands !== false });
+  return f.unit?.trim() ? `${s}${f.unit.trim()}` : s;
 }
 
 const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');

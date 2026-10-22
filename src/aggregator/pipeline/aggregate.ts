@@ -1,7 +1,7 @@
 import { layoutSheet, type AggregateFill, type SheetModel } from '@contract/layout';
 import type { CellValue } from '@contract/meta';
 import { computeHeader, computeListRow } from '@contract/formula';
-import { orgLabel, type FormSchema, type ListBlock } from '@contract/schema';
+import { orgLabel, type Field, type FormSchema, type ListBlock } from '@contract/schema';
 import { slotId } from './parse';
 import { STATUS_LABEL, type FinalSubmission, type Resolved } from './resolve';
 
@@ -9,7 +9,7 @@ import { STATUS_LABEL, type FinalSubmission, type Resolved } from './resolve';
 
 export interface Table {
   name: string;
-  columns: { header: string; width?: number }[];
+  columns: { header: string; width?: number; field?: Field }[];   // field: 그 열의 숫자·날짜 서식
   rows: CellValue[][];
 }
 
@@ -22,6 +22,9 @@ export const fmtTime = (iso: string) => {
 };
 /** 같은 틀 시트의 각 목록 줄이 어느 제출의 몇 행인지 (작성자 메모를 같은 칸에 옮길 때 씀) */
 export interface FrameRowRef { fileId: string; sourceRow: number }
+
+/** 소수 더하기 찌꺼기(0.1 + 0.2 = 0.30000000000000004)를 지운다 */
+const tidy = (n: number) => Number(n.toFixed(10));
 
 export interface SameFrame { model: SheetModel; rowRefs: FrameRowRef[]; spareRefs: FrameRowRef[]; matrixNotes: Record<string, string> }
 
@@ -104,7 +107,7 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
         if (typeof v === 'number') { sum += v; any = true; } else if (v !== null && v !== undefined) skipped++;
       }
       if (skipped && !clean) matrixNotes[`${m.id}:${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
-      return any ? sum : null;
+      return any ? tidy(sum) : null;
     }));
   }
 
@@ -137,10 +140,10 @@ export function spreadTable(schema: FormSchema, res: Resolved): Table {
   const inputs = grid?.kind === 'grid' ? grid.rows.flat().flatMap((c) => (c.kind === 'input' ? [c.field] : [])) : [];
   const hasList = schema.blocks.some((b) => b.kind === 'list');
   const prefix = (m: (typeof mats)[number]) => (mats.length > 1 ? `${m.title?.trim() || m.id} ` : '');
-  const columns = [
-    useOrg ? orgLabel(schema) : '출처 파일', ...hf.map((f) => f.label),
-    ...mats.flatMap((m) => m.rowLabels.flatMap((r) => m.colLabels.map((c) => `${prefix(m)}${r} ${c}`))),
-    ...inputs.map((f) => f.label), ...(hasList ? ['목록 행 수'] : []),
+  const columns: Table['columns'] = [
+    { header: useOrg ? orgLabel(schema) : '출처 파일' }, ...hf.map((f) => ({ header: f.label, field: f })),
+    ...mats.flatMap((m) => m.rowLabels.flatMap((r) => m.colLabels.map((c) => ({ header: `${prefix(m)}${r} ${c}`, field: m.cell })))),
+    ...inputs.map((f) => ({ header: f.label, field: f })), ...(hasList ? [{ header: '목록 행 수' }] : []),
   ];
   const rows: CellValue[][] = res.included.map((s) => {
     const h = computeSubmission(schema, s.header, s.rows.map((r) => r.values)).header;
@@ -154,9 +157,9 @@ export function spreadTable(schema: FormSchema, res: Resolved): Table {
   if (mats.length) {
     const start = 1 + hf.length;
     const end = start + mats.reduce((n, m) => n + m.rowLabels.length * m.colLabels.length, 0);
-    rows.push(columns.map((_, i) => (i === 0 ? '합계' : i >= start && i < end ? rows.reduce((t, r) => t + (typeof r[i] === 'number' ? (r[i] as number) : 0), 0) : null)));
+    rows.push(columns.map((_, i) => (i === 0 ? '합계' : i >= start && i < end ? tidy(rows.reduce((t, r) => t + (typeof r[i] === 'number' ? (r[i] as number) : 0), 0)) : null)));
   }
-  return { name: spreadName(schema), columns: columns.map((header) => ({ header })), rows };
+  return { name: spreadName(schema), columns, rows };
 }
 
 /** 제출 현황 (submission-status): 지사 목록 전체 + 목록 밖 지사 */
