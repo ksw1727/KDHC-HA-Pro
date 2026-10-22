@@ -189,7 +189,7 @@ export function AiPage() {
         <h1 className="m-0 text-xl font-bold">AI로 만들기</h1>
         <div className="rounded-card border border-line bg-panel p-4 text-sub">
           <p className="m-0 mb-2 font-semibold text-ink">{health === 'off' ? 'AI 연결 서버가 꺼져 있어요' : 'OpenAI API 키가 없어요'}</p>
-          <p className="m-0">AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 위쪽 [양식 만들기]·[취합하기]는 지금도 그대로 쓸 수 있어요.</p>
+          <p className="m-0">AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 위쪽 [양식 만들기] 스위치(오른쪽 패널)와 [취합하기]는 지금도 그대로 쓸 수 있어요.</p>
         </div>
       </div>
     );
