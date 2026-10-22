@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 업무공간 시안</title>
+<style>
+/* 한난MOA 공공 블루 토큰 (src/index.css) */
+:root {
+  --pri: #1f5fbf; --pri-ink: #174a96; --pri-bg: #e8f0fc; --pri-line: #b9cff2;
+  --ink: #18202b; --sub: #56616e; --muted: #8a95a2;
+  --line: #e2e7ee; --line-strong: #cbd3dd; --panel: #f6f8fb; --chip: #f1f4f8;
+  --req: #fff5d1; --req-line: #efd88a; --req-ink: #7a5a00;
+  --auto: #e5f4ee; --auto-head: #cfeadf; --auto-ink: #0f6e56;
+  --warn: #fdf1e3; --warn-ink: #9a4a07;
+  --err: #fdecea; --err-ink: #b42318;
+  --r-btn: 7px; --r-box: 8px; --r-card: 10px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: #fff; color: var(--ink); font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, "Malgun Gothic", sans-serif; }
+button { font: inherit; color: inherit; cursor: pointer; }
+b { font-weight: 700; }
+
+/* ── 앱 머리줄 (지금 앱과 같음, 탭에 '내 업무공간' 추가) ── */
+header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.brand { font-size: 15px; font-weight: 800; letter-spacing: -.3px; color: var(--pri); }
+.brand span { color: var(--ink); }
+.seg { display: flex; gap: 2px; padding: 3px; background: var(--chip); border-radius: var(--r-box); }
+.seg button { border: 0; background: none; padding: 4px 12px; border-radius: 6px; color: var(--sub); }
+.seg button[aria-current] { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.who { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--sub); }
+.who i { width: 26px; height: 26px; border-radius: 50%; background: var(--pri-bg); color: var(--pri-ink); display: grid; place-items: center; font-style: normal; font-weight: 700; font-size: 12px; }
+
+/* ── 공통 ── */
+.page { max-width: 1240px; margin: 0 auto; padding: 22px 20px 48px; display: flex; flex-direction: column; gap: 22px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: #fff; border-radius: var(--r-btn); padding: 6px 12px; }
+.btn:hover { border-color: var(--pri); color: var(--pri); }
+.btn.pri { background: var(--pri); border-color: var(--pri); color: #fff; font-weight: 600; }
+.btn.pri:hover { background: var(--pri-ink); color: #fff; }
+.btn.sm { padding: 3px 9px; font-size: 12px; }
+.btn.ghost { border-color: transparent; color: var(--pri); }
+.chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 4px; padding: 0 6px; font-size: 11.5px; font-weight: 600; line-height: 19px; white-space: nowrap; }
+.c-pri { background: var(--pri-bg); color: var(--pri-ink); }
+.c-auto { background: var(--auto); color: var(--auto-ink); }
+.c-req { background: var(--req); color: var(--req-ink); }
+.c-warn { background: var(--warn); color: var(--warn-ink); }
+.c-err { background: var(--err); color: var(--err-ink); }
+.c-gray { background: var(--chip); color: var(--sub); }
+.sec-hd { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.sec-hd h2 { margin: 0; font-size: 15px; }
+.sec-hd .hint { font-size: 12px; color: var(--muted); }
+.sec-hd .sp { flex: 1; }
+.box { border: 1px solid var(--line); border-radius: var(--r-card); background: #fff; }
+
+/* ── 첫 줄: 인사 + 오늘 할 일 숫자 ── */
+.hello { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.hello h1 { margin: 0; font-size: 20px; letter-spacing: -.4px; }
+.hello p { margin: 3px 0 0; color: var(--sub); }
+.hello .acts { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden; }
+.kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; }
+.kpi + .kpi { border-left: 1px solid var(--line); }
+.kpi:hover { background: var(--panel); }
+.kpi span { font-size: 12px; color: var(--sub); }
+.kpi b { font-size: 24px; letter-spacing: -.6px; line-height: 1.2; }
+.kpi b small { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.kpi em { font-style: normal; font-size: 12px; color: var(--muted); }
+
+/* ── 일정표 + 진행 중 ── */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.cal { overflow: hidden; }
+.cal-top { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.cal-top h3 { margin: 0 6px; font-size: 14px; }
+.cal-top .nav { width: 26px; height: 26px; padding: 0; justify-content: center; }
+.legend { margin-left: auto; display: flex; gap: 12px; font-size: 12px; color: var(--sub); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.lg-req { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--pri); background: #fff; }
+.lg-due { width: 0; height: 0; border-left: 6px solid var(--pri); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.dows, .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.dows div { padding: 6px 8px; font-size: 11.5px; color: var(--muted); background: var(--panel); border-bottom: 1px solid var(--line); }
+.dows div:first-child { color: var(--err-ink); }
+.week { grid-auto-rows: min-content; min-height: 88px; border-bottom: 1px solid var(--line); position: relative; padding-bottom: 6px; }
+.week:last-child { border-bottom: 0; }
+.cell { grid-row: 1 / span 10; border-right: 1px solid var(--line); }
+.cell:nth-child(7) { border-right: 0; }
+.cell.today { background: var(--pri-bg); }
+.cell.off { background: repeating-linear-gradient(135deg, #fff 0 6px, var(--panel) 6px 7px); }
+.num { grid-row: 1; padding: 5px 8px 3px; font-size: 12px; color: var(--sub); z-index: 1; pointer-events: none; }
+.num.sun { color: var(--err-ink); }
+.num.dim { color: var(--line-strong); }
+.num.today b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--pri); color: #fff; font-size: 11.5px; }
+.num.today span { margin-left: 4px; font-size: 11px; color: var(--pri); font-weight: 600; }
+.bar { z-index: 2; margin: 2px 3px 0; height: 20px; border-radius: 4px; font-size: 11.5px; font-weight: 600; display: flex; align-items: center; gap: 5px; padding: 0 7px; overflow: hidden; white-space: nowrap; cursor: pointer; border: 1px solid transparent; }
+.bar .t { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.bar .s { width: 8px; height: 8px; border-radius: 50%; background: #fff; border: 2px solid currentColor; flex: none; }
+.bar .e { flex: none; font-size: 10.5px; padding: 0 5px; border-radius: 3px; color: #fff; }
+.bar.cut-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+.bar.cut-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+.bar.done { opacity: .55; }
+.bar.nodue { flex: none; }
+.bar:hover, .bar.hl { outline: 2px solid currentColor; outline-offset: -1px; }
+
+.side { display: flex; flex-direction: column; gap: 10px; }
+.job { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; }
+.job:hover, .job.hl { border-color: var(--pri); box-shadow: 0 0 0 2px var(--pri-line); }
+.job .r1 { display: flex; align-items: center; gap: 6px; }
+.job .r1 b { font-size: 14px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dday { font-weight: 700; font-size: 12px; padding: 0 7px; border-radius: 4px; line-height: 20px; }
+.job .meta { font-size: 12px; color: var(--muted); }
+.prog { display: flex; align-items: center; gap: 10px; }
+.prog .track { flex: 1; height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; display: flex; }
+.prog .track i { height: 100%; }
+.prog span { font-size: 12px; color: var(--sub); white-space: nowrap; }
+.prog span b { color: var(--ink); }
+.lg-agg { width: 14px; height: 14px; border-radius: 50%; background: var(--auto-ink); color: #fff; font-style: normal; font-size: 9px; display: grid; place-items: center; }
+.agg { z-index: 3; align-self: start; justify-self: end; margin: 5px 6px 0 0; font-size: 10.5px; font-weight: 700; color: #fff; background: var(--auto-ink); border-radius: 9px; padding: 0 6px; line-height: 17px; white-space: nowrap; }
+.wait { font-size: 12px; color: var(--sub); background: var(--panel); border-radius: var(--r-box); padding: 7px 9px; }
+.wait b { color: var(--ink); }
+.miss { font-size: 12px; color: var(--sub); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.miss .chip { font-weight: 500; }
+.job .acts { display: flex; gap: 6px; }
+
+/* ── 탭: 내가 만든 양식 / 취합 이력 ── */
+.tabs { display: flex; gap: 18px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.tabs button { border: 0; background: none; padding: 8px 2px 10px; font-size: 14px; color: var(--sub); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 700; border-bottom-color: var(--pri); }
+.tabs button em { font-style: normal; font-size: 12px; color: var(--muted); margin-left: 3px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.filters .f { border: 1px solid var(--line); background: #fff; border-radius: 14px; padding: 2px 10px; font-size: 12px; color: var(--sub); }
+.filters .f[aria-pressed="true"] { border-color: var(--pri); background: var(--pri-bg); color: var(--pri-ink); font-weight: 600; }
+.filters .sp { flex: 1; }
+.filters select { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: var(--r-btn); padding: 3px 6px; color: var(--sub); background: #fff; }
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.panel[hidden] { display: none; }
+
+.form { display: flex; flex-direction: column; overflow: hidden; }
+.form:hover { border-color: var(--pri); box-shadow: 0 0 0 2px var(--pri-line); }
+.thumb { height: 92px; background: var(--panel); border-bottom: 1px solid var(--line); padding: 10px 12px; display: flex; align-items: center; justify-content: center; }
+.thumb svg { width: 100%; height: 100%; }
+.form .bd { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.form .bd b { font-size: 13.5px; }
+.form .meta { font-size: 12px; color: var(--muted); }
+.form .use { font-size: 12px; color: var(--sub); display: flex; align-items: center; gap: 5px; }
+.form .use .dot { width: 6px; height: 6px; border-radius: 50%; }
+.form .acts { margin-top: auto; padding-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+.form.new { border-style: dashed; border-color: var(--line-strong); background: var(--panel); align-items: center; justify-content: center; text-align: center; gap: 8px; padding: 16px; color: var(--sub); min-height: 210px; }
+.form.new:hover { background: var(--pri-bg); }
+.form.new .plus { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--pri-line); background: #fff; color: var(--pri); display: grid; place-items: center; font-size: 20px; }
+
+.hist { display: flex; flex-direction: column; overflow: hidden; }
+.hist .hd { padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 4px; }
+.hist .hd .r1 { display: flex; align-items: center; gap: 6px; }
+.hist .hd b { font-size: 13.5px; flex: 1; }
+.hist .meta { font-size: 12px; color: var(--muted); }
+.hist .nums { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.hist .nums div { padding: 8px 10px; }
+.hist .nums div + div { border-left: 1px solid var(--line); }
+.hist .nums span { display: block; font-size: 11px; color: var(--muted); }
+.hist .nums b { font-size: 15px; }
+.hist .mini { padding: 10px 14px 4px; display: flex; align-items: flex-end; gap: 3px; height: 46px; }
+.hist .mini i { flex: 1; background: var(--auto-head); border-radius: 2px 2px 0 0; }
+.hist .mini i.miss { background: var(--err); height: 4px !important; }
+.hist .gone { padding: 10px 14px 0; font-size: 12px; color: var(--sub); display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.hist .gone.ok { color: var(--auto-ink); }
+
+.hist .acts { padding: 10px 14px 12px; display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; }
+.xl { display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 3px; background: #1d7a46; color: #fff; font-size: 9px; font-weight: 800; }
+
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 7px 10px; border-radius: var(--r-box); opacity: 0; max-width: 260px; }
+
+@media (max-width: 1080px) { .two { grid-template-columns: 1fr; } .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .page { padding: 16px 16px 40px; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpi:nth-child(3) { border-left: 0; } .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .cards { grid-template-columns: 1fr; }
+  .legend, .who span { display: none; }
+  .bar .t { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">한난<span>MOA</span></span>
+  <nav class="seg" aria-label="주요 화면">
+    <button aria-current="page">내 업무공간</button>
+    <button>AI로 만들기</button>
+    <button>취합하기</button>
+  </nav>
+  <div class="who"><span>고객지원부</span><i>김</i></div>
+</header>
+
+<div class="page">
+
+  <!-- 인사 + 버튼 -->
+  <section class="hello">
+    <div>
+      <h1>김선우 님의 업무공간</h1>
+      <p>10월 22일 목요일 · 취합 기다리는 양식 4건 중 이번 주가 기한인 양식이 1건 있어요.</p>
+    </div>
+    <div class="acts">
+      <button class="btn">⤒ 쓰던 엑셀로 시작</button>
+      <button class="btn">받은 파일 취합하기</button>
+      <button class="btn pri">＋ 새 양식 만들기</button>
+    </div>
+  </section>
+
+  <!-- 숫자 4칸 -->
+  <section class="kpis" aria-label="한눈에 보기">
+    <a class="kpi" href="#"><span>취합 기다리는 양식</span><b>4<small>건</small></b><em>만들었고 아직 취합 전 (기한 없음 1건)</em></a>
+    <a class="kpi" href="#"><span>이번 주 제출 기한</span><b style="color:var(--err-ink)">1<small>건</small></b><em>10/24(토) 분기별 에너지 절감량</em></a>
+    <a class="kpi" href="#"><span>기한 지났는데 취합 전</span><b>0<small>건</small></b><em>제출 기한이 지나면 여기로 와요</em></a>
+    <a class="kpi" href="#"><span>이번 달 마친 취합</span><b style="color:var(--auto-ink)">2<small>건</small></b><em>요약은 아래 취합 이력에</em></a>
+  </section>
+
+  <!-- 일정표 + 진행 중 -->
+  <section class="two">
+    <div>
+      <div class="sec-hd"><h2>취합 일정</h2><span class="hint">양식을 만든 날 → 양식에 적은 제출 기한까지 막대로 보여줘요</span></div>
+      <div class="box cal">
+        <div class="cal-top">
+          <button class="btn nav" aria-label="이전 달">‹</button>
+          <h3>2026년 10월</h3>
+          <button class="btn nav" aria-label="다음 달">›</button>
+          <button class="btn sm" style="margin-left:4px">오늘</button>
+          <div class="legend">
+            <span><i class="lg-req"></i>만든 날</span>
+            <span><i class="lg-due"></i>제출 기한</span>
+            <span><i class="lg-agg">✓</i>취합한 날</span>
+            <span><i style="width:16px;height:9px;background:var(--chip);border-radius:2px"></i>기한 없음</span>
+          </div>
+        </div>
+        <div class="dows"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+        <div id="weeks"></div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="sec-hd"><h2>취합 기다리는 양식</h2><span class="sp"></span><button class="btn ghost sm">모두 보기</button></div>
+      <div class="side" id="jobs"></div>
+    </aside>
+  </section>
+
+  <!-- 내가 만든 양식 / 취합 이력 -->
+  <section>
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="forms">내가 만든 양식<em>12</em></button>
+      <button role="tab" aria-selected="false" data-tab="hist">취합 이력<em>8</em></button>
+    </div>
+
+    <div class="panel" id="p-forms">
+      <div class="filters">
+        <button class="f" aria-pressed="true">전체</button>
+        <button class="f" aria-pressed="false">표형</button>
+        <button class="f" aria-pressed="false">목록형</button>
+        <button class="f" aria-pressed="false">혼합형</button>
+        <button class="f" aria-pressed="false">빈칸채우기형</button>
+        <button class="f" aria-pressed="false">시트 모으기형</button>
+        <span class="sp"></span>
+        <select aria-label="정렬"><option>최근 고친 순</option><option>많이 쓴 순</option><option>이름 순</option></select>
+      </div>
+      <div class="cards" id="forms"></div>
+    </div>
+
+    <div class="panel" id="p-hist" hidden>
+      <div class="filters">
+        <button class="f" aria-pressed="true">전체</button>
+        <button class="f" aria-pressed="false">모두 받음</button>
+        <button class="f" aria-pressed="false">일부만 받음</button>
+        <span class="sp"></span>
+        <span style="font-size:12px;color:var(--muted)">취합 요약만 계정에 저장돼요 · 결과 엑셀은 취합할 때 내려받은 파일을 쓰세요</span>
+        <select aria-label="기간"><option>최근 3개월</option><option>올해</option><option>전체</option></select>
+      </div>
+      <div class="cards" id="hist"></div>
+    </div>
+  </section>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+// ── 예시 데이터 ──
+// 제출처는 지사·부서·담당자 어느 것이든 될 수 있다
+const C = {
+  blue:   { bg: '#e8f0fc', fg: '#174a96', solid: '#1f5fbf' },
+  green:  { bg: '#e5f4ee', fg: '#0f6e56', solid: '#0f6e56' },
+  yellow: { bg: '#fff5d1', fg: '#7a5a00', solid: '#b58600' },
+  orange: { bg: '#fdf1e3', fg: '#9a4a07', solid: '#c4620d' },
+  gray:   { bg: '#f1f4f8', fg: '#56616e', solid: '#8a95a2' },
+};
+// 누가 냈는지는 앱이 모른다 — 파일은 메신저·메일로 오고, 취합을 돌려야 비로소 알 수 있다.
+// 막대 = 양식 만든 날(createdAt) → 제출 기한(deadline, 양식 설정의 '제출 기한'). 기한이 없으면 만든 날 하루만.
+// 취합한 날(aggAt)은 취합을 마친 양식에만 있다.
+const jobs = [
+  { id: 'a', name: '9월 고객 민원 현황', c: 'gray', made: '2026-09-30', due: '2026-10-08', state: 'done', layout: '혼합형', unit: '지사', total: 19, aggAt: '2026-10-09', got: 18 },
+  { id: 'b', name: '3분기 교육 이수 현황', c: 'gray', made: '2026-10-05', due: '2026-10-14', state: 'done', layout: '목록형', unit: '부서', total: 12, aggAt: '2026-10-14', got: 12 },
+  { id: 'c', name: '분기별 에너지 절감량', c: 'blue', made: '2026-10-15', due: '2026-10-24', state: 'open', layout: '표형', unit: '지사', total: 19 },
+  { id: 'g', name: '협력업체 연락처 정리', c: 'orange', made: '2026-10-19', state: 'open', layout: '목록형', unit: '담당자', total: 8 },
+  { id: 'd', name: '하반기 안전점검 결과', c: 'green', made: '2026-10-20', due: '2026-10-28', state: 'open', layout: '목록형', unit: '부서', total: 12 },
+  { id: 'e', name: '동절기 비상연락망', c: 'yellow', made: '2026-10-22', due: '2026-10-30', state: 'open', layout: '빈칸채우기형', unit: '담당자', total: 32 },
+];
+const TODAY = new Date(2026, 9, 22), Y = 2026, M = 9;
+const day = 864e5;
+const d0 = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const md = d => `${d.getMonth() + 1}/${d.getDate()}`;
+const W = '일월화수목금토';
+const dday = d => Math.round((d - TODAY) / day);
+const counter = j => j.unit === '담당자' ? '명' : '곳';
+
+// ── 달력: 만든 날~제출 기한을 한 줄 막대로 ──
+const weeksEl = document.getElementById('weeks');
+const first = new Date(Y, M, 1), start = new Date(Y, M, 1 - first.getDay());
+for (let w = 0; w < 5; w++) {
+  const ws = new Date(start.getTime() + w * 7 * day), we = new Date(ws.getTime() + 6 * day);
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(ws.getTime() + i * day), other = d.getMonth() !== M, today = +d === +TODAY;
+    html += `<div class="cell ${today ? 'today' : ''} ${i === 0 || i === 6 ? 'off' : ''}" style="grid-column:${i + 1}"></div>`;
+    html += `<div class="num ${other ? 'dim' : ''} ${i === 0 ? 'sun' : ''} ${today ? 'today' : ''}" style="grid-column:${i + 1}">${today ? `<b>${d.getDate()}</b><span>오늘</span>` : d.getDate()}</div>`;
+  }
+  let row = 2;
+  for (const j of jobs) {
+    const r = d0(j.made), e = d0(j.due || j.made);
+    if (e < ws || r > we) continue;
+    const a = r < ws ? ws : r, b = e > we ? we : e;
+    const c0 = Math.round((a - ws) / day) + 1, c1 = Math.round((b - ws) / day) + 2;
+    const c = C[j.c];
+    const startHere = +a === +r, endHere = +b === +e;
+    html += `<div class="bar ${j.state === 'done' ? 'done' : ''} ${j.due ? '' : 'nodue'} ${startHere ? '' : 'cut-l'} ${endHere ? '' : 'cut-r'}" data-job="${j.id}"
+      style="grid-column:${c0}/${c1};grid-row:${row};background:${c.bg};color:${c.fg};border-color:transparent">
+      ${startHere ? '<i class="s"></i>' : ''}<span class="t">${j.name}</span>${endHere && j.due ? `<span class="e" style="background:${c.solid}">기한</span>` : ''}</div>`;
+    row++;
+  }
+  // 취합을 돌린 날 (마친 취합, 중간 취합)
+  for (const j of jobs) {
+    const at = j.aggAt; if (!at) continue;
+    const a = d0(at); if (a < ws || a > we) continue;
+    html += `<span class="agg" data-job="${j.id}" style="grid-column:${Math.round((a - ws) / day) + 1};grid-row:1">✓ 취합</span>`;
+  }
+  weeksEl.insertAdjacentHTML('beforeend', `<div class="week">${html}</div>`);
+}
+
+// ── 진행 중인 취합 ──
+const jobsEl = document.getElementById('jobs');
+for (const j of jobs.filter(j => j.state === 'open')) {
+  const c = C[j.c], r = d0(j.made), e = j.due && d0(j.due);
+  const left = e ? dday(e) : null, late = e && left <= 2;
+  const passed = e ? Math.max(0, Math.min(1, (TODAY - r) / (e - r))) : 0;
+  jobsEl.insertAdjacentHTML('beforeend', `
+    <article class="box job" data-job="${j.id}">
+      <div class="r1"><i style="width:4px;height:16px;border-radius:2px;background:${c.solid}"></i><b>${j.name}</b>
+        <span class="dday" style="background:${late ? 'var(--err)' : 'var(--chip)'};color:${late ? 'var(--err-ink)' : 'var(--sub)'}">${e ? (left > 0 ? `D-${left}` : left === 0 ? 'D-day' : `D+${-left}`) : '기한 없음'}</span></div>
+      <div class="meta">${j.layout} · ${j.unit} ${j.total}${counter(j)}</div>
+      ${e
+        ? `<div class="prog"><span>${md(r)} 만듦</span><div class="track"><i style="width:${(passed * 100).toFixed(1)}%;background:${c.solid};opacity:.55"></i></div><span>${md(e)}(${W[e.getDay()]}) 기한</span></div>`
+        : `<div class="prog"><span>${md(r)} 만듦 · 제출 기한을 적지 않았어요</span><span style="flex:1"></span><button class="btn sm ghost" style="padding:0">기한 넣기</button></div>`}
+      <div class="wait"><b>취합 전</b> · 받은 파일을 넣으면 누가 냈는지 알려줘요</div>
+      <div class="acts"><button class="btn sm pri">받은 파일 취합하기</button><button class="btn sm">빈 양식 다시 받기</button></div>
+    </article>`);
+}
+
+// ── 내가 만든 양식 ──
+const thumbs = {
+  '표형': `<svg viewBox="0 0 160 66"><g stroke="#e2e7ee" fill="#fff"><rect x="0" y="0" width="160" height="12" fill="#e8f0fc"/>${[0,1,2,3].map(r => [0,1,2,3].map(c => `<rect x="${c*40}" y="${12+r*13}" width="40" height="13" fill="${c===0?'#f6f8fb':c===3?'#e5f4ee':'#fff5d1'}"/>`).join('')).join('')}</g></svg>`,
+  '목록형': `<svg viewBox="0 0 160 66"><g stroke="#e2e7ee"><rect x="0" y="0" width="160" height="12" fill="#e8f0fc"/>${[0,1,2,3,4].map(r => `<rect x="0" y="${12+r*10.8}" width="160" height="10.8" fill="#fff"/>`).join('')}<path d="M28 0v66M80 0v66M124 0v66"/></g><g fill="#fff5d1">${[0,1,2,3,4].map(r => `<rect x="29" y="${13+r*10.8}" width="130" height="8.8"/>`).join('')}</g></svg>`,
+  '혼합형': `<svg viewBox="0 0 160 66"><g stroke="#e2e7ee" fill="#fff"><rect x="0" y="0" width="76" height="16"/><rect x="84" y="0" width="76" height="16"/><rect x="34" y="3" width="38" height="10" fill="#fff5d1"/><rect x="118" y="3" width="38" height="10" fill="#fff5d1"/><rect x="0" y="22" width="160" height="10" fill="#e8f0fc"/>${[0,1,2].map(r => `<rect x="0" y="${32+r*11}" width="160" height="11"/>`).join('')}<path d="M50 22v44M110 22v44"/></g></svg>`,
+  '빈칸채우기형': `<svg viewBox="0 0 160 66"><rect x="22" y="0" width="116" height="66" fill="#fff" stroke="#e2e7ee"/><rect x="56" y="6" width="48" height="5" rx="2" fill="#cbd3dd"/>${[0,1,2,3].map(r => `<rect x="32" y="${18+r*11}" width="26" height="5" rx="2" fill="#e2e7ee"/><rect x="64" y="${16+r*11}" width="${r===2?40:64}" height="9" fill="#fff5d1" stroke="#efd88a"/>`).join('')}</svg>`,
+  '시트 모으기형': `<svg viewBox="0 0 160 66"><g stroke="#cbd3dd" fill="#fff"><rect x="40" y="2" width="80" height="54"/><rect x="34" y="7" width="80" height="54"/><rect x="28" y="12" width="80" height="54"/></g><rect x="28" y="12" width="80" height="9" fill="#e8f0fc"/></svg>`,
+};
+const forms = [
+  { name: '동절기 비상연락망', layout: '빈칸채우기형', who: '담당자 32명', when: '오늘 09:12', use: '취합 전', st: 'open', ver: 'v1' },
+  { name: '하반기 안전점검 결과', layout: '목록형', who: '부서 12곳', when: '10월 20일', use: '취합 전', st: 'open', ver: 'v2' },
+  { name: '분기별 에너지 절감량', layout: '표형', who: '지사 19곳', when: '10월 15일', use: '3번 취합함', st: 'open', ver: 'v4' },
+  { name: '2027 사업계획 초안', layout: '혼합형', who: '부서 12곳', when: '10월 21일', use: '내보내기 전', st: 'draft', ver: 'v1' },
+  { name: '3분기 교육 이수 현황', layout: '목록형', who: '부서 12곳', when: '10월 5일', use: '1번 취합함', st: 'idle', ver: 'v1' },
+  { name: '9월 고객 민원 현황', layout: '혼합형', who: '지사 19곳', when: '9월 24일', use: '6번 취합함', st: 'idle', ver: 'v3' },
+  { name: '지사별 설비 사진 모음', layout: '시트 모으기형', who: '지사 19곳', when: '8월 30일', use: '1번 취합함', st: 'idle', ver: 'v1' },
+];
+const stTone = { open: ['var(--auto-ink)', '요청 중'], draft: ['var(--warn-ink)', ''], idle: ['var(--line-strong)', ''] };
+document.getElementById('forms').innerHTML =
+  `<button class="box form new"><span class="plus">＋</span><b style="color:var(--ink)">새 양식 만들기</b><span style="font-size:12px">AI에게 말로 부탁하거나<br>쓰던 엑셀을 올려서 시작해요</span></button>` +
+  forms.map(f => `
+    <article class="box form">
+      <div class="thumb">${thumbs[f.layout]}</div>
+      <div class="bd">
+        <div style="display:flex;gap:4px"><span class="chip c-pri">${f.layout}</span>${f.st === 'draft' ? '<span class="chip c-warn">내보내기 전</span>' : ''}</div>
+        <b>${f.name}</b>
+        <div class="meta">${f.who} · ${f.ver} · ${f.when} 고침</div>
+        <div class="use"><i class="dot" style="background:${stTone[f.st][0]}"></i>${f.use}</div>
+        <div class="acts">${f.st === 'draft' ? '<button class="btn sm pri">이어서 고치기</button>' : f.st === 'open' ? '<button class="btn sm">열기</button>' : '<button class="btn sm pri">다시 요청하기</button>'}<button class="btn sm">복제</button></div>
+      </div>
+    </article>`).join('');
+
+// ── 취합 이력 ──
+// 취합 기록은 요약만 저장한다 (Neon moa_aggregations.summary). 결과 엑셀·받은 파일은 저장하지 않는다.
+const hist = [
+  { name: '3분기 교육 이수 현황', at: '10월 14일', layout: '목록형', unit: '부서', total: 12, got: 12, n2: ['184줄', '모은 줄'], chk: 0, missing: [] },
+  { name: '9월 고객 민원 현황', at: '10월 9일', layout: '혼합형', unit: '지사', total: 19, got: 18, n2: ['1,240건', '민원 합계'], chk: 2, missing: ['세종지사'] },
+  { name: '지사별 설비 사진 모음', at: '9월 3일', layout: '시트 모으기형', unit: '지사', total: 19, got: 17, n2: ['17장', '모은 시트'], chk: 0, missing: ['동탄지사', '양산지사'] },
+  { name: '분기별 에너지 절감량 (2분기)', at: '7월 21일', layout: '표형', unit: '지사', total: 19, got: 19, n2: ['3,812', '절감량 합계'], chk: 0, missing: [] },
+];
+document.getElementById('hist').innerHTML = hist.map(h => {
+  const all = h.got === h.total;
+  return `
+  <article class="box hist">
+    <div class="hd">
+      <div class="r1"><b>${h.name}</b>${all ? '<span class="chip c-auto">모두 받음</span>' : `<span class="chip c-warn">${h.total - h.got}곳 못 받음</span>`}</div>
+      <div class="meta">${h.at} 취합 · ${h.layout} · ${h.unit} ${h.total}곳</div>
+    </div>
+    <div class="nums">
+      <div><span>제출</span><b>${h.got}/${h.total}</b></div>
+      <div><span>${h.n2[1]}</span><b>${h.n2[0]}</b></div>
+      <div><span>확인 필요</span><b style="color:${h.chk ? 'var(--warn-ink)' : 'inherit'}">${h.chk}</b></div>
+    </div>
+    ${h.missing.length
+      ? `<div class="gone">안 낸 ${h.unit === '담당자' ? '사람' : '곳'} ${h.missing.map(m => `<span class="chip c-err">${m}</span>`).join('')}</div>`
+      : `<div class="gone ok">✓ 모든 ${h.unit}에서 받았어요</div>`}
+    <div class="acts"><button class="btn sm">받은 파일로 다시 취합</button><button class="btn sm ghost">양식 열기</button></div>
+  </article>`;
+}).join('');
+
+// ── 탭 전환 ──
+document.querySelectorAll('[data-tab]').forEach(t => t.onclick = () => {
+  document.querySelectorAll('[data-tab]').forEach(x => x.setAttribute('aria-selected', x === t));
+  document.getElementById('p-forms').hidden = t.dataset.tab !== 'forms';
+  document.getElementById('p-hist').hidden = t.dataset.tab !== 'hist';
+});
+document.querySelectorAll('.filters').forEach(g => g.onclick = e => {
+  const f = e.target.closest('.f'); if (!f) return;
+  g.querySelectorAll('.f').forEach(x => x.setAttribute('aria-pressed', x === f));
+});
+
+// ── 달력 막대와 오른쪽 카드를 서로 짚어 주기 + 말풍선 ──
+const tip = document.getElementById('tip');
+const hl = id => document.querySelectorAll('[data-job]').forEach(el => el.classList.toggle('hl', el.dataset.job === id));
+document.addEventListener('mouseover', e => { const el = e.target.closest('[data-job]'); hl(el ? el.dataset.job : null); });
+document.addEventListener('mousemove', e => {
+  const el = e.target.closest('.bar, .agg');
+  if (!el) { tip.style.opacity = 0; return; }
+  const j = jobs.find(x => x.id === el.dataset.job);
+  const st = j.state === 'done' ? `${md(d0(j.aggAt))} 취합 · ${j.got}/${j.total}${counter(j)} 받음` : '취합 전';
+  tip.innerHTML = `<b>${j.name}</b><br>${j.unit} ${j.total}${counter(j)} · ${st}<br>${md(d0(j.made))} 만듦 → ${j.due ? `${md(d0(j.due))} 제출 기한` : '제출 기한 없음'}`;
+  tip.style.left = e.clientX + 12 + 'px'; tip.style.top = e.clientY + 14 + 'px'; tip.style.opacity = 1;
+});
+</script>
+</body>
+</html>
