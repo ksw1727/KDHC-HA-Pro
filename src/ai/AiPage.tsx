@@ -23,8 +23,9 @@ interface Msg {
   form?: FormSchema;
   problems?: string[];     // 양식 규칙 위반 (있으면 내보내기 전에 고쳐야 함)
   badForm?: string;        // 양식 정의가 아예 틀렸을 때
-  edited?: boolean;        // 빌더에서 고친 양식으로 바뀜
-  base?: FormSchema;       // 빌더에서 고치기 전, AI가 만든 양식 (바뀐 점 보여 주기용)
+  edited?: boolean;        // 설정 패널(빌더)에서 고친 양식으로 바뀜
+  base?: FormSchema;       // 패널에서 고치기 전, AI가 만든 양식 (바뀐 점 보여 주기용)
+  opened?: boolean;        // AI가 아니라 패널에서 연 양식 (양식 파일·빈 양식)
 }
 
 /** 양식 비교용 (빌더가 저장할 때마다 바뀌는 updatedAt은 빼고) */
@@ -62,9 +63,16 @@ function checkForm(x: unknown): Pick<Msg, 'form' | 'problems' | 'badForm'> {
   if (!v.ok) return { badForm: v.errors.slice(0, 3).join(' / ') };
   return { form: v.schema, problems: validateForExport(v.schema).map((p) => p.message) };
 }
+/** 패널(빌더)에서 온 양식: 고치는 중이라 계약에 덜 맞아도(예: 빈 지사 목록) 미리보기는 보이고 고칠 곳으로 알린다 */
+const checkLocal = (s: FormSchema): Pick<Msg, 'form' | 'problems' | 'badForm'> => ({ form: s, badForm: undefined, problems: validateForExport(s).map((p) => p.message) });
 
-/** AI로 만들기: 하고 싶은 말을 하면 AI(OpenAI SDK)가 이 프로그램 규칙대로 양식을 만든다 (tools/ai/bridge.ts) */
-export function AiPage() {
+/** 오른쪽 설정 패널로 이 양식을 보낸다. auto: AI가 새로 만들었을 때(패널을 억지로 열지 않음) */
+const toPanel = (schema: FormSchema, o: { auto?: boolean; preferStored?: boolean } = {}) =>
+  window.dispatchEvent(new CustomEvent('hanan-moa:open-form', { detail: { schema, ...o } }));
+
+/** AI로 만들기: 하고 싶은 말을 하면 AI(OpenAI SDK)가 이 프로그램 규칙대로 양식을 만든다 (tools/ai/bridge.ts).
+ *  panelOpen: 오른쪽 설정 패널이 켜져 있으면 마지막 양식 카드가 패널과 연결돼, 고칠 때마다 미리보기가 바로 바뀐다 */
+export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const [health, setHealth] = useState<'checking' | 'off' | 'nokey' | 'ok'>('checking');
   const [models, setModels] = useState<string[]>([]);
   const [model, setModel] = useState<string>(() => { try { return localStorage.getItem(MODEL_KEY) ?? ''; } catch { return ''; } });
@@ -98,20 +106,35 @@ export function AiPage() {
   }, [chatId, msgs, aiVersion]);
 
   const lastForm = [...msgs].reverse().find((m) => m.form)?.form;
+  const lastFormAt = msgs.map((m) => !!m.form).lastIndexOf(true);
+  const [selKey, setSelKey] = useState<string | null>(null);   // 패널에서 고른 항목 (카드 미리보기에 표시)
 
   // 빌더에서 이 대화의 양식을 고치면 마지막 양식 카드를 바로 그 양식으로 바꾼다
   useEffect(() => {
     const apply = (s: FormSchema) => setMsgs((xs) => {
       const i = xs.map((m) => !!m.form).lastIndexOf(true);
       if (i < 0 || xs[i].form!.formId !== s.formId || sig(xs[i].form!) === sig(s)) return xs;
-      return xs.map((m, k) => (k === i ? { ...m, ...checkForm(s), edited: true, base: m.base ?? m.form } : m));
+      return xs.map((m, k) => (k === i ? { ...m, ...checkLocal(s), edited: true, base: m.base ?? m.form } : m));
     });
     const on = (e: Event) => apply((e as CustomEvent<FormSchema>).detail);
     window.addEventListener('hanan-moa:form-saved', on);
+    window.addEventListener('hanan-moa:form-edit', on);
+    // 패널에서 양식 파일을 열거나 빈 양식을 만들면 대화에 카드를 붙여 같이 고친다
+    const opened = (e: Event) => {
+      const { schema, how } = (e as CustomEvent<{ schema: FormSchema; how: 'new' | 'file' }>).detail;
+      setMsgs((xs) => [...xs, { role: 'ai', opened: true, ...checkLocal(schema),
+        text: how === 'new' ? '빈 양식을 만들었어요. 오른쪽 패널에서 고치거나, 여기서 말로 고쳐 달라고 해 주세요.' : '양식 파일을 열었어요. 오른쪽 패널에서 고치거나, 여기서 말로 고쳐 달라고 해 주세요.' }]);
+      setAiVersion('');   // AI 작업 폴더에 아직 없는 양식이라 다음 말에 함께 넘긴다
+    };
+    window.addEventListener('hanan-moa:form-opened', opened);
+    const picked = (e: Event) => setSelKey((e as CustomEvent<{ key: string | null }>).detail.key);
+    window.addEventListener('hanan-moa:field-selected', picked);
     // 새로고침 전에 고친 것도 맞춘다
     const last = [...saved.msgs].reverse().find((m) => m.form)?.form;
     const stored = last ? loadForm(last.formId)?.schema : undefined;
     if (stored) apply(stored);
+    // 새로고침해도 패널이 대화의 마지막 양식을 연다
+    if (last) toPanel(stored ?? last, { auto: true, preferStored: true });
     // 이전 화면에서 바뀐 카드라 원래 양식을 모르면 AI 작업 폴더의 양식을 가져온다
     const i = saved.msgs.map((m) => !!m.form).lastIndexOf(true);
     if (i >= 0 && saved.msgs[i].edited && !saved.msgs[i].base && saved.chatId) {
@@ -122,7 +145,10 @@ export function AiPage() {
         setMsgs((xs) => xs.map((m, k) => (k === i && !m.base ? { ...m, base: v.schema } : m)));
       }).catch(() => { /* 연결 서버가 없으면 그냥 둔다 */ });
     }
-    return () => window.removeEventListener('hanan-moa:form-saved', on);
+    return () => {
+      window.removeEventListener('hanan-moa:form-saved', on); window.removeEventListener('hanan-moa:form-edit', on);
+      window.removeEventListener('hanan-moa:form-opened', opened); window.removeEventListener('hanan-moa:field-selected', picked);
+    };
   }, [saved]);
   const patchLast = (f: (m: Msg) => Msg) => setMsgs((xs) => xs.map((m, i) => (i === xs.length - 1 ? f(m) : m)));
 
@@ -142,11 +168,11 @@ export function AiPage() {
       const lastMsg = [...msgs].reverse().find((m) => m.form);
       const edited = lastMsg?.edited;
       const changes = lastMsg?.base && lastMsg.form ? describeChanges(lastMsg.base, lastMsg.form) : [];
-      const form = lastForm && (aiVersion !== null ? sig(lastForm) !== aiVersion : edited) ? lastForm : undefined;
-      if (form) patchLast((m) => ({ ...m, status: '빌더에서 고친 양식을 AI에게 넘기는 중' }));
+      const form = lastForm && (aiVersion !== null ? sig(lastForm) !== aiVersion : edited || lastMsg?.opened) ? lastForm : undefined;
+      if (form) patchLast((m) => ({ ...m, status: lastMsg?.opened && !edited ? '패널에서 연 양식을 AI에게 넘기는 중' : '패널에서 고친 양식을 AI에게 넘기는 중' }));
       if (form) setAiVersion(sig(form));
       const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form,
+        body: JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form,
           files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) }), signal: ctl.signal });
       if (!res.body) throw new Error('연결 서버가 답하지 않아요');
       const reader = res.body.getReader();
@@ -164,7 +190,7 @@ export function AiPage() {
           if (e.type === 'chat') setChatId(e.chatId);
           else if (e.type === 'status') patchLast((m) => ({ ...m, status: e.text }));
           else if (e.type === 'text') patchLast((m) => ({ ...m, text: m.text ? `${m.text}\n\n${e.text}` : e.text }));
-          else if (e.type === 'form') { const c = checkForm(e.schema); patchLast((m) => ({ ...m, ...c })); if (c.form) setAiVersion(sig(c.form)); }
+          else if (e.type === 'form') { const c = checkForm(e.schema); patchLast((m) => ({ ...m, ...c })); if (c.form) { setAiVersion(sig(c.form)); toPanel(c.form, { auto: true }); } }
           else if (e.type === 'error') patchLast((m) => ({ ...m, error: e.text }));
         }
       }
@@ -189,7 +215,7 @@ export function AiPage() {
         <h1 className="m-0 text-xl font-bold">AI로 만들기</h1>
         <div className="rounded-card border border-line bg-panel p-4 text-sub">
           <p className="m-0 mb-2 font-semibold text-ink">{health === 'off' ? 'AI 연결 서버가 꺼져 있어요' : 'OpenAI API 키가 없어요'}</p>
-          <p className="m-0">AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 위쪽 [양식 만들기] 스위치(오른쪽 패널)와 [취합하기]는 지금도 그대로 쓸 수 있어요.</p>
+          <p className="m-0">AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 오른쪽 위 [양식 설정 패널] 스위치와 [취합하기]는 지금도 그대로 쓸 수 있어요.</p>
         </div>
       </div>
     );
@@ -197,7 +223,7 @@ export function AiPage() {
 
   const ok = health === 'ok';
   return (
-    <div className="mx-auto flex h-full max-w-[920px] flex-col gap-3 px-4 py-4">
+    <div className="mx-auto flex h-full max-w-[1080px] flex-col gap-3 px-4 py-4">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="m-0 text-xl font-bold">무엇을 받고 싶으세요?</h1>
         <span className="flex-1" />
@@ -228,7 +254,7 @@ export function AiPage() {
                   {m.files?.length ? <div className="flex flex-wrap justify-end gap-1">{m.files.map((n) => <FileChip key={n} name={n} />)}</div> : null}
                   <div className="whitespace-pre-wrap rounded-card bg-pri-bg px-3 py-2">{m.text}</div>
                 </div>
-              : <AiBubble key={i} m={m} />))}
+              : <AiBubble key={i} m={m} last={i === lastFormAt} linked={i === lastFormAt && panelOpen} selKey={i === lastFormAt ? selKey : null} />))}
             <div ref={end} />
           </div>
         )}
@@ -270,31 +296,32 @@ function bold(text: string) {
   return text.split(/\*\*(.+?)\*\*/g).map((s, i) => (i % 2 ? <b key={i}>{s}</b> : s));
 }
 
-/** 빌더에서 고친 내용 (AI가 쓴 설명은 그때 양식 기준이라, 바뀐 점은 여기서 따로 알린다) */
+/** 패널(빌더)에서 고친 내용 (AI가 쓴 설명은 그때 양식 기준이라, 바뀐 점은 여기서 따로 알린다) */
 function Changes({ lines }: { lines: string[] }) {
   if (!lines.length) return null;
   return (
     <div className="rounded-card border border-[#f1d2ac] bg-[#fffcf7] px-3 py-2 text-sm">
-      <b className="text-warn-ink">빌더에서 고친 내용</b> <span className="text-xs text-sub">(위 AI 설명보다 이 내용이 최신이에요. 다음에 말하면 AI에게도 전해요)</span>
+      <b className="text-warn-ink">패널에서 고친 내용</b> <span className="text-xs text-sub">(위 AI 설명보다 이 내용이 최신이에요. 다음에 말하면 AI에게도 전해요)</span>
       <ul className="m-0 mt-1 pl-5">{lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
     </div>
   );
 }
 
-function AiBubble({ m }: { m: Msg }) {
+function AiBubble({ m, last, linked, selKey }: { m: Msg; last: boolean; linked: boolean; selKey: string | null }) {
   return (
     <div className="flex max-w-full flex-col gap-2">
       {m.text && <div className={cx('whitespace-pre-wrap rounded-card px-3 py-2', /다시 만들 수 없어요/.test(m.text) ? 'border border-[#f3c2bd] bg-[#fffafa]' : 'bg-panel')}>{bold(m.text)}</div>}
       {m.status && <div className="flex items-center gap-2 text-xs text-sub"><span className="inline-block h-2 w-2 animate-pulse rounded-full bg-pri" />{m.status}…</div>}
       {m.badForm && <div className="rounded-card border border-[#f3c2bd] bg-[#fffafa] px-3 py-2 text-sm text-err-ink">AI가 만든 양식이 규칙에 맞지 않아요: {m.badForm}. "규칙에 맞게 다시 고쳐 줘"라고 말해 보세요.</div>}
-      {m.form && <FormCard schema={m.form} problems={m.problems ?? []} edited={m.edited} />}
+      {m.form && <FormCard schema={m.form} problems={m.problems ?? []} edited={m.edited} last={last} linked={linked} selKey={selKey} />}
       {m.form && m.base && <Changes lines={describeChanges(m.base, m.form)} />}
       {m.error && <div className="text-sm text-err-ink">{m.error}</div>}
     </div>
   );
 }
 
-function FormCard({ schema, problems, edited }: { schema: FormSchema; problems: string[]; edited?: boolean }) {
+/** linked: 오른쪽 설정 패널과 연결된 카드 (고칠 때마다 미리보기가 바뀌고, 머리글을 누르면 패널에서 그 항목이 열린다) */
+function FormCard({ schema, problems, edited, last, linked, selKey }: { schema: FormSchema; problems: string[]; edited?: boolean; last: boolean; linked: boolean; selKey: string | null }) {
   const org = schema.org.mode === 'preset' ? schema.org.orgs?.[0] : undefined;
   const model = useMemo(() => layoutSheet(schema, { mode: 'template', orgName: org }, { today: new Date() }), [schema, org]);
   const [busy, setBusy] = useState(false);
@@ -314,24 +341,26 @@ function FormCard({ schema, problems, edited }: { schema: FormSchema; problems: 
     } finally { setBusy(false); }
   };
   return (
-    <div className="overflow-hidden rounded-card border border-line">
+    <div className={cx('overflow-hidden rounded-card border', linked ? 'border-pri-line shadow-[0_0_0_3px_#e8f0fc]' : 'border-line')}>
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-2">
         <b>{schema.title || '(제목 없음)'}</b>
         <Chip tone="pri">{LAYOUT_LABELS[schema.layout]}</Chip>
         <span className="text-xs text-sub">{who}</span>
-        {edited && <Chip tone="warn">빌더에서 고침 · 다음에 말하면 AI가 이 양식에서 이어 가요</Chip>}
+        {linked && <Chip tone="pri">● 설정 패널과 연결됨 · 고치면 바로 반영</Chip>}
+        {edited && <Chip tone="warn">패널에서 고침 · 다음에 말하면 AI가 이 양식에서 이어 가요</Chip>}
         <span className="flex-1" />
         {problems.length === 0 ? <Chip tone="auto">검사 통과</Chip> : <Chip tone="err">고칠 곳 {problems.length}</Chip>}
       </div>
       <div className="max-h-[360px] overflow-auto bg-[#f7f8fa] p-2">
-        <PreviewGrid model={model} schema={schema} />
+        <PreviewGrid model={model} schema={schema} flash={linked} selectedKey={linked ? selKey : undefined}
+          onSelect={last ? (key) => window.dispatchEvent(new CustomEvent('hanan-moa:select-field', { detail: { key } })) : undefined} />
       </div>
       {problems.length > 0 && <ul className="m-0 border-t border-line px-6 py-2 text-sm text-err-ink">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
       <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2">
-        <Button variant="pri" size="sm" onClick={() => window.dispatchEvent(new CustomEvent('hanan-moa:open-form', { detail: { schema } }))}>빌더에서 열어 고치기</Button>
+        {!linked && <Button variant="pri" size="sm" onClick={() => toPanel(schema, { preferStored: true })}>패널에서 고치기</Button>}
         <Button size="sm" disabled={problems.length > 0 || busy} onClick={() => void toExcel()}>{busy ? '만드는 중…' : '엑셀 내보내기'}</Button>
         <Button size="sm" variant="ghost" onClick={() => exportFormJson(schema)}>양식 파일 저장</Button>
-        {problems.length > 0 && <span className="text-xs text-sub">고칠 곳을 AI에게 "고쳐 줘"라고 하거나 빌더에서 고쳐 주세요.</span>}
+        {problems.length > 0 && <span className="text-xs text-sub">고칠 곳을 AI에게 "고쳐 줘"라고 하거나 오른쪽 패널에서 고쳐 주세요.</span>}
       </div>
       {fail && <div className="border-t border-line bg-[#fffafa] px-3 py-2 text-sm text-err-ink">엑셀을 만들지 못했어요: {fail}</div>}
       {done && <div className="border-t border-line bg-[#f3faf5] px-3 py-2 text-sm"><b className="text-[#2f7a3b]">내려받았어요.</b> 지사에 보낼 안내문: <span className="text-sub">{done}</span></div>}
