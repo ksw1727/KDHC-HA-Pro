@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { SafeError, limits, uuid, parseInput, providerConfig, context, callProvider, checkedResult, type Turn } from './ai';
+import { SafeError, limits, uuid, parseInput, providerConfig, context, callProvider, checkedResult, ensureTitle, type Turn } from './ai';
 import { makeStore, type Store } from './store';
 export type Request = IncomingMessage & {body?:unknown};
 export interface Dependencies { env?:NodeJS.ProcessEnv; store?:Store; provider?:typeof callProvider }
@@ -64,6 +64,7 @@ export function handler(route:'health'|'chat'|'form'|'account', deps:Dependencie
       }
       if(controller.signal.aborted) throw new SafeError(408,'요청 시간이 지났거나 연결이 끊겼어요.');
       if(!result) throw new SafeError(502,'안전한 양식을 만들지 못했어요. 요청을 나눠 다시 시도해 주세요.');
+      if(result.form) result={...result,form:ensureTitle(result.form,input.message,previous)};
       const conversation:Turn[]=[...history,{role:'user',content:input.message},{role:'assistant',content:result.text}];
       while(Buffer.byteLength(JSON.stringify(conversation))>limits.history) conversation.shift();
       await store.finish(user,chatId,lease,conversation,result.form ?? previous);saved=true;
