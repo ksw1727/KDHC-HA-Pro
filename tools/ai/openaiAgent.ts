@@ -92,7 +92,7 @@ export async function runOpenAiAgent(o: AgentRun): Promise<AgentResult> {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY가 없어요. 프로그램 폴더의 .env.local에 넣어 주세요.');
   const agent = new Agent({
     name: '한난MOA 양식 도우미',
-    instructions: buildPrompt(o.root, o.prompt ?? 'C'),
+    instructions: buildPrompt(o.root, o.prompt ?? 'B'),
     model: o.model ?? OPENAI_MODELS[0],
     modelSettings: { reasoning: { effort: o.effort ?? 'low' } },
     tools: tools(o.ws, o.moa),

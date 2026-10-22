@@ -31,7 +31,7 @@ export type AiEvent =
 
 export const HOME = process.env.MOA_AI_HOME ?? join(homedir(), '.hanan-moa', 'ai');
 const CODEX_MODEL = process.env.MOA_CODEX_MODEL ?? 'gpt-6-astra';
-const OPENAI_PROMPT = (PROMPT_VERSIONS as readonly string[]).includes(process.env.MOA_OPENAI_PROMPT ?? '') ? process.env.MOA_OPENAI_PROMPT as PromptVersion : 'C';
+const OPENAI_PROMPT = (PROMPT_VERSIONS as readonly string[]).includes(process.env.MOA_OPENAI_PROMPT ?? '') ? process.env.MOA_OPENAI_PROMPT as PromptVersion : 'B';
 
 const has = (cmd: string) => spawnSync(cmd, ['--version'], { encoding: 'utf8' }).status === 0;
 

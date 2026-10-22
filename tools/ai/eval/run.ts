@@ -6,6 +6,7 @@
  * 결과: tools/ai/eval/out/results.json (한 줄 = 한 번 실행). 키는 .env.local의 OPENAI_API_KEY,
  * codex exec에도 그 키를 CODEX_API_KEY로 넘긴다 (ChatGPT 로그인은 그대로 둔다).
  */
+import './env';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
@@ -117,8 +118,7 @@ const c0 = (name: string, pass: boolean): Check => ({ name, pass });
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
-  process.env.MOA_AI_HOME ??= join(OUT, 'ws');
-  rmSync(process.env.MOA_AI_HOME, { recursive: true, force: true });
+  rmSync(process.env.MOA_AI_HOME!, { recursive: true, force: true });
   const moa = await buildMoa(ROOT);
   const jobs: [string, string, string, number][] = [];
   for (let rep = 1; rep <= REPS; rep++) for (const s of SCENARIOS) if (!ONLY.length || ONLY.includes(s.id)) for (const m of MODELS) for (const a of ARMS) jobs.push([a, m, s.id, rep]);
