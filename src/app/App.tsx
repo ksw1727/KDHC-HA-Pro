@@ -4,22 +4,23 @@ import { GeneratorRoot } from '@gen/index';
 import { AggregatorRoot } from '@agg/index';
 import { AiPage } from '../ai/AiPage';
 import { AdminPage, probeAdmin } from '../admin/AdminPage';
+import { WorkspacePage } from '../workspace/WorkspacePage';
 import type { FormSchema } from '@contract/schema';
 
-type Tab = 'ai' | 'generator' | 'aggregator' | 'admin';
+type Tab = 'home' | 'ai' | 'generator' | 'aggregator' | 'admin';
 
 export function App() {
   return <CloudGate><Workspace /></CloudGate>;
 }
 
 function Workspace() {
-  const [tab, setTab] = useState<Tab>('ai');
+  const [tab, setTab] = useState<Tab>('home');
   // 관리자에게만 관리자 탭을 보인다 (권한은 서버가 매 요청 다시 확인)
   const [admin, setAdmin] = useState(false);
   useEffect(() => { let alive = true; void probeAdmin().then((ok) => { if (alive) setAdmin(ok); }); return () => { alive = false; }; }, []);
   const [formId, setFormId] = useState<string>();
-  // AI로 만들기의 [빌더에서 열어 고치기]: 그 양식을 빌더로 연다
-  const [incoming, setIncoming] = useState<{ schema: FormSchema; at: number }>();
+  // AI로 만들기의 [빌더에서 열어 고치기]·내 업무공간의 [열기]: 그 양식을 빌더로 연다
+  const [incoming, setIncoming] = useState<{ schema: FormSchema; lastExported?: FormSchema; at: number }>();
   // 양식 만들기 완료 화면의 [취합하기로 이동]
   useEffect(() => {
     const on = (e: Event) => {
@@ -27,7 +28,7 @@ function Workspace() {
       setTab(next);
       if (id) setFormId(id);
     };
-    const open = (e: Event) => { setIncoming({ schema: (e as CustomEvent<{ schema: FormSchema }>).detail.schema, at: Date.now() }); setTab('generator'); };
+    const open = (e: Event) => { const { schema, lastExported } = (e as CustomEvent<{ schema: FormSchema; lastExported?: FormSchema }>).detail; setIncoming({ schema, lastExported, at: Date.now() }); setTab('generator'); };
     window.addEventListener('hanan-moa:tab', on);
     window.addEventListener('hanan-moa:open-form', open);
     return () => { window.removeEventListener('hanan-moa:tab', on); window.removeEventListener('hanan-moa:open-form', open); };
@@ -41,6 +42,7 @@ function Workspace() {
         <nav className="flex shrink-0 gap-0.5 rounded-box bg-chip p-[3px]" aria-label="주요 화면">
           {(
             [
+              ['home', '내 업무공간'],
               ['ai', 'AI로 만들기'],
               ['generator', '양식 만들기'],
               ['aggregator', '취합하기'],
@@ -66,7 +68,9 @@ function Workspace() {
       <main className="min-h-0 flex-1">
         {/* AI로 만들기는 다른 화면에 다녀와도 대화가 이어지도록 늘 켜 두고 숨기기만 한다 */}
         <div className={tab === 'ai' ? 'h-full overflow-auto' : 'hidden'}><AiPage /></div>
-        {tab === 'ai' ? null : tab === 'generator' ? (
+        {tab === 'ai' ? null : tab === 'home' ? (
+          <div className="h-full overflow-auto"><WorkspacePage /></div>
+        ) : tab === 'generator' ? (
           <GeneratorRoot incoming={incoming} />
         ) : tab === 'admin' && admin ? (
           <div className="h-full overflow-auto"><AdminPage /></div>

@@ -9,6 +9,8 @@ import { normalize } from './pipeline/normalize';
 import { slotId as slotIdOf } from './pipeline/parse';
 import { emptyDecisions, type Decisions, type Issue, type Question } from './pipeline/types';
 import { ResultPreview, TablePreview } from './ResultPreview';
+import { scopedStorageKey } from '../cloud/runtime';
+import { recordAggregation } from '../workspace/history';
 
 /** 취합하기 화면 (03-aggregator.md 2절, 모형 docs/mockups/aggregate-review.html) */
 
@@ -60,7 +62,7 @@ function download(name: string, bytes: Uint8Array, type: string) {
 function storedForm(formId?: string): FormSchema | null {
   if (!formId) return null;
   try {
-    const raw = localStorage.getItem(`hanan-moa:forms:${formId}`);
+    const raw = localStorage.getItem(scopedStorageKey(`hanan-moa:forms:${formId}`));   // 온라인 모드는 계정별 키
     const v = raw ? (JSON.parse(raw) as { schema: FormSchema; lastExported?: FormSchema }) : null;
     return v ? v.lastExported ?? v.schema : null;
   } catch { return null; }
@@ -201,6 +203,12 @@ export function AggregatePage({ formId }: { formId?: string }) {
       const spare = schema.blocks.some((b) => b.kind === 'grid' && b.spareRows > 0);
       const what = collect ? '의 시트를 모았어요' : hasList ? `, 행 ${rows}개를 취합했어요` : spare && rows ? `을 취합했어요 (여유 줄 ${rows}줄)` : '을 취합했어요';
       setDone({ files: names, message: `${who}${what} · 검산 ${out.verify.ok ? '일치' : '불일치 — 받은 파일의 검산 시트를 확인해 주세요'}` });
+      // 내 업무공간의 취합 이력: 요약만 남긴다 (결과 파일은 저장하지 않음)
+      recordAggregation({
+        formId: schema.formId, formVersion: schema.formVersion, title: schema.title, layout: schema.layout,
+        unit: schema.org.mode === 'none' ? '파일' : L, total: orgsTotal || null, got: res.included.length,
+        missing: res.missingOrgs, rows, checked: res.valueIssues.length, verifyOk: out.verify.ok,
+      }, at);
       setStage('done');
     } catch (e) {
       setError(`결과 파일을 만들다가 문제가 생겼어요: ${(e as Error).message}`);
