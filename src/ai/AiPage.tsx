@@ -10,7 +10,7 @@ import { loadForm } from '@gen/storage/localForms';
 import { describeChanges } from './formDiff';
 import { Button, Chip, TextArea, cx } from '@gen/ui/ui';
 
-type Engine = 'claude' | 'codex';
+type Engine = 'claude' | 'codex' | 'openai';
 type AiEvent =
   | { type: 'chat'; chatId: string } | { type: 'status'; text: string } | { type: 'text'; text: string }
   | { type: 'form'; schema: unknown } | { type: 'error'; text: string } | { type: 'done' };
@@ -31,7 +31,8 @@ interface Msg {
 /** 양식 비교용 (빌더가 저장할 때마다 바뀌는 updatedAt은 빼고) */
 const sig = (s: FormSchema) => JSON.stringify({ ...s, updatedAt: '' });
 
-const ENGINES: [Engine, string][] = [['claude', 'Claude'], ['codex', 'Codex']];
+const ENGINES: [Engine, string][] = [['claude', 'Claude'], ['codex', 'Codex'], ['openai', 'OpenAI']];
+const ENGINE_NAME: Record<Engine, string> = Object.fromEntries(ENGINES) as Record<Engine, string>;
 const EXAMPLES = [
   '지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일, 지사 전체',
   '위에 담당자·연락처를 받고, 아래에 안전보호구 지급 내역(품목·수량·단가)을 받는 부서별 양식',
@@ -39,6 +40,7 @@ const EXAMPLES = [
   '2027 사업예산 요구표. 사업별로 지사마다 자기 열에 요구액을 적게 해 주세요',
 ];
 const ENGINE_KEY = 'hanan-moa:ai-engine';
+const MODEL_KEY = 'hanan-moa:ai-openai-model';
 const MAX_FILE = 10 * 1024 * 1024;   // 올릴 수 있는 엑셀 크기
 const isExcel = (f: File) => /\.(xlsx|xlsm|xls)$/i.test(f.name);
 
@@ -65,9 +67,11 @@ function checkForm(x: unknown): Pick<Msg, 'form' | 'problems' | 'badForm'> {
   return { form: v.schema, problems: validateForExport(v.schema).map((p) => p.message) };
 }
 
-/** AI로 만들기: 하고 싶은 말을 하면 AI(claude -p / codex exec)가 이 프로그램 규칙대로 양식을 만든다 (tools/ai/bridge.ts) */
+/** AI로 만들기: 하고 싶은 말을 하면 AI(claude -p / codex exec / OpenAI SDK)가 이 프로그램 규칙대로 양식을 만든다 (tools/ai/bridge.ts) */
 export function AiPage() {
-  const [health, setHealth] = useState<'checking' | 'off' | { claude: boolean; codex: boolean }>('checking');
+  const [health, setHealth] = useState<'checking' | 'off' | Record<Engine, boolean>>('checking');
+  const [models, setModels] = useState<string[]>([]);
+  const [model, setModel] = useState<string>(() => { try { return localStorage.getItem(MODEL_KEY) ?? ''; } catch { return ''; } });
   const [engine, setEngine] = useState<Engine>(() => { try { return (localStorage.getItem(ENGINE_KEY) as Engine) || 'claude'; } catch { return 'claude'; } });
   const [saved] = useState(loadChat);
   const [chatId, setChatId] = useState<string | null>(saved.chatId);
@@ -89,10 +93,12 @@ export function AiPage() {
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/ai/health').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => setHealth(j.engines)).catch(() => setHealth('off'));
+    fetch('/api/ai/health').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { setHealth(j.engines); setModels(j.openaiModels ?? []); }).catch(() => setHealth('off'));
   }, []);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
   useEffect(() => { try { localStorage.setItem(ENGINE_KEY, engine); } catch { /* 저장 못 해도 됨 */ } }, [engine]);
+  useEffect(() => { try { if (model) localStorage.setItem(MODEL_KEY, model); } catch { /* 저장 못 해도 됨 */ } }, [model]);
+  const openaiModel = models.includes(model) ? model : models[0];
   useEffect(() => {
     try { if (msgs.length) localStorage.setItem(CHAT_KEY, JSON.stringify({ chatId, msgs, aiVersion })); else localStorage.removeItem(CHAT_KEY); } catch { /* 저장 못 해도 됨 */ }
   }, [chatId, msgs, aiVersion]);
@@ -146,7 +152,7 @@ export function AiPage() {
       if (form) patchLast((m) => ({ ...m, status: '빌더에서 고친 양식을 AI에게 넘기는 중' }));
       if (form) setAiVersion(sig(form));
       const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ chatId: chatId ?? undefined, engine, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form,
+        body: JSON.stringify({ chatId: chatId ?? undefined, engine, model: engine === 'openai' ? openaiModel : undefined, message: form ? `(사용자가 빌더에서 form.json을 직접 고쳤어요. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message, form,
           files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) }), signal: ctl.signal });
       if (!res.body) throw new Error('연결 서버가 답하지 않아요');
       const reader = res.body.getReader();
@@ -189,7 +195,7 @@ export function AiPage() {
         <h1 className="m-0 text-xl font-bold">AI로 만들기</h1>
         <div className="rounded-card border border-line bg-panel p-4 text-sub">
           <p className="m-0 mb-2 font-semibold text-ink">AI 연결 서버가 꺼져 있어요</p>
-          <p className="m-0">AI로 만들기는 이 컴퓨터의 <b>claude</b>·<b>codex</b> 명령어로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 위쪽 [양식 만들기]·[취합하기]는 지금도 그대로 쓸 수 있어요.</p>
+          <p className="m-0">AI로 만들기는 이 컴퓨터의 <b>claude</b>·<b>codex</b> 명령어나 OpenAI API(<code>.env.local</code>의 키)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 위쪽 [양식 만들기]·[취합하기]는 지금도 그대로 쓸 수 있어요.</p>
         </div>
       </div>
     );
@@ -210,6 +216,12 @@ export function AiPage() {
             </button>
           ))}
         </div>
+        {engine === 'openai' && models.length > 0 && (
+          <select aria-label="OpenAI 모델" className="rounded-box border border-line bg-white px-2 py-1 text-[13px]" value={openaiModel} disabled={busy}
+            onChange={(e) => setModel(e.target.value)}>
+            {models.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+        )}
         {msgs.length > 0 && <Button size="sm" variant="ghost" onClick={reset}>새 대화</Button>}
       </div>
 
@@ -254,7 +266,7 @@ export function AiPage() {
         {busy ? <Button onClick={() => abort.current?.abort()}>멈추기</Button>
           : <Button variant="pri" disabled={(!input.trim() && !attached.length) || !ok(engine)} onClick={() => void send()}>보내기</Button>}
       </div>
-      <p className="m-0 text-xs text-muted">Enter로 보내고 Shift+Enter로 줄을 바꿔요. 보낸 말은 고른 AI({engine === 'claude' ? 'Claude' : 'Codex'})로 전달돼요. 회신 파일 내용은 보내지 않아요.</p>
+      <p className="m-0 text-xs text-muted">Enter로 보내고 Shift+Enter로 줄을 바꿔요. 보낸 말은 고른 AI({engine === 'openai' ? `OpenAI ${openaiModel ?? ''}` : ENGINE_NAME[engine]})로 전달돼요. 회신 파일 내용은 보내지 않아요.</p>
     </div>
   );
 }
