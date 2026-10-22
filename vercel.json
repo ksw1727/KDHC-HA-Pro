@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "regions": ["sin1"],
+  "functions": {
+    "api/**/*.ts": { "maxDuration": 60, "supportsCancellation": true }
+  },
+  "rewrites": [
+    { "source": "/api/auth/:path+", "destination": "/api/auth?moa_auth_path=:path+" }
+  ],
+  "headers": [
+    { "source": "/(.*)", "headers": [
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+      { "key": "X-Frame-Options", "value": "DENY" }
+    ]},
+    { "source": "/api/(.*)", "headers": [
+      { "key": "Cache-Control", "value": "no-store" }
+    ]}
+  ]
+}
