@@ -165,18 +165,43 @@ td[data-at].in.flash{background:#fff2b3}
 .first-note{display:none;margin-top:14px;background:var(--pri-bg);border:1px solid var(--pri-line);border-radius:12px;padding:12px 16px;font-size:13.5px;color:var(--pri-ink)}
 .app[data-first="1"] .first-note{display:block}
 .app[data-first="1"] .recent{display:none}
+
+/* 10.22: 양식 만들기 = AI로 만들기 화면 오른쪽 패널 */
+.mx-nav{display:flex;gap:2px;background:#eef2f7;border-radius:8px;padding:3px}
+.mx-nav span{padding:4px 12px;border-radius:6px;color:#5b6573;font-size:13px}
+.mx-nav span.on{background:#fff;color:#1b2430;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mx-sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#5b6573;white-space:nowrap}
+.mx-sw i{position:relative;width:32px;height:18px;border-radius:9px;background:#1f5fbf;display:inline-block}
+.mx-sw i::after{content:"";position:absolute;left:16px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.app.mx-app{min-width:1560px}
+.mx-ws{display:flex;align-items:stretch}
+.mx-ai{flex:0 0 380px;display:flex;flex-direction:column;gap:10px;padding:14px;border-right:1px solid #cbd3dd;background:#fff;font-size:13px}
+.mx-ai h4{margin:0;font-size:16px}
+.mx-ai .u{align-self:flex-end;max-width:85%;background:#eaf1fc;border-radius:10px;padding:8px 10px}
+.mx-ai .a{max-width:92%;background:#f6f7f9;border-radius:10px;padding:8px 10px;color:#1b2430}
+.mx-ai .fc{border:1px solid #e3e7ec;border-radius:10px;overflow:hidden}
+.mx-ai .fc b{display:block;padding:6px 10px;background:#f6f7f9;border-bottom:1px solid #e3e7ec}
+.mx-ai .fc span{display:block;height:44px;margin:8px 10px;background:repeating-linear-gradient(#fff 0 10px,#e3e7ec 10px 11px)}
+.mx-ai .in{margin-top:auto;border:1px solid #cbd3dd;border-radius:8px;padding:10px;color:#8a939d}
+.mx-p{flex:1;min-width:0;border-left:3px solid #b9cff2}
+.mx-pt{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #e3e7ec;min-height:30px}
+.mx-note{margin:6px 0 0;font-size:12.5px;color:#5b6573}
 </style>
 </head>
 <body>
 <div class="page">
   <div class="eyebrow">한난MOA · 생성 파트 · 공공 블루 · 양식 만들기 첫 화면(랜딩)</div>
   <h1>양식 만들기 첫 화면: 구조 고르기가 곧 시작 화면</h1>
-  <p class="lead">"양식 만들기" 탭을 열면 바로 <b>어떤 모양의 양식을 만들지</b>부터 고릅니다. 지난 시작 화면의 기능(양식 파일 불러오기, 엑셀에서 되살리기, 최근 양식)은 이 화면 안으로 옮겼습니다. 카드 애니메이션, 질문으로 고르기, [불러오기·되살리기] 버튼, 최근 양식 카드는 실제로 눌러 볼 수 있습니다.</p>
+  <p class="lead">[AI로 만들기] 화면 오른쪽 위 [양식 만들기] 스위치로 패널을 열면 바로 <b>어떤 모양의 양식을 만들지</b>부터 고릅니다. 지난 시작 화면의 기능(양식 파일 불러오기, 엑셀에서 되살리기, 최근 양식)은 이 화면 안으로 옮겼습니다. 카드 애니메이션, 질문으로 고르기, [불러오기·되살리기] 버튼, 최근 양식 카드는 실제로 눌러 볼 수 있습니다.</p>
   <div class="modebar"><span class="on" data-first="0">다시 온 사람 (최근 양식 있음)</span><span data-first="1">처음 온 사람</span></div>
 
-  <div class="scroller"><div class="app" id="app" data-first="0">
+  <div class="scroller"><div class="app mx-app" id="app" data-first="0">
     <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
-    <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="sp"></span><span class="crumb">파일은 이 컴퓨터 밖으로 나가지 않아요</span></div>
+    <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4>
+<div class="u">지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일</div>
+<div class="a">양식을 만들었어요. 오른쪽 [양식 만들기] 패널에서 직접 고칠 수도 있어요.</div>
+<div class="fc"><b>2026 하반기 교육 참가자 조사</b><span></span></div>
+<div class="in">고칠 내용을 말해 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span class="sp"></span><span class="crumb">파일은 이 컴퓨터 밖으로 나가지 않아요</span></div>
     <div class="pick">
       <div class="landing-h">
         <div><h3>어떤 모양의 양식을 만들까요?</h3><p>카드를 누르면 지사가 작성하고 취합되는 과정을 아래에서 크게 보여드려요.</p></div>
@@ -229,17 +254,18 @@ td[data-at].in.flash{background:#fff2b3}
         </div>
       </div>
     </div>
-  </div></div>
+  </div></div></div></div>
 
   <section class="sec">
     <h2>무엇이 바뀌었나</h2>
     <div class="notes">
       <ul style="margin:0;padding-left:18px">
-        <li><b>첫 화면 = 구조 고르기</b>: 양식 만들기 탭을 열면 바로 5개 구조 카드와 큰 미리보기가 나옵니다. 카드 아래 버튼 하나로 빌더가 열립니다.</li>
+        <li><b>첫 화면 = 구조 고르기</b>: 양식 만들기 패널을 열면 바로 구조 카드와 큰 미리보기가 나옵니다. 카드 아래 버튼 하나로 빌더가 열립니다.</li>
         <li><b>시트 모으기형 카드 추가</b>: "지사마다 다른 모양 → 목차 + 지사별 시트 탭"으로 모이는 애니메이션. 질문으로 고르기에도 "모양이 제각각인 보고서" 선택지 추가.</li>
         <li><b>이미 만든 양식 열기</b>: 오른쪽 위 버튼을 누르면 양식 파일 불러오기·엑셀에서 되살리기 칸이 펼쳐집니다. 자주 쓰지 않는 기능이라 접어 두었습니다.</li>
         <li><b>최근 양식</b>: 화면 아래 카드 4개 + [모두 보기]. 지난달 양식 복제를 빠르게 하도록 [복제]를 카드마다 둡니다.</li>
         <li><b>처음 온 사람</b>: 최근 양식 대신 "만들기 → 보내고 받기 → 취합하기" 안내 한 줄을 위에 보여줍니다(위 버튼으로 전환해 보세요).</li>
+        <li><b>(10.22) 화면 위치</b>: 양식 만들기 탭은 없어졌어요. [AI로 만들기] 화면 오른쪽 패널로 열리고(스위치로 켜고 끔), 왼쪽 경계를 끌어 너비를 바꿉니다. 위쪽 메뉴는 [AI로 만들기]·[취합하기] 두 개.</li>
         <li>내보내기 화면 3장(검사·확인·완료)은 <code>generator-start-export.html</code>의 3~5번을 그대로 씁니다. 그 파일의 1~2번(이전 시작 화면)은 이 화면으로 바뀝니다.</li>
       </ul>
     </div>

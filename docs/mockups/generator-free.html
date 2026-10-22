@@ -67,6 +67,27 @@ td.sel{outline:3px solid var(--pri);outline-offset:-3px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media (max-width:900px){.cols,.grid2{grid-template-columns:1fr}}
 .kbd{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--chip);border-radius:4px;padding:0 4px}
+
+/* 10.22: 양식 만들기 = AI로 만들기 화면 오른쪽 패널 */
+.mx-nav{display:flex;gap:2px;background:#eef2f7;border-radius:8px;padding:3px}
+.mx-nav span{padding:4px 12px;border-radius:6px;color:#5b6573;font-size:13px}
+.mx-nav span.on{background:#fff;color:#1b2430;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mx-sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#5b6573;white-space:nowrap}
+.mx-sw i{position:relative;width:32px;height:18px;border-radius:9px;background:#1f5fbf;display:inline-block}
+.mx-sw i::after{content:"";position:absolute;left:16px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.app.mx-app{min-width:1560px}
+.mx-ws{display:flex;align-items:stretch}
+.mx-ai{flex:0 0 380px;display:flex;flex-direction:column;gap:10px;padding:14px;border-right:1px solid #cbd3dd;background:#fff;font-size:13px}
+.mx-ai h4{margin:0;font-size:16px}
+.mx-ai .u{align-self:flex-end;max-width:85%;background:#eaf1fc;border-radius:10px;padding:8px 10px}
+.mx-ai .a{max-width:92%;background:#f6f7f9;border-radius:10px;padding:8px 10px;color:#1b2430}
+.mx-ai .fc{border:1px solid #e3e7ec;border-radius:10px;overflow:hidden}
+.mx-ai .fc b{display:block;padding:6px 10px;background:#f6f7f9;border-bottom:1px solid #e3e7ec}
+.mx-ai .fc span{display:block;height:44px;margin:8px 10px;background:repeating-linear-gradient(#fff 0 10px,#e3e7ec 10px 11px)}
+.mx-ai .in{margin-top:auto;border:1px solid #cbd3dd;border-radius:8px;padding:10px;color:#8a939d}
+.mx-p{flex:1;min-width:0;border-left:3px solid #b9cff2}
+.mx-pt{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #e3e7ec;min-height:30px}
+.mx-note{margin:6px 0 0;font-size:12.5px;color:#5b6573}
 </style>
 </head>
 <body>
@@ -75,10 +96,15 @@ td.sel{outline:3px solid var(--pri);outline-offset:-3px}
   <h1>자유 제작형: 미리보기에서 직접 그리고, 입력할 곳을 지정한다</h1>
   <p class="lead">표 모양을 엑셀처럼 직접 그린 뒤, 작성자가 채울 곳을 <b>입력 칸 · 입력 줄 영역 · 숫자 표</b> 세 가지로 지정합니다.
   ④ 취합 방식에서 방식을 고르면 <b>이 모양으로 취합이 되는지</b> 바로 검사하고, 안 되면 이유와 고칠 곳을 알려줍니다.</p>
+  <p class="mx-note">10.22부터 양식 만들기는 따로 탭 없이 [AI로 만들기] 화면 오른쪽 패널로 열려요. 아래 화면도 그 배치로 고쳤습니다(왼쪽 = AI 대화, 오른쪽 = 양식 만들기 패널).</p>
 
   <h2>1. 빌더 화면 — 오른쪽 미리보기가 곧 그리는 판</h2>
-  <div class="app">
-    <div class="top"><span class="logo">한난<b>MOA</b></span><span class="chip">자유 제작형</span><span class="chip">v1 · 자동 저장됨</span><span style="flex:1"></span><span class="btn">← 처음 화면</span><span class="btn">양식 파일 저장</span><span class="btn pri">엑셀 내보내기</span></div>
+  <div style="overflow-x:auto;margin-top:14px"><div class="app mx-app">
+    <div class="top"><span class="logo">한난<b>MOA</b></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4>
+<div class="u">지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일</div>
+<div class="a">양식을 만들었어요. 오른쪽 [양식 만들기] 패널에서 직접 고칠 수도 있어요.</div>
+<div class="fc"><b>2026 하반기 교육 참가자 조사</b><span></span></div>
+<div class="in">고칠 내용을 말해 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span class="chip">자유 제작형</span><span class="chip">v1 · 자동 저장됨</span><span style="flex:1"></span><span class="btn">← 처음 화면</span><span class="btn">양식 파일 저장</span><span class="btn pri">엑셀 내보내기</span></div>
     <div class="cols">
       <aside>
         <div class="pn"><div class="h"><span class="n">1</span>기본 정보<span class="s">10월 안전점검 결과</span></div></div>
@@ -140,7 +166,7 @@ td.sel{outline:3px solid var(--pri);outline-offset:-3px}
         </div>
       </main>
     </div>
-  </div>
+  </div></div></div></div>
 
   <h2>2. ④ 취합 방식 — 고르면 바로 검사</h2>
   <p class="lead">방식마다 ✓ 가능 / ✕ 안 됨 / ! 고치면 됨을 보여주고, <b>왜</b>와 <b>무엇을 고치면 되는지</b>를 한 줄씩 적습니다. [고치러 가기]를 누르면 미리보기에서 그 칸을 골라 줍니다.</p>

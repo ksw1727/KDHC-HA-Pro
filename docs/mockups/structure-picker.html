@@ -133,6 +133,27 @@ td[data-at].in.flash{background:#fff2b3}
 .notes ul{margin:6px 0 0;padding-left:18px}
 .notes li{margin:3px 0}
 .box{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+
+/* 10.22: 양식 만들기 = AI로 만들기 화면 오른쪽 패널 */
+.mx-nav{display:flex;gap:2px;background:#eef2f7;border-radius:8px;padding:3px}
+.mx-nav span{padding:4px 12px;border-radius:6px;color:#5b6573;font-size:13px}
+.mx-nav span.on{background:#fff;color:#1b2430;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mx-sw{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#5b6573;white-space:nowrap}
+.mx-sw i{position:relative;width:32px;height:18px;border-radius:9px;background:#1f5fbf;display:inline-block}
+.mx-sw i::after{content:"";position:absolute;left:16px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.app.mx-app{min-width:1560px}
+.mx-ws{display:flex;align-items:stretch}
+.mx-ai{flex:0 0 380px;display:flex;flex-direction:column;gap:10px;padding:14px;border-right:1px solid #cbd3dd;background:#fff;font-size:13px}
+.mx-ai h4{margin:0;font-size:16px}
+.mx-ai .u{align-self:flex-end;max-width:85%;background:#eaf1fc;border-radius:10px;padding:8px 10px}
+.mx-ai .a{max-width:92%;background:#f6f7f9;border-radius:10px;padding:8px 10px;color:#1b2430}
+.mx-ai .fc{border:1px solid #e3e7ec;border-radius:10px;overflow:hidden}
+.mx-ai .fc b{display:block;padding:6px 10px;background:#f6f7f9;border-bottom:1px solid #e3e7ec}
+.mx-ai .fc span{display:block;height:44px;margin:8px 10px;background:repeating-linear-gradient(#fff 0 10px,#e3e7ec 10px 11px)}
+.mx-ai .in{margin-top:auto;border:1px solid #cbd3dd;border-radius:8px;padding:10px;color:#8a939d}
+.mx-p{flex:1;min-width:0;border-left:3px solid #b9cff2}
+.mx-pt{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #e3e7ec;min-height:30px}
+.mx-note{margin:6px 0 0;font-size:12.5px;color:#5b6573}
 </style>
 </head>
 <body>
@@ -140,6 +161,7 @@ td[data-at].in.flash{background:#fff2b3}
   <div class="eyebrow">한난MOA · 생성 파트 · 공공 블루 스타일 · 양식 구조 고르기 화면 제안</div>
   <h1>"어떤 구조로 만들지" 고민하지 않게 하는 화면</h1>
   <p class="lead">구조 이름(목록형, 표형 등)만으로는 결과를 떠올리기 어렵습니다. 그래서 <b>배포 양식이 지사를 거쳐 취합본이 되는 과정</b>을 짧은 움직임으로 보여주고, 그래도 모르겠으면 질문에 답해서 고를 수 있게 했습니다. 아래 목업은 실제로 눌러볼 수 있습니다.</p>
+  <p class="mx-note">10.22부터 양식 만들기는 따로 탭 없이 [AI로 만들기] 화면 오른쪽 패널로 열려요. 아래 화면도 그 배치로 고쳤습니다(왼쪽 = AI 대화, 오른쪽 = 양식 만들기 패널).</p>
 
   <div class="idea">
     <div><span class="n">1</span><b>카드에서 미리 보기</b>구조 4개를 카드로 나란히 보여줍니다. 카드마다 결과 모양이 작게 반복 재생되고, 쓰임새 예시가 붙어 있습니다.</div>
@@ -149,9 +171,13 @@ td[data-at].in.flash{background:#fff2b3}
 
   <section class="sec">
     <h2>목업: 새 양식 만들기 → 구조 고르기</h2>
-    <div class="scroller"><div class="app">
+    <div class="scroller"><div class="app mx-app">
       <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="u">index.html — 한난MOA</span></div>
-      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span class="on">양식 만들기</span><span>취합하기</span></span><span class="crumb">시작 › 새 양식 › <b style="color:var(--ink)">구조 고르기</b></span><span class="sp"></span><button class="btn">취소</button></div>
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4>
+<div class="u">지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일</div>
+<div class="a">양식을 만들었어요. 오른쪽 [양식 만들기] 패널에서 직접 고칠 수도 있어요.</div>
+<div class="fc"><b>2026 하반기 교육 참가자 조사</b><span></span></div>
+<div class="in">고칠 내용을 말해 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span class="crumb">시작 › 새 양식 › <b style="color:var(--ink)">구조 고르기</b></span><span class="sp"></span><button class="btn">취소</button></div>
       <div class="pick">
         <div class="pick-h">
           <div><h3>어떤 모양의 양식을 만들까요?</h3><p>카드를 누르면 아래에서 지사가 작성하고 취합되는 과정을 크게 보여드려요.</p></div>
@@ -186,7 +212,7 @@ td[data-at].in.flash{background:#fff2b3}
 
         <div class="foot"><span class="crumb">구조는 만드는 중에도 ② 양식 구조에서 바꿀 수 있어요.</span><span class="sp"></span><button class="btn">양식 JSON 불러오기</button><button class="btn pri" id="go">혼합형으로 시작하기 →</button></div>
       </div>
-    </div></div>
+    </div></div></div></div>
   </section>
 
   <section class="sec">
