@@ -87,6 +87,12 @@ td.sel{outline:3px solid var(--pri);outline-offset:-3px}
 .mx-ai .in{margin-top:auto;border:1px solid #cbd3dd;border-radius:8px;padding:10px;color:#8a939d}
 .mx-p{flex:1;min-width:0;border-left:3px solid #b9cff2}
 .mx-pt{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #e3e7ec;min-height:30px}
+.mx-ai .ex{display:flex;flex-wrap:wrap;gap:6px}
+.mx-ai .ex i{font-style:normal;border:1px solid #e3e7ec;background:#f6f7f9;border-radius:999px;padding:3px 10px;font-size:12px}
+.mx-ai .fc b em{font-style:normal;font-weight:600;font-size:11px;border-radius:4px;padding:1px 6px;margin-left:4px}
+.mx-ai em.ok{background:#e6f4ea;color:#2f7a3b}.mx-ai em.err{background:#fdecea;color:#b42318}
+.mx-ai .fc .dn{margin:0;padding:6px 10px;border-top:1px solid #e3e7ec;background:#f3faf5;font-size:12px}
+.mx-ai .fx{display:inline-block;background:#1e7b45;color:#fff;border-radius:3px;padding:0 4px;font-size:10px;font-family:monospace}
 .mx-note{margin:6px 0 0;font-size:12.5px;color:#5b6573}
 </style>
 </head>
@@ -100,11 +106,7 @@ td.sel{outline:3px solid var(--pri);outline-offset:-3px}
 
   <h2>1. 빌더 화면 — 오른쪽 미리보기가 곧 그리는 판</h2>
   <div style="overflow-x:auto;margin-top:14px"><div class="app mx-app">
-    <div class="top"><span class="logo">한난<b>MOA</b></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4>
-<div class="u">지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일</div>
-<div class="a">양식을 만들었어요. 오른쪽 [양식 만들기] 패널에서 직접 고칠 수도 있어요.</div>
-<div class="fc"><b>2026 하반기 교육 참가자 조사</b><span></span></div>
-<div class="in">고칠 내용을 말해 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span class="chip">자유 제작형</span><span class="chip">v1 · 자동 저장됨</span><span style="flex:1"></span><span class="btn">← 처음 화면</span><span class="btn">양식 파일 저장</span><span class="btn pri">엑셀 내보내기</span></div>
+    <div class="top"><span class="logo">한난<b>MOA</b></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4><div class="u"><span class="fx">XLSX</span> 안전점검표.xlsx<br>쓰던 점검표 모양 그대로 만들어 주세요</div><div class="a">합친 칸이 있어서 <b>자유 제작형</b>으로 바꿔서 만들었어요. 입력할 곳은 오른쪽 판에서 더 고를 수 있어요.</div><div class="fc"><b>10월 안전점검 결과 <em class="ok">검사 통과</em></b><span></span></div><div class="in">예: 조치 금액은 원 단위 숫자로 받아 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span class="chip">자유 제작형</span><span class="chip">v1 · 자동 저장됨</span><span style="flex:1"></span><span class="btn">← 처음 화면</span><span class="btn">양식 파일 저장</span><span class="btn pri">엑셀 내보내기</span></div>
     <div class="cols">
       <aside>
         <div class="pn"><div class="h"><span class="n">1</span>기본 정보<span class="s">10월 안전점검 결과</span></div></div>

@@ -105,6 +105,12 @@ h1{font-size:28px;margin:4px 0 8px}
 .mx-ai .in{margin-top:auto;border:1px solid #cbd3dd;border-radius:8px;padding:10px;color:#8a939d}
 .mx-p{flex:1;min-width:0;border-left:3px solid #b9cff2}
 .mx-pt{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #e3e7ec;min-height:30px}
+.mx-ai .ex{display:flex;flex-wrap:wrap;gap:6px}
+.mx-ai .ex i{font-style:normal;border:1px solid #e3e7ec;background:#f6f7f9;border-radius:999px;padding:3px 10px;font-size:12px}
+.mx-ai .fc b em{font-style:normal;font-weight:600;font-size:11px;border-radius:4px;padding:1px 6px;margin-left:4px}
+.mx-ai em.ok{background:#e6f4ea;color:#2f7a3b}.mx-ai em.err{background:#fdecea;color:#b42318}
+.mx-ai .fc .dn{margin:0;padding:6px 10px;border-top:1px solid #e3e7ec;background:#f3faf5;font-size:12px}
+.mx-ai .fx{display:inline-block;background:#1e7b45;color:#fff;border-radius:3px;padding:0 4px;font-size:10px;font-family:monospace}
 .mx-note{margin:6px 0 0;font-size:12.5px;color:#5b6573}
 </style>
 </head>
@@ -128,11 +134,7 @@ h1{font-size:28px;margin:4px 0 8px}
   <div class="step-h"><span class="no">1</span><h2>양식 만들기: "시트 모으기형"을 고른다</h2><span class="who">운영자(본사)</span></div>
   <p class="desc">구조 고르기 화면에 5번째 카드 <b>시트 모으기형</b>을 추가합니다. 고르면 빌더가 단순해집니다. 항목·서식을 정할 필요가 없고, 정할 것은 "제목, 안내, 지사 목록, 시트 시작 모양"뿐입니다.</p>
   <div class="scroller"><div class="app mx-app">
-    <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4>
-<div class="u">지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일</div>
-<div class="a">양식을 만들었어요. 오른쪽 [양식 만들기] 패널에서 직접 고칠 수도 있어요.</div>
-<div class="fc"><b>2026 하반기 교육 참가자 조사</b><span></span></div>
-<div class="in">고칠 내용을 말해 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span style="color:var(--sub)">10월 안전점검 결과 보고</span><span class="chip pri">시트 모으기형</span><span class="sp"></span><button class="btn">양식 JSON 저장</button><button class="btn pri">엑셀 내보내기 (15개 · zip)</button></div>
+    <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="mx-nav"><span class="on">AI로 만들기</span><span>취합하기</span></span><span style="flex:1"></span><span class="mx-sw">양식 만들기 <i></i></span></div><div class="mx-ws"><aside class="mx-ai" aria-label="AI 대화"><h4>무엇을 받고 싶으세요?</h4><div class="u">지사별 10월 안전점검 결과 보고서를 시트째 모으고 싶어요. 모양은 지사마다 달라도 돼요</div><div class="a"><b>시트 모으기형</b>으로 만들었어요. 1~2행에 제목·지사명만 정해 두고, 4행부터는 지사가 자유롭게 써요. 취합하면 목차 + 지사별 시트로 모여요.</div><div class="fc"><b>10월 안전점검 결과 보고 <em class="ok">검사 통과</em></b><span></span></div><div class="in">예: 기본 틀에 점검 항목 표를 넣어 주세요</div></aside><div class="mx-p" aria-label="양식 만들기 패널"><div class="mx-pt"><span style="color:var(--sub)">10월 안전점검 결과 보고</span><span class="chip pri">시트 모으기형</span><span class="sp"></span><button class="btn">양식 JSON 저장</button><button class="btn pri">엑셀 내보내기 (15개 · zip)</button></div>
     <div class="g2">
       <div class="left">
         <div class="acc"><div class="ah"><span class="n">1</span>기본 정보<span class="r">제목 · 기한 11/5 · 문의처</span></div></div>
