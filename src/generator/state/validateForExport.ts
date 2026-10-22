@@ -1,8 +1,8 @@
-import type { Block, Field, FormSchema } from '@contract/schema';
-import { aggregationLabel, gridOwners, orgLabel, validateSchema } from '@contract/schema';
-import { resolveDate } from '@contract/fieldTypes';
-import { calcEntries, calcProblem, formulaErrors, scopeFor } from '@contract/formula';
-import { freeAggregationChecks, freeProblems } from '@contract/free';
+import type { Block, Field, FormSchema } from '../../contract/schema';
+import { aggregationLabel, gridOwners, orgLabel, validateSchema } from '../../contract/schema';
+import { resolveDate } from '../../contract/fieldTypes';
+import { calcEntries, calcProblem, formulaErrors, scopeFor } from '../../contract/formula';
+import { freeAggregationChecks, freeProblems } from '../../contract/free';
 
 export type Where = 'meta' | 'layout' | 'fields' | 'aggregations' | 'org';
 

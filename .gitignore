@@ -10,3 +10,10 @@ coverage/
 .idea/
 .claude/worktrees/
 tools/ai/eval/out/
+.vercel
+.env*
+!.env.example
+
+# 배포 계정 연결 정보·서버 빌드 산출물
+.vercel/
+server/runtime.mjs

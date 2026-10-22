@@ -1,13 +1,22 @@
+import { CloudGate } from '../cloud';
 import { useEffect, useState } from 'react';
 import { GeneratorRoot } from '@gen/index';
 import { AggregatorRoot } from '@agg/index';
 import { AiPage } from '../ai/AiPage';
+import { AdminPage, probeAdmin } from '../admin/AdminPage';
 import type { FormSchema } from '@contract/schema';
 
-type Tab = 'ai' | 'generator' | 'aggregator';
+type Tab = 'ai' | 'generator' | 'aggregator' | 'admin';
 
 export function App() {
+  return <CloudGate><Workspace /></CloudGate>;
+}
+
+function Workspace() {
   const [tab, setTab] = useState<Tab>('ai');
+  // 관리자에게만 관리자 탭을 보인다 (권한은 서버가 매 요청 다시 확인)
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => { let alive = true; void probeAdmin().then((ok) => { if (alive) setAdmin(ok); }); return () => { alive = false; }; }, []);
   const [formId, setFormId] = useState<string>();
   // AI로 만들기의 [빌더에서 열어 고치기]: 그 양식을 빌더로 연다
   const [incoming, setIncoming] = useState<{ schema: FormSchema; at: number }>();
@@ -35,6 +44,7 @@ export function App() {
               ['ai', 'AI로 만들기'],
               ['generator', '양식 만들기'],
               ['aggregator', '취합하기'],
+              ...(admin ? [['admin', '관리자']] as const : []),
             ] as const
           ).map(([id, label]) => (
             <button
@@ -58,6 +68,8 @@ export function App() {
         <div className={tab === 'ai' ? 'h-full overflow-auto' : 'hidden'}><AiPage /></div>
         {tab === 'ai' ? null : tab === 'generator' ? (
           <GeneratorRoot incoming={incoming} />
+        ) : tab === 'admin' && admin ? (
+          <div className="h-full overflow-auto"><AdminPage /></div>
         ) : (
           <div className="h-full overflow-auto"><AggregatorRoot formId={formId} /></div>
         )}

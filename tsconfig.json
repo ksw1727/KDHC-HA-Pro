@@ -22,5 +22,5 @@
       "@agg/*": ["src/aggregator/*"]
     }
   },
-  "include": ["src", "tools", "vite.config.ts"]
+  "include": ["src", "tools", "server", "api", "vite.config.ts"]
 }

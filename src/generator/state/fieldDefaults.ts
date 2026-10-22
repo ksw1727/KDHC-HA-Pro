@@ -1,4 +1,4 @@
-import type { Field, FieldType } from '@contract/schema';
+import type { Field, FieldType } from '../../contract/schema';
 
 /** 타입별 서식 속성. 타입을 바꾸면 다른 타입의 서식 값은 지운다. */
 const FORMAT_PROPS: Record<FieldType, (keyof Field)[]> = {

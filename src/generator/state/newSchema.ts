@@ -1,5 +1,5 @@
-import type { Block, FormSchema, FreeSpec, Layout } from '@contract/schema';
-import { availableAggregations, requiredAggregations } from '@contract/aggregationIds';
+import type { Block, FormSchema, FreeSpec, Layout } from '../../contract/schema';
+import { availableAggregations, requiredAggregations } from '../../contract/aggregationIds';
 import { newField } from './fieldDefaults';
 
 export interface Ids {
