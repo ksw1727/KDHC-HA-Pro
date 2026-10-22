@@ -4,9 +4,10 @@ import { FormPanel, type Incoming } from '@gen/FormPanel';
 import { AggregatorRoot } from '@agg/index';
 import { AiPage } from '../ai/AiPage';
 import { AdminPage, probeAdmin } from '../admin/AdminPage';
+import { WorkspacePage } from '../workspace/WorkspacePage';
 import type { FormSchema } from '@contract/schema';
 
-type Tab = 'ai' | 'aggregator' | 'admin';
+type Tab = 'home' | 'ai' | 'aggregator' | 'admin';
 const PANEL_KEY = 'hanan-moa:builder-panel';   // 양식 설정 패널을 켜 두었는지 (새로고침해도 그대로)
 const WIDTH_KEY = 'hanan-moa:settings-panel-width';
 /** 패널은 340px 이상, AI 대화는 480px 이상 남긴다 */
@@ -17,7 +18,7 @@ export function App() {
 }
 
 function Workspace() {
-  const [tab, setTab] = useState<Tab>('ai');
+  const [tab, setTab] = useState<Tab>('home');
   // 관리자에게만 관리자 탭을 보인다 (권한은 서버가 매 요청 다시 확인)
   const [admin, setAdmin] = useState(false);
   useEffect(() => { let alive = true; void probeAdmin().then((ok) => { if (alive) setAdmin(ok); }); return () => { alive = false; }; }, []);
@@ -44,13 +45,15 @@ function Workspace() {
   // AiPage가 처음 그릴 때 보내는 이벤트도 받아야 해서 자식 effect보다 먼저 듣는다
   useLayoutEffect(() => {
     const on = (e: Event) => {
-      const { tab: next, formId: id } = (e as CustomEvent<{ tab: Tab; formId?: string }>).detail;
+      const { tab: next, formId: id, panel: openPanel } = (e as CustomEvent<{ tab: Tab; formId?: string; panel?: boolean }>).detail;
       setTab(next);
       if (id) setFormId(id);
+      if (openPanel) setPanel(true);   // 내 업무공간의 [새 양식 만들기]: 설정 패널에서 시작
     };
     const open = (e: Event) => {
-      const d = (e as CustomEvent<{ schema: FormSchema; auto?: boolean; preferStored?: boolean }>).detail;
-      setIncoming({ schema: d.schema, preferStored: d.preferStored, at: Date.now() });
+      // 내 업무공간의 [열기]는 내보낸 기록(lastExported)도 넘겨 버전 판단이 이어지게 한다
+      const d = (e as CustomEvent<{ schema: FormSchema; lastExported?: FormSchema; auto?: boolean; preferStored?: boolean }>).detail;
+      setIncoming({ schema: d.schema, lastExported: d.lastExported, preferStored: d.preferStored, at: Date.now() });
       if (!d.auto) { setTab('ai'); setPanel(true); }
     };
     const pick = () => setPanel(true);
@@ -68,6 +71,7 @@ function Workspace() {
         <nav className="flex shrink-0 gap-0.5 rounded-box bg-chip p-[3px]" aria-label="주요 화면">
           {(
             [
+              ['home', '내 업무공간'],
               ['ai', 'AI로 만들기'],
               ['aggregator', '취합하기'],
               ...(admin ? [['admin', '관리자']] as const : []),
@@ -112,6 +116,7 @@ function Workspace() {
             <div className="min-h-0 flex-1"><FormPanel incoming={incoming} /></div>
           </aside>
         </div>
+        {tab === 'home' && <div className="h-full overflow-auto"><WorkspacePage /></div>}
         {tab === 'aggregator' && <div className="h-full overflow-auto"><AggregatorRoot formId={formId} /></div>}
         {tab === 'admin' && admin && <div className="h-full overflow-auto"><AdminPage /></div>}
       </main>

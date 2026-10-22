@@ -14,7 +14,7 @@ import { Button, Dialog } from './ui/ui';
  *  - 보내기 `hanan-moa:field-selected` {key}: 고른 항목 → 카드에 표시
  *  - 보내기 `hanan-moa:form-opened` {schema, how}: 패널에서 양식을 새로 열었다 → 대화에 카드를 붙인다
  */
-export interface Incoming { schema: FormSchema; at: number; preferStored?: boolean }
+export interface Incoming { schema: FormSchema; at: number; preferStored?: boolean; lastExported?: FormSchema }
 
 const ORDER: Layout[] = ['list', 'matrix', 'header-list', 'fill-in', 'collect', 'free'];
 const emit = (name: string, detail: unknown) => window.dispatchEvent(new CustomEvent(name, { detail }));
@@ -28,7 +28,7 @@ export function FormPanel({ incoming }: { incoming?: Incoming }) {
   useEffect(() => {
     if (!incoming) return;
     const stored = loadForm(incoming.schema.formId);
-    setOpen({ at: incoming.at, start: incoming.preferStored && stored ? stored : { schema: incoming.schema, lastExported: stored?.lastExported, savedAt: '' } });
+    setOpen({ at: incoming.at, start: incoming.preferStored && stored ? stored : { schema: incoming.schema, lastExported: incoming.lastExported ?? stored?.lastExported, savedAt: '' } });
   }, [incoming]);
   useEffect(() => {
     const on = (e: Event) => setFocus({ key: (e as CustomEvent<{ key: string }>).detail.key, at: Date.now() });
