@@ -199,13 +199,14 @@ class Layouter {
     // 4행 제출처 줄
     let row = 4;
     if (schema.org.mode !== 'none') {
-      this.put({ address: 'A4', value: `${orgLabel(schema)}명`, role: 'label', required: schema.org.mode === 'input' });
+      const shared = this.input.mode === 'template' && !!this.input.shared;
+      this.put({ address: 'A4', value: `${orgLabel(schema)}명`, role: 'label', required: schema.org.mode === 'input' || shared });
       if (this.input.mode === 'aggregate') {
         // 줄이 없는 숫자 표는 모든 제출처를 더한 값이라, 제출처별 값은 펼치기 시트에 있다고 알린다
         const rows = schema.blocks.some((b) => b.kind === 'list' || (b.kind === 'grid' && b.spareRows > 0));
         const sums = !rows && schema.blocks.some((b) => b.kind === 'matrix');
         this.put({ address: 'B4', value: sums ? `(모든 ${orgLabel(schema)} 합계 · ${orgLabel(schema)}별 시트 참고)` : '(줄별 자동 칸 참고)', role: 'input', mark: 'muted' });
-      } else if (schema.org.mode === 'preset') {
+      } else if (schema.org.mode === 'preset' && !shared) {
         this.put({ address: 'B4', value: this.input.orgName ?? schema.org.orgs?.[0], role: 'locked-value' });
       } else {
         this.put({ address: 'B4', role: 'input', required: true });
@@ -490,7 +491,8 @@ class Layouter {
     };
     // 빈 양식: 다른 제출처가 채우는 칸은 회색·잠금 (작성처는 gridOwners)
     const owners = this.isTemplate ? gridOwners(this.schema) : new Map<string, string>();
-    const me = this.input.mode === 'template' ? this.input.orgName ?? this.schema.org.orgs?.[0] : undefined;
+    // 공용 파일은 누가 쓸지 몰라 다른 제출처 칸을 잠그지 않는다 (취합은 작성처 파일의 값만 쓴다)
+    const me = this.input.mode === 'template' && !this.input.shared ? this.input.orgName ?? this.schema.org.orgs?.[0] : undefined;
     const gridCalc = this.isTemplate ? {} : computeGrid(b, Object.fromEntries(Object.entries(this.agg?.grid ?? {}).map(([k, v]) => [k, v.value])));
     for (const cells of b.rows) {
       cells.forEach((cell, c) => {

@@ -138,6 +138,19 @@ describe('빈칸채우기형 (B6)', () => {
     expect(m.cellMap.blocks.b1).toMatchObject({ headerRow: 4, firstRow: 5, inputCells: { g1: 'C5', g2: 'C6' }, fixedCells: { A5: '교육', B5: 900, A6: '홍보' } });
   });
 
+  test('작성처 칸: 제출처별 파일은 남의 칸 잠금, 공용 파일은 모두 열림', () => {
+    const s: FormSchema = {
+      ...clone(SAMPLE['fill-in']), org: { mode: 'preset', orgs: ['서울', '부산'] },
+      blocks: [{ kind: 'grid', id: 'b1', colLabels: ['설비', '서울', '부산'], spareRows: 0, rows: [[{ kind: 'fixed', value: '보일러' }, { kind: 'input', field: f('a', 'a', { type: 'number' }) }, { kind: 'input', field: f('b', 'b', { type: 'number' }) }]] }],
+    };
+    const own = layoutSheet(s, { mode: 'template', orgName: '서울' }, { today });
+    expect(own.cells.find((c) => c.fieldKey === 'b')?.role).toBe('other-input');
+    const shared = layoutSheet(s, { mode: 'template', shared: true }, { today });
+    expect(shared.cells.filter((c) => c.fieldKey).map((c) => c.role)).toEqual(['input', 'input']);
+    expect(shared.cells.find((c) => c.address === 'B4')).toMatchObject({ role: 'input', required: true });
+    expect(shared.cells.find((c) => c.address === 'B4')?.value).toBeUndefined();
+  });
+
   test('여유 줄: 열 규칙과 범위', () => {
     const s = clone(SAMPLE['fill-in']);
     const g = s.blocks[0];

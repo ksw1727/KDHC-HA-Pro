@@ -33,6 +33,23 @@ const list: FormSchema = {
 const put = (rows: Record<string, unknown>[]) => (ws: ExcelJS.Worksheet, m: Parameters<typeof firstRow>[0]) =>
   rows.forEach((vals, i) => { for (const [k, v] of Object.entries(vals)) ws.getCell(`${listCol(m, k)}${firstRow(m) + i}`).value = v as ExcelJS.CellValue; });
 
+describe('공용 파일 1개로 받은 preset 양식', () => {
+  const pick = (org: string, rows: Record<string, unknown>[]) => (ws: ExcelJS.Worksheet, m: Parameters<typeof firstRow>[0]) => {
+    if (org) ws.getCell(m.cellMap.orgCell!).value = org;
+    put(rows)(ws, m);
+  };
+  test('작성자가 고른 제출처명으로 취합, 빈 이름은 확인, 안 낸 곳은 미제출', async () => {
+    const files = [
+      await makeFile(list, 'a.xlsx', { shared: true, fill: pick('서울', [{ name: '김' }]) }),
+      await makeFile(list, 'b.xlsx', { shared: true, fill: pick('부산', [{ name: '박' }]) }),
+      await makeFile(list, 'c.xlsx', { shared: true, fill: pick('', [{ name: '최' }]) }),
+    ];
+    const { res } = await runAll(files);
+    expect(res.files.map((x) => [x.fileName, x.org, x.needsOrgLink])).toEqual([['a.xlsx', '서울', false], ['b.xlsx', '부산', false], ['c.xlsx', undefined, true]]);
+    expect(res.missingOrgs).toEqual(['대구']);
+  });
+});
+
 describe('목록형 전체 흐름', () => {
   test('정리·확인할 칸·중복·미제출 → 결과 파일 시트 순서와 검산', async () => {
     const files = [

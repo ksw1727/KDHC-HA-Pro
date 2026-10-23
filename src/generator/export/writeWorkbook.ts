@@ -58,6 +58,7 @@ export function fillWorksheet(ws: ExcelJS.Worksheet, model: SheetModel, fieldsBy
 
 export interface WriteOptions {
   orgName?: string;      // preset 모드의 이 파일 지사명
+  shared?: boolean;      // preset 모드의 공용 파일 1개 (지사명을 목록에서 고름, 메타·속성에 지사 없음)
   now: Date;
 }
 
@@ -67,7 +68,7 @@ export interface WriteOptions {
  * 시트 모으기형은 시트 잠금·입력 규칙도 없이(셀 합치기를 막지 않음) 메타만 넣는다.
  */
 export async function writeWorkbook(schema: FormSchema, opts: WriteOptions): Promise<Uint8Array> {
-  const model = layoutSheet(schema, { mode: 'template', orgName: opts.orgName }, { today: opts.now });
+  const model = layoutSheet(schema, { mode: 'template', orgName: opts.orgName, shared: opts.shared }, { today: opts.now });
   const collect = schema.layout === 'collect';
   const wb = new ExcelJS.Workbook();
   wb.creator = 'KDHC-HA-Pro';
@@ -87,7 +88,7 @@ export async function writeWorkbook(schema: FormSchema, opts: WriteOptions): Pro
     });
   }
 
-  const orgName = schema.org.mode === 'preset' ? opts.orgName : undefined;
+  const orgName = schema.org.mode === 'preset' && !opts.shared ? opts.orgName : undefined;
   const meta = await buildMeta({
     contractVersion: CONTRACT_VERSION,
     kind: 'submission',
