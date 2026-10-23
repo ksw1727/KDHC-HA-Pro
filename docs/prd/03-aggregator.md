@@ -212,7 +212,8 @@ interface Decisions {
 - 메타 없는 파일에서 같은 틀의 시트가 여러 개면 어느 것이 양식 시트인지 확인(`multi-sheet`).
 
 **칸 맞추기**
-- 지사명: preset 파일은 메타 `orgName`. input 파일은 `cellMap.orgCell`의 값. none은 없음.
+- 지사명: preset 파일은 메타 `orgName`. input 파일과 **preset 공용 파일**(내보내기에서 [공용 파일 1개]를 고른 것, 메타·파일 속성에 지사가 없음)은 `cellMap.orgCell`의 값. none은 없음.
+- 메타에 지사가 있는 파일(지사별 파일)에서 잠긴 지사명 칸을 풀고 바꾸거나 지웠으면 메타의 지사로 취합하고 알림 `FIXED_CELL_CHANGED`: "잠긴 지사명 칸이 '부산'(으)로 바뀌어 있었어요. 이 파일을 받은 지사 '서울'(으)로 취합했어요" ("지사"는 `org.label`).
 - fields 블록: `cellMap`의 `valueCell`에서 값을 읽는다. `labelCell`의 글자가 `field.label`과 다르면 **같은 시트에서 그 라벨을 찾아 오른쪽 칸**을 읽는다.
 - list 블록: `headerRow`의 각 열 머리글을 `field.label`과 비교한다.
   - 모두 일치 → `cellMap.columns` 사용
