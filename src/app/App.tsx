@@ -8,7 +8,6 @@ import { AccountPage } from '../account/AccountPage';
 import { WorkspacePage } from '../workspace/WorkspacePage';
 import type { FormSchema } from '@contract/schema';
 import { AppHeader, type Tab } from './AppHeader';
-import { BrandBand } from './brand';
 
 const PANEL_KEY = 'hanan-moa:builder-panel';   // 양식 설정 패널을 켜 두었는지 (새로고침해도 그대로)
 const WIDTH_KEY = 'hanan-moa:settings-panel-width';
@@ -75,7 +74,6 @@ function Workspace() {
           </span>
         </button>
       )} />
-      <BrandBand />
       <main className="min-h-0 flex-1">
         {/* AI로 만들기와 설정 패널은 다른 화면에 다녀와도 이어지도록 늘 켜 두고 숨기기만 한다 */}
         <div className={tab === 'ai' ? 'flex h-full min-h-0' : 'hidden'}>

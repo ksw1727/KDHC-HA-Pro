@@ -24,17 +24,3 @@ export function Swoosh({ h }: { h: number }) {
     </svg>
   );
 }
-
-/** 머리줄 아래 띠: 왼쪽 안내 한 줄, 오른쪽 슬로건 */
-export function BrandBand() {
-  return (
-    <div className="relative shrink-0 overflow-hidden border-b border-line bg-[linear-gradient(100deg,#dff0da_0%,#ffffff_50%,#fde3e0_100%)]">
-      <Swoosh h={48} />
-      <div className="relative flex items-center gap-3 px-5 py-[7px]">
-        <span className="truncate text-xs text-sub">한국지역난방공사 업무 도구 · 엑셀 양식 생성·취합</span>
-        <span className="flex-1" />
-        <Slogan height={32} />
-      </div>
-    </div>
-  );
-}
