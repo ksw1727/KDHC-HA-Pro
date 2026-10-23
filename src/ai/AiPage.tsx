@@ -6,9 +6,7 @@ import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
 import { validateForExport } from '@gen/state/validateForExport';
-import { exportForm } from '@gen/export/exportZip';
-import { downloadBlob, exportFormJson } from '@gen/export/exportJson';
-import { noticeText } from '@gen/export/noticeText';
+import { exportFormJson } from '@gen/export/exportJson';
 import { PreviewGrid } from '@gen/preview/PreviewGrid';
 import { loadForm } from '@gen/storage/localForms';
 import { isRemoved } from '@gen/storage/removedForms';
@@ -360,22 +358,9 @@ function AiBubble({ m, last, linked, selKey }: { m: Msg; last: boolean; linked: 
 function FormCard({ schema, problems, edited, last, linked, selKey }: { schema: FormSchema; problems: string[]; edited?: boolean; last: boolean; linked: boolean; selKey: string | null }) {
   const org = schema.org.mode === 'preset' ? schema.org.orgs?.[0] : undefined;
   const model = useMemo(() => layoutSheet(schema, { mode: 'template', orgName: org }, { today: new Date() }), [schema, org]);
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState('');
-  const [fail, setFail] = useState('');
   const who = schema.org.mode === 'preset' ? `${orgLabel(schema)} ${schema.org.orgs?.length ?? 0}곳에 파일이 하나씩 나가요` : schema.org.mode === 'input' ? `작성자가 ${orgLabel(schema)}명을 직접 적어요` : '누가 냈는지 구분하지 않아요';
-  const toExcel = async () => {
-    setBusy(true);
-    try {
-      const r = await exportForm(schema, new Date());
-      downloadBlob(r.download.blob, r.download.name);
-      setDone(noticeText(schema));
-      setFail('');
-    } catch (e) {
-      // http 주소(localhost 말고)로 열면 브라우저가 crypto.subtle을 막아 내보내기가 멈춘다
-      setFail(globalThis.crypto?.subtle ? (e as Error).message : 'https 주소나 이 컴퓨터(localhost)에서 열어야 엑셀을 만들 수 있어요');
-    } finally { setBusy(false); }
-  };
+  // 엑셀은 오른쪽 패널의 내보내기 창으로 만든다: 제출 기한을 묻고(① 일정 정보) 내보낸 기록을 남겨 내 업무공간 취합 일정에 뜬다
+  const toExcel = () => window.dispatchEvent(new CustomEvent('hanan-moa:export-form', { detail: { schema } }));
   return (
     <div className={cx('overflow-hidden rounded-card border', linked ? 'border-pri-line shadow-[0_0_0_3px_var(--color-pri-bg)]' : 'border-line')}>
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-2">
@@ -394,12 +379,10 @@ function FormCard({ schema, problems, edited, last, linked, selKey }: { schema: 
       {problems.length > 0 && <ul className="m-0 border-t border-line px-6 py-2 text-sm text-err-ink">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
       <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2">
         {!linked && <Button variant="pri" size="sm" onClick={() => toPanel(schema, { preferStored: true })}>패널에서 고치기</Button>}
-        <Button size="sm" disabled={problems.length > 0 || busy} onClick={() => void toExcel()}>{busy ? '만드는 중…' : '엑셀 내보내기'}</Button>
+        <Button size="sm" disabled={problems.length > 0} onClick={toExcel}>엑셀 내보내기</Button>
         <Button size="sm" variant="ghost" onClick={() => exportFormJson(schema)}>양식 파일 저장</Button>
         {problems.length > 0 && <span className="text-xs text-sub">고칠 곳을 AI에게 "고쳐 줘"라고 하거나 오른쪽 패널에서 고쳐 주세요.</span>}
       </div>
-      {fail && <div className="border-t border-line bg-[#fffafa] px-3 py-2 text-sm text-err-ink">엑셀을 만들지 못했어요: {fail}</div>}
-      {done && <div className="border-t border-line bg-[#f3faf5] px-3 py-2 text-sm"><b className="text-[#2f7a3b]">내려받았어요.</b> 지사에 보낼 안내문: <span className="text-sub">{done}</span></div>}
     </div>
   );
 }

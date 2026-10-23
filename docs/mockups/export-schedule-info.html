@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>한난MOA 내보내기 전 일정 정보</title>
+<style>
+:root{
+  --page:#eef1f5;--bg:#ffffff;--panel:#f6f8fb;--chip:#f1f4f8;
+  --ink:#18202b;--sub:#56616e;--muted:#8a95a2;--line:#e2e7ee;--line2:#cbd3dd;
+  --pri:#1f5fbf;--pri-ink:#174a96;--pri-bg:#e8f0fc;--pri-line:#b9cff2;
+  --req:#fff5d1;--auto:#e5f4ee;--auto-ink:#0f6e56;--head:#eef2f7;--sheet:#d9dfe7;
+  --err:#fdecea;--err-ink:#b42318;--warn:#fff4e5;--warn-ink:#9a5b00;--warn-line:#f3cfa5;--ok:#e6f4ea;--ok-ink:#2f7a3b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;font-size:15px;line-height:1.6}
+.page{max-width:1240px;margin:0 auto;padding:36px 16px 80px}
+.eyebrow{font-size:13px;color:var(--muted)}
+h1{font-size:28px;margin:4px 0 8px}
+h2{font-size:20px;margin:0 0 4px}
+.lead{color:var(--sub);margin:0;max-width:900px}
+.idea{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.idea div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px}
+.idea b{display:block;margin-bottom:2px}
+.n{display:inline-grid;place-items:center;background:var(--pri);color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;font-weight:700;margin-right:6px;vertical-align:1px}
+.sec{margin-top:36px}
+.modebar{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
+.modebar button{border:1px solid var(--line2);background:#fff;border-radius:999px;padding:5px 14px;font:inherit;font-size:13.5px;cursor:pointer;color:var(--sub)}
+.modebar button.on{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:7px;padding:6px 13px;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:700}
+.btn.sm{padding:3px 9px;font-size:12px}
+.btn.link{border:0;background:none;color:var(--sub);text-decoration:underline;padding:4px 2px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:5px;padding:1px 7px;font-size:11.5px;background:var(--chip);color:var(--sub);white-space:nowrap}
+.chip.pri{background:var(--pri-bg);color:var(--pri-ink)}.chip.ok{background:var(--ok);color:var(--ok-ink)}.chip.warn{background:var(--warn);color:var(--warn-ink)}.chip.err{background:var(--err);color:var(--err-ink)}
+
+/* 앱 화면 (간단히) */
+.app{position:relative;background:#fff;border:1px solid #cfd6df;border-radius:14px;overflow:hidden;font-size:13px;margin-top:14px;box-shadow:0 10px 28px rgba(16,24,40,.10);min-height:640px}
+.bar{display:flex;align-items:center;gap:14px;padding:9px 16px;border-bottom:1px solid var(--line)}
+.logo{font-weight:800;color:var(--pri);font-size:15px}.logo span{color:var(--ink)}
+.tabs{display:flex;gap:2px;background:var(--chip);border-radius:8px;padding:3px}
+.tabs span{padding:4px 12px;border-radius:6px;color:var(--sub)}
+.tabs span.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.ws{display:flex;min-height:590px}
+.chat{flex:1;padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+.u{align-self:flex-end;max-width:70%;background:var(--pri-bg);border-radius:12px;padding:8px 12px}
+.a{max-width:80%;background:var(--panel);border-radius:12px;padding:8px 12px}
+.card{border:1px solid var(--pri-line);border-radius:12px;overflow:hidden;box-shadow:0 0 0 3px var(--pri-bg)}
+.card-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.card-pv{padding:10px;background:#f7f8fa}
+table.sheet{border-collapse:collapse;background:#fff;font-size:12px;width:100%}
+.sheet td{border:1px solid var(--sheet);height:24px;padding:2px 7px;white-space:nowrap}
+.sheet .t{font-size:14px;font-weight:700;border-color:transparent}
+.sheet .g{color:var(--sub);border-color:transparent}
+.sheet .h{background:var(--head);font-weight:700}
+.sheet .r{background:var(--req)}
+.sheet .hot{animation:flash 1.2s ease-out}
+@keyframes flash{0%{box-shadow:inset 0 0 0 999px #ffe28a}100%{box-shadow:inset 0 0 0 999px transparent}}
+.card-f{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
+.side{flex:0 0 300px;border-left:1px solid var(--line);background:var(--panel);padding:12px;display:flex;flex-direction:column;gap:8px}
+.pn{background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.pn b{font-size:13px}.pn .s{float:right;color:var(--muted);font-size:11.5px}
+.lab{display:block;font-size:12px;color:var(--sub);margin:8px 0 3px}
+.inp{width:100%;border:1px solid var(--line2);border-radius:7px;padding:5px 8px;font:inherit;font-size:13px;background:#fff;color:var(--ink)}
+.inp.hot{animation:flash 1.2s ease-out}
+
+/* 내보내기 창 */
+.dim{position:absolute;inset:0;background:rgba(16,24,40,.42);display:none;align-items:center;justify-content:center;padding:20px;z-index:5}
+.dim.on{display:flex}
+.dlg{background:#fff;border-radius:14px;width:620px;max-width:100%;box-shadow:0 20px 50px rgba(16,24,40,.3);overflow:hidden}
+.dlg.wide{width:820px}
+.dh{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.dh b{font-size:17px}
+.stp{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:12px;color:var(--muted)}
+.stp i{font-style:normal;padding:2px 8px;border-radius:999px;background:var(--chip)}
+.stp i.on{background:var(--pri);color:#fff;font-weight:700}
+.stp i.done{background:var(--ok);color:var(--ok-ink)}
+.db{padding:16px 20px;display:flex;flex-direction:column;gap:12px;font-size:13.5px}
+.df{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid var(--line);background:#fafbfc}
+.why{display:flex;gap:10px;align-items:flex-start;background:var(--pri-bg);border:1px solid var(--pri-line);border-radius:10px;padding:10px 12px;color:var(--pri-ink)}
+.why svg{flex:0 0 auto;margin-top:2px}
+.row{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start}
+.row > .k{color:var(--muted);padding-top:6px}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.quick button{border:1px solid var(--line2);background:#fff;border-radius:999px;padding:3px 11px;font:inherit;font-size:12.5px;cursor:pointer}
+.quick button.on{border-color:var(--pri);background:var(--pri-bg);color:var(--pri-ink);font-weight:600}
+.hint{font-size:12px;color:var(--muted);margin-top:4px}
+.warnbox{background:var(--warn);border:1px solid var(--warn-line);color:var(--warn-ink);border-radius:10px;padding:8px 12px;font-size:13px}
+.okline{color:var(--ok-ink);font-weight:600}
+dl.sum{margin:0;display:grid;grid-template-columns:96px 1fr;gap:6px 10px}
+dl.sum dt{color:var(--muted)}dl.sum dd{margin:0}
+.mini{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel)}
+
+/* 달력 */
+.cal{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.cal-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cal-h b{font-size:14px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid var(--line)}
+.week .d{border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px;color:var(--muted);padding:2px 5px;height:22px}
+.week .d.today{color:var(--pri);font-weight:700}
+.week .hd{border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px;color:var(--sub);text-align:center;background:var(--panel);padding:2px 0}
+.lane{display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid var(--line);min-height:30px;border-bottom:1px solid var(--line);position:relative}
+.lane > span{border-right:1px solid var(--line)}
+.barc{position:absolute;top:5px;height:20px;border-radius:5px;background:#dbe7fb;color:var(--pri-ink);font-size:11.5px;font-weight:600;padding:0 7px;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.barc.one{background:#eceff3;color:var(--sub)}
+.barc em{font-style:normal;background:var(--pri);color:#fff;border-radius:3px;padding:0 4px;font-size:10.5px;margin-left:auto}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+.kpi b{display:block;font-size:20px}
+.kpi span{font-size:12px;color:var(--muted)}
+.kpi.red b{color:var(--err-ink)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.cmp > div > .lbl{font-size:13px;font-weight:700;margin-bottom:6px}
+.cmp .bad{color:var(--err-ink)}.cmp .good{color:var(--ok-ink)}
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.notes > div{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:14px}
+.notes ul,.notes ol{margin:4px 0 0;padding-left:20px}
+@media (max-width:860px){.idea,.notes,.cmp{grid-template-columns:1fr}.side{display:none}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">한난MOA · 시안 · 10.23 · 엑셀 내보내기</div>
+  <h1>내보내기 전에 "일정 정보"를 한 번 묻는다</h1>
+  <p class="lead">내 업무공간의 <b>취합 일정(스케줄러)</b>은 양식의 <b>제출 기한</b>과 <b>내보낸 기록</b>으로 그려져요. AI로 만든 양식은 기한이 비어 있기 쉽고, 대화 카드에서 내보내면 기록도 남지 않았어요. 그래서 내보내기 창 맨 앞에 <b>① 일정 정보</b> 단계를 두고, 빠진 것만 그 자리에서 채우게 합니다. 아래 화면은 눌러 볼 수 있어요.</p>
+  <div class="idea">
+    <div><span class="n">1</span><b>빠졌을 때만 묻기</b>제출 기한이 비었거나 이미 지났을 때만 ① 단계가 떠요. 잘 들어 있으면 바로 ② 확인으로.</div>
+    <div><span class="n">2</span><b>여기서 넣은 값 = 양식 값</b>입력한 기한·문의처는 양식에 저장돼, 엑셀 안내 줄·대화 카드·설정 패널 ①이 같이 바뀌어요.</div>
+    <div><span class="n">3</span><b>어디서 내보내도 같은 창</b>대화 카드의 [엑셀 내보내기]도 이 창을 거쳐요. 내보낸 기록이 남아 취합 일정에 "기다리는 양식"으로 떠요.</div>
+  </div>
+
+  <div class="sec">
+    <h2>눌러 보기</h2>
+    <div class="modebar" id="modes">
+      <button data-m="none" class="on">기한이 비어 있음 (AI가 만든 양식)</button>
+      <button data-m="past">기한이 이미 지났음 (지난 차수 양식 다시 쓰기)</button>
+      <button data-m="set">기한이 들어 있음 → ① 건너뜀</button>
+    </div>
+    <div class="app" id="app">
+      <div class="bar"><span class="logo">한난<span>MOA</span></span><span class="tabs"><span>내 업무공간</span><span class="on">AI로 만들기</span><span>취합하기</span></span></div>
+      <div class="ws">
+        <div class="chat">
+          <div class="u">지사별 하반기 교육 참가자 명단을 받고 싶어요. 담당자 연락처도 받고, 직급은 목록에서 고르게</div>
+          <div class="a"><b>혼합형</b>으로 만들었어요. 지사 15곳에 파일이 하나씩 나가요. 제출 기한은 정해 주지 않으셔서 비워 뒀어요.</div>
+          <div class="card">
+            <div class="card-h"><b id="cardTitle">2026 하반기 교육 참가자 조사</b><span class="chip pri">혼합형</span><span style="font-size:12px;color:var(--sub)">지사 15곳에 파일이 하나씩 나가요</span><span id="cardDue"></span><span style="flex:1"></span><span class="chip ok">검사 통과</span></div>
+            <div class="card-pv"><table class="sheet">
+              <tr><td class="t" colspan="4">2026 하반기 교육 참가자 조사</td></tr>
+              <tr><td class="h">지사명</td><td>🔒 서울지사</td><td class="g" colspan="2" id="row2">노란 칸은 꼭 채워 주세요</td></tr>
+              <tr><td class="h">담당자</td><td class="r" colspan="3"></td></tr>
+              <tr><td class="h">번호</td><td class="h">이름 *</td><td class="h">직급 *</td><td class="h">참가 희망일</td></tr>
+              <tr><td>1</td><td class="r"></td><td class="r"></td><td></td></tr>
+            </table></div>
+            <div class="card-f"><button class="btn pri sm" id="openExport">엑셀 내보내기</button><button class="btn sm">양식 파일 저장</button></div>
+          </div>
+        </div>
+        <aside class="side">
+          <div class="pn"><b>① 기본 정보</b><span class="s" id="pnSum">제목 · 기한 없음</span>
+            <label class="lab">제출 기한</label><input class="inp" id="pnDue" type="date">
+            <label class="lab">문의처</label><input class="inp" id="pnContact" placeholder="인사부">
+          </div>
+          <div class="pn"><b>② 양식 구조</b><span class="s">혼합형</span></div>
+          <div class="pn"><b>③ 항목·서식</b><span class="s">5개</span></div>
+          <div class="pn"><b>④ 취합 방식</b><span class="s">같은 틀 시트 · 제출 현황</span></div>
+          <div class="pn"><b>⑤ 제출처</b><span class="s">목록 있음 · 15곳</span></div>
+        </aside>
+      </div>
+
+      <div class="dim" id="dim"><div class="dlg" id="dlg"></div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>내 업무공간 · 취합 일정에서는 이렇게 보여요</h2>
+    <p class="lead" style="font-size:14px">위에서 고른 기한이 그대로 반영돼요. (오늘 = 10월 23일 금요일)</p>
+    <div class="cmp">
+      <div><div class="lbl bad">지금 · AI 카드에서 기한 없이 내보냈을 때</div>
+        <div class="cal">
+          <div class="kpis"><div class="kpi"><b>0</b><span>취합 기다리는 양식</span></div><div class="kpi"><b>0</b><span>이번 주 제출 기한</span></div><div class="kpi"><b>1</b><span>작성 중 (내보내기 전으로 보임)</span></div></div>
+          <div id="calBefore"></div>
+          <div class="hint">내보낸 기록이 없어 "작성 중"으로 남고, 기한이 없어 오늘 하루짜리 막대만 그려져요.</div>
+        </div>
+      </div>
+      <div><div class="lbl good">바꾼 뒤 · ① 일정 정보를 거쳐 내보냈을 때</div>
+        <div class="cal">
+          <div class="kpis" id="kpiAfter"></div>
+          <div id="calAfter"></div>
+          <div class="hint" id="afterHint"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <div><b>① 일정 정보에서 묻는 것</b>
+      <ul>
+        <li><b>제출 기한</b> (취합 일정에 꼭 필요) — 날짜 고르기 + 빠른 버튼(3일 뒤·1주 뒤·2주 뒤·이번 달 말)</li>
+        <li><b>문의처</b> (선택) — 엑셀 2행 안내 줄과 안내문에 들어가요</li>
+        <li><b>제출처 수</b>는 확인만 — 비어 있으면 원래대로 내보내기 전 검사에서 막혀요</li>
+        <li>작은 링크 <b>[기한 없이 내보내기]</b> — 상시 취합처럼 기한이 없는 경우. 취합 일정에는 "기한 없음"으로 보여요</li>
+      </ul>
+    </div>
+    <div><b>만들 때 바뀌는 곳</b>
+      <ul>
+        <li><code>ExportFlow</code> 맨 앞에 ① 단계. 기한이 있고 오늘 이후면 건너뜀</li>
+        <li>대화 카드의 [엑셀 내보내기]가 <code>ExportFlow</code>를 열도록 (지금은 파일만 만들고 기록을 남기지 않음)</li>
+        <li>① 단계에서 넣은 값은 <code>meta/set</code>으로 양식에 저장 → 카드·패널·자동 저장 모두 반영</li>
+        <li>AI 안내(설명서): 사용자가 기한을 말하면 <code>deadline</code>에 넣고, 말하지 않으면 지어내지 않기</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const TODAY = new Date(2026, 9, 23);
+const DAY = 864e5;
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const md = (s) => { const [, m, d] = s.split('-'); return `${+m}/${+d}`; };
+const W = '일월화수목금토';
+const mdw = (s) => { return `${md(s)}(${W[new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8)).getDay()]})`; };
+const add = (n) => iso(new Date(TODAY.getTime() + n * DAY));
+const monthEnd = iso(new Date(2026, 10, 0));
+const QUICK = [['3일 뒤', add(3)], ['1주 뒤', add(7)], ['2주 뒤', add(14)], ['이번 달 말', monthEnd]];
+const $ = (id) => document.getElementById(id);
+
+let mode = 'none';
+let form = {};       // 양식에 저장된 값
+let draft = {};      // ① 단계에서 고르는 중인 값
+let step = 0;        // 0 닫힘 · 1 일정 정보 · 2 확인 · 3 완료
+let exported = null; // 내보낸 양식 (취합 일정용)
+
+function reset() {
+  form = { deadline: mode === 'past' ? '2026-10-10' : mode === 'set' ? add(7) : '', contact: mode === 'set' ? '인사부 02-000-0000' : '' };
+  exported = null; step = 0;
+  syncForm(false);
+  renderDlg(); renderCal();
+}
+const needsInfo = () => !form.deadline || form.deadline < iso(TODAY);
+
+function syncForm(flash = true) {
+  $('pnDue').value = form.deadline || '';
+  $('pnContact').value = form.contact || '';
+  $('pnSum').textContent = form.deadline ? `기한 ${md(form.deadline)}` : '기한 없음';
+  $('cardDue').innerHTML = form.deadline ? `<span class="chip ${form.deadline < iso(TODAY) ? 'err' : ''}">제출 기한 ${mdw(form.deadline)}</span>` : '<span class="chip warn">제출 기한 없음</span>';
+  $('row2').textContent = ['노란 칸은 꼭 채워 주세요', form.deadline && `${md(form.deadline)}까지`, form.contact && `문의 ${form.contact}`].filter(Boolean).join(' · ');
+  if (flash) for (const id of ['pnDue', 'row2']) { const el = $(id); el.classList.remove('hot'); void el.offsetWidth; el.classList.add('hot'); }
+}
+
+const stepper = (n) => `<span class="stp">${['일정 정보', '확인', '완료'].map((t, i) => `<i class="${i + 1 === n ? 'on' : i + 1 < n ? 'done' : ''}">${i + 1 < n ? '✓' : i + 1} ${t}</i>`).join('')}</span>`;
+
+function renderDlg() {
+  $('dim').classList.toggle('on', step > 0);
+  const d = $('dlg');
+  d.classList.toggle('wide', step === 3);
+  if (step === 1) {
+    const past = form.deadline && form.deadline < iso(TODAY);
+    d.innerHTML = `<div class="dh"><b>엑셀로 내보내기</b>${stepper(1)}</div>
+      <div class="db">
+        <div class="why"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          <span><b>내 업무공간 취합 일정</b>에 올리려면 제출 기한이 필요해요. 엑셀 2행 안내 줄에도 들어가요.</span></div>
+        ${past ? `<div class="warnbox">⚠ 들어 있던 기한 <b>${mdw(form.deadline)}</b>은 이미 지났어요. 지난 차수 양식이면 새 기한을 골라 주세요.</div>` : ''}
+        <div class="row"><span class="k">제출 기한</span><div>
+          <input class="inp" type="date" id="dDue" value="${draft.deadline || ''}" min="${iso(TODAY)}" style="max-width:200px">
+          <div class="quick">${QUICK.map(([t, v]) => `<button data-q="${v}" class="${draft.deadline === v ? 'on' : ''}">${t} · ${md(v)}</button>`).join('')}</div>
+          <div class="hint">${draft.deadline ? `<span class="okline">✓ ${mdw(draft.deadline)}까지 · 오늘부터 ${Math.round((new Date(draft.deadline) - new Date(iso(TODAY))) / DAY)}일</span>` : '오늘(10/23) 이후 날짜를 골라 주세요.'}</div>
+        </div></div>
+        <div class="row"><span class="k">문의처 <span class="chip">선택</span></span><div><input class="inp" id="dContact" value="${draft.contact || ''}" placeholder="예: 인사부 02-000-0000"></div></div>
+        <div class="row"><span class="k">제출처</span><div style="padding-top:6px">지사 15곳 <span class="okline">✓</span> <span class="hint">— 15곳이 다 내면 취합 일정에서 "15/15 제출"로 보여요</span></div></div>
+      </div>
+      <div class="df"><button class="btn link" id="skip">기한 없이 내보내기</button><span style="flex:1"></span><button class="btn" id="cancel">취소</button><button class="btn pri" id="next" ${draft.deadline ? '' : 'disabled'}>다음 →</button></div>`;
+  } else if (step === 2) {
+    d.innerHTML = `<div class="dh"><b>엑셀로 내보내기</b>${stepper(2)}</div>
+      <div class="db">
+        <dl class="sum"><dt>양식</dt><dd><b>2026 하반기 교육 참가자 조사</b> · 혼합형</dd>
+          <dt>제출 기한</dt><dd>${form.deadline ? `<b>${mdw(form.deadline)}</b>` : '<span class="chip warn">기한 없음</span> — 취합 일정에는 "기한 없음"으로 보여요'}${form.contact ? ` · 문의 ${form.contact}` : ''} ${needsInfo() ? '' : '<button class="btn link" id="back" style="font-size:12px">바꾸기</button>'}</dd>
+          <dt>받을 파일</dt><dd>지사별 파일 15개 (압축 파일 1개) <span class="chip pri">추천</span></dd></dl>
+        <div class="mini" style="font-family:ui-monospace,monospace;font-size:12px"><b style="color:var(--pri-ink)">2026 하반기 교육 참가자 조사_v1_배포용.zip</b><br>　├ 2026 하반기 교육 참가자 조사_v1_서울.xlsx<br>　└ … 14개 더</div>
+        <div class="hint">처음 내보내는 양식이에요. v1로 만들어요. (실제 창의 나머지 내용은 지금과 같아요)</div>
+      </div>
+      <div class="df"><button class="btn" id="prev">${mode === 'set' ? '양식으로 돌아가기' : '← 일정 정보'}</button><span style="flex:1"></span><button class="btn pri" id="run">내보내기 (15개 · zip)</button></div>`;
+  } else if (step === 3) {
+    d.innerHTML = `<div class="dh"><b style="color:var(--ok-ink)">엑셀 15개를 만들었어요</b>${stepper(4)}</div>
+      <div class="db"><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="mini"><b>내 업무공간 · 취합 일정에 올라갔어요</b><div class="hint" style="margin:2px 0 8px">${form.deadline ? `오늘 → ${mdw(form.deadline)}까지 막대로 보여요.` : '기한 없음으로 보여요.'}</div><div id="calMini"></div></div>
+        <div class="mini"><b>이제 이렇게 하세요</b><ol style="margin:6px 0 0;padding-left:18px;font-size:13px"><li>지사에 파일 보내기 · 안내문 복사<br><span class="hint">"…${form.deadline ? ` ${md(form.deadline)}까지` : ''} 보내 주세요${form.contact ? `. 문의 ${form.contact}` : ''}"</span></li><li>돌아온 파일 모으기</li><li>취합하기</li></ol></div>
+      </div></div>
+      <div class="df"><span class="hint">다운로드 폴더에 저장됐어요.</span><span style="flex:1"></span><button class="btn" id="close">양식으로 돌아가기</button><button class="btn pri" id="close2">취합하기로 이동 →</button></div>`;
+    $('calMini').innerHTML = calendar(true);
+  } else d.innerHTML = '';
+}
+
+$('dlg').addEventListener('click', (e) => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.q) { draft.deadline = t.dataset.q; renderDlg(); return; }
+  if (t.id === 'next') { form = { ...form, ...draft }; syncForm(); step = 2; }
+  else if (t.id === 'skip') { form.deadline = ''; form.contact = draft.contact || form.contact; syncForm(); step = 2; }
+  else if (t.id === 'cancel' || t.id === 'close' || t.id === 'close2') { step = 0; }
+  else if (t.id === 'prev') { step = mode === 'set' ? 0 : 1; }
+  else if (t.id === 'back') { draft = { ...form }; step = 1; }
+  else if (t.id === 'run') { exported = { ...form }; step = 3; }
+  renderDlg(); renderCal();
+});
+$('dlg').addEventListener('input', (e) => {
+  if (e.target.id === 'dDue') { draft.deadline = e.target.value; const pos = 'dDue'; renderDlg(); $(pos)?.focus(); }
+  if (e.target.id === 'dContact') draft.contact = e.target.value;
+});
+$('openExport').onclick = () => { draft = { deadline: needsInfo() ? '' : form.deadline, contact: form.contact }; step = needsInfo() ? 1 : 2; renderDlg(); };
+$('pnDue').oninput = (e) => { form.deadline = e.target.value; syncForm(false); renderCal(); };
+$('pnContact').oninput = (e) => { form.contact = e.target.value; syncForm(false); };
+$('modes').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; mode = b.dataset.m; [...$('modes').children].forEach((x) => x.classList.toggle('on', x === b)); reset(); };
+
+/* 달력: 10/18(일)부터 3주 */
+function calendar(small, deadline = exported ? exported.deadline : form.deadline, oneDay = false) {
+  const start = new Date(2026, 9, 18);
+  let h = '';
+  for (let w = 0; w < 3; w++) {
+    const ws = new Date(start.getTime() + w * 7 * DAY);
+    if (w === 0) h += `<div class="week">${[...W].map((x) => `<div class="hd">${x}</div>`).join('')}</div>`;
+    h += `<div class="week">${Array.from({ length: 7 }, (_, i) => { const d = new Date(ws.getTime() + i * DAY); return `<div class="d${iso(d) === iso(TODAY) ? ' today' : ''}">${d.getMonth() + 1 === 10 && d.getDate() === 18 || d.getDate() === 1 ? `${d.getMonth() + 1}/` : ''}${d.getDate()}</div>`; }).join('')}</div>`;
+    const dd = (x) => Math.round((x - ws) / DAY);
+    const one = oneDay || !deadline;
+    const endDay = one ? TODAY : new Date(+deadline.slice(0, 4), +deadline.slice(5, 7) - 1, +deadline.slice(8));
+    const s0 = dd(TODAY), e0 = dd(endDay), a = Math.max(0, s0), b = Math.min(6, e0);
+    let bar = '';
+    if (a <= 6 && b >= 0 && a <= b) {
+      const label = a === s0 ? (small ? '교육 참가자 조사' : '2026 하반기 교육 참가자 조사') + (one ? ' · 기한 없음' : '') : '';
+      bar = `<div class="barc${one ? ' one' : ''}" style="left:calc(${a} * 100% / 7 + 3px);width:calc(${b - a + 1} * 100% / 7 - 6px)">${label}${!one && b === e0 ? `<em>${md(deadline)} 기한</em>` : ''}</div>`;
+    }
+    h += `<div class="lane">${'<span></span>'.repeat(7)}${bar}</div>`;
+  }
+  return h;
+}
+function renderCal() {
+  $('calBefore').innerHTML = calendar(false, '', true);
+  const d = exported ? exported.deadline : form.deadline;
+  const weekEnd = iso(new Date(TODAY.getTime() + (6 - TODAY.getDay()) * DAY));
+  const thisWeek = d && d >= iso(TODAY) && d <= weekEnd ? 1 : 0;
+  const over = d && d < iso(TODAY) ? 1 : 0;
+  $('kpiAfter').innerHTML = `<div class="kpi"><b>1</b><span>취합 기다리는 양식${d ? '' : ' (기한 없음 1)'}</span></div><div class="kpi${thisWeek ? ' red' : ''}"><b>${thisWeek}</b><span>이번 주 제출 기한</span></div><div class="kpi${over ? ' red' : ''}"><b>${over}</b><span>기한 지남</span></div>`;
+  $('calAfter').innerHTML = calendar(false, d);
+  $('afterHint').textContent = d ? `내보낸 기록이 남아 "기다리는 양식"으로 뜨고, 오늘 → ${md(d)}까지 막대가 그려져요.${exported ? '' : ' (위에서 내보내기를 끝까지 눌러 보세요)'}` : '기한 없이 내보내면 "기다리는 양식"에는 뜨지만 막대는 하루짜리예요.';
+}
+reset();
+</script>
+</body>
+</html>

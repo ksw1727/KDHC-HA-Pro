@@ -42,9 +42,12 @@ interface Props {
   onSelectKey?: (key: string | null) => void;
   /** 밖에서 항목 고르기 (카드 미리보기의 머리글을 눌렀을 때) */
   focus?: { key: string; at: number };
+  /** 밖에서 [엑셀 내보내기]를 눌렀다 (대화 카드). 받으면 onExportReq로 알리고 내보내기 창을 연다 */
+  exportReq?: number;
+  onExportReq?: () => void;
 }
 
-export function BuilderPage({ start, onHome, homeLabel = '← 처음 화면', compact, onExpand, onChange, onSelectKey, focus }: Props) {
+export function BuilderPage({ start, onHome, homeLabel = '← 처음 화면', compact, onExpand, onChange, onSelectKey, focus, exportReq, onExportReq }: Props) {
   const b = useBuilder(start);
   const s = b.schema;
   useEffect(() => { onChange?.(s); }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -90,6 +93,7 @@ export function BuilderPage({ start, onHome, homeLabel = '← 처음 화면', co
     if (problems.length) setCheck(problems);
     else setExporting(true);
   };
+  useEffect(() => { if (exportReq) { onExportReq?.(); onExport(); } }, [exportReq]); // eslint-disable-line react-hooks/exhaustive-deps
   const onFix = (p: ExportProblem) => {
     setCheck(null);
     if (free && (p.blockId || p.key)) { gotoFree(p); return; }
@@ -128,7 +132,8 @@ export function BuilderPage({ start, onHome, homeLabel = '← 처음 화면', co
   const dialogs = (
     <>
       {check && <CheckDialog problems={check} onFix={onFix} onClose={() => setCheck(null)} />}
-      {exporting && <ExportFlow schema={s} lastExported={b.lastExported} onClose={() => setExporting(false)} onExported={b.markExported} />}
+      {exporting && <ExportFlow schema={s} lastExported={b.lastExported} onClose={() => setExporting(false)} onExported={b.markExported}
+        onMeta={(patch) => b.act({ type: 'meta/set', patch })} />}
       {loadErr && <Dialog tone="err" title={loadErr} onClose={() => setLoadErr('')} footer={<><span className="flex-1" /><Button variant="pri" onClick={() => setLoadErr('')}>확인</Button></>}><p className="m-0">한난MOA에서 저장한 .form.json 파일을 골라 주세요.</p></Dialog>}
     </>
   );
