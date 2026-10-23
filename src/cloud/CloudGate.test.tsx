@@ -15,7 +15,7 @@ vi.mock('./runtime', () => ({
   } }),
 }));
 vi.mock('./forms', () => ({ hydrateForms: m.hydrate, stopFormSync: vi.fn(), subscribeSync: () => () => {}, syncStatus: () => state, flushForms: vi.fn(), discardLocalChanges: vi.fn() }));
-const state = { pending: 0, message: '', conflict: false };
+const state = { pending: 0, message: '', conflict: false, conflicted: [] as string[] };
 import { CloudGate } from './CloudGate';
 beforeEach(() => { m.enabled = true; m.config = null; m.user = null; m.session = null; m.verifyError = null; m.hydrate.mockReset().mockResolvedValue(undefined); m.reset.mockReset().mockResolvedValue({ error: null }); m.requestReset.mockReset().mockResolvedValue({ error: null }); m.sendOtp.mockReset().mockResolvedValue({ error: null }); m.verifyOtp.mockReset().mockResolvedValue({ error: null }); m.signInOtp.mockReset().mockResolvedValue({ error: null }); m.signInPw.mockReset().mockResolvedValue({ error: null }); m.checkOtp.mockReset().mockResolvedValue({ error: null }); m.resetOtp.mockReset().mockResolvedValue({ error: null }); window.history.replaceState(null, '', '/'); });
 afterEach(cleanup);
@@ -124,4 +124,14 @@ test('old recovery link still sets a password with the token and clears it from 
   fireEvent.click(screen.getByRole('button', { name: '비밀번호 설정' }));
   await waitFor(() => expect(m.reset).toHaveBeenCalledWith({ newPassword: 'unit-test-password', token: 'unit-test-reset-token' }));
   await waitFor(() => expect(window.location.search).toBe('')); expect(m.hydrate).not.toHaveBeenCalled();
+});
+test('충돌만 남았으면 저장 재시도는 숨기고 충돌한 양식 이름을 보여준다', async () => {
+  m.session = { user: { id: 'user-a' }, access_token: 'test' };
+  Object.assign(state, { pending: 1, message: '충돌한 로컬 수정이 남아 있습니다.', conflict: true, conflicted: ['지사별 실적'] });
+  try {
+    render(<CloudGate><div>workspace</div></CloudGate>);
+    await waitFor(() => expect(screen.getByText(/충돌한 양식: '지사별 실적'/)).toBeTruthy());
+    expect(screen.queryByRole('button', { name: '저장 재시도' })).toBeNull();
+    expect(screen.getByRole('button', { name: '로컬 수정 버리고 서버 불러오기' })).toBeTruthy();
+  } finally { Object.assign(state, { pending: 0, message: '', conflict: false, conflicted: [] }); }
 });

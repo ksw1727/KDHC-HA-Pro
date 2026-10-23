@@ -5,13 +5,15 @@ import { activeUser, cloudClient, cloudEnabled, requireUser, scopedStorageKey } 
 interface Row { form_id: string; payload: StoredForm; updated_at: string; deleted_at: string | null }
 interface Pending { payload: StoredForm | null; deletedPayload?: StoredForm; base: string | null; conflict?: boolean }
 interface CacheMeta { versions: Record<string, string>; pending: Record<string, Pending> }
-export interface SyncStatus { pending: number; message: string; conflict: boolean }
-let status: SyncStatus = { pending: 0, message: '', conflict: false };
+/** `conflicted` lists the titles of forms held back by a conflict, so the banner can name them. */
+export interface SyncStatus { pending: number; message: string; conflict: boolean; conflicted: string[] }
+let status: SyncStatus = { pending: 0, message: '', conflict: false, conflicted: [] };
 const listeners = new Set<() => void>();
 export function syncStatus(): SyncStatus { return status; }
 export function subscribeSync(listener: () => void): () => void { listeners.add(listener); return () => { listeners.delete(listener); }; }
 function report(meta?: CacheMeta, message = '') {
-  status = { pending: Object.keys(meta?.pending ?? {}).length, message, conflict: Object.values(meta?.pending ?? {}).some(p => p.conflict) ?? false };
+  const conflicted = Object.values(meta?.pending ?? {}).filter(p => p.conflict).map(p => (p.payload ?? p.deletedPayload)?.schema.title?.trim() || '이름 없는 양식');
+  status = { pending: Object.keys(meta?.pending ?? {}).length, message, conflict: conflicted.length > 0, conflicted };
   listeners.forEach(f => f());
 }
 const PREFIX = 'hanan-moa:forms:';
@@ -25,6 +27,23 @@ function cacheRow(row: Row) {
   const key = scopedStorageKey(PREFIX + row.form_id);
   if (row.deleted_at) { localStorage.removeItem(key); markRemoved(row.form_id, true); }
   else localStorage.setItem(key, JSON.stringify(row.payload));
+}
+// Key order is not preserved by jsonb, so compare payloads with sorted keys.
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_, v: unknown) => v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : v);
+}
+/** True when the server already holds exactly what this pending change wants (e.g. another tab saved it first). */
+function sameAsServer(pending: Pending, row: Row | undefined): boolean {
+  if (!pending.payload) return !row || !!row.deleted_at;
+  return !!row && !row.deleted_at && canonical(row.payload) === canonical(pending.payload);
+}
+function settle(meta: CacheMeta, id: string, row: Row | undefined) {
+  delete meta.pending[id];
+  if (row) { cacheRow(row); meta.versions[id] = row.updated_at; } else delete meta.versions[id];
+}
+// One tab at a time talks to the server; otherwise two tabs send the same queued edit and the loser reads as a conflict.
+function withSyncLock(owner: string, fn: () => Promise<void>): Promise<void> {
+  return typeof navigator !== 'undefined' && navigator.locks ? navigator.locks.request(`hanan-moa:form-sync:${owner}`, fn).then(() => undefined) : fn();
 }
 let timer: ReturnType<typeof setTimeout> | undefined;
 let running: Promise<void> | undefined;
@@ -48,6 +67,10 @@ export function queueForm(formId: string, payload: StoredForm | null, deletedPay
 export async function hydrateForms(): Promise<void> {
   const owner = requireUser();
   const epoch = sequence;
+  await withSyncLock(owner, () => hydrateLocked(owner, epoch));
+  void flushForms();
+}
+async function hydrateLocked(owner: string, epoch: number): Promise<void> {
   const rows: Row[] = [];
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await cloudClient().from('moa_forms').select('form_id,payload,updated_at,deleted_at').eq('user_id', owner).order('form_id').range(offset, offset + 999);
@@ -67,15 +90,16 @@ export async function hydrateForms(): Promise<void> {
   for (const row of rows) {
     const pending = meta.pending[row.form_id];
     if (!pending) { cacheRow(row); meta.versions[row.form_id] = row.updated_at; }
+    else if (sameAsServer(pending, row)) settle(meta, row.form_id, row);
     else if (pending.base !== row.updated_at) pending.conflict = true;
   }
   for (const [id, p] of Object.entries(meta.pending)) {
+    if (!ids.has(id) && !p.payload) { settle(meta, id, undefined); continue; }
     if (!ids.has(id) && p.base !== null) p.conflict = true;
     if (p.payload) localStorage.setItem(scopedStorageKey(PREFIX + id), JSON.stringify(p.payload));
     else localStorage.removeItem(scopedStorageKey(PREFIX + id));
   }
   persist(meta); report(meta, Object.values(meta.pending).some(p => p.conflict) ? '다른 기기의 변경과 충돌했습니다. 로컬 수정은 보존되며 서버를 덮어쓰지 않습니다.' : '');
-  void flushForms();
 }
 export async function flushForms(): Promise<void> {
   if (!cloudEnabled || !activeUser()) return;
@@ -85,8 +109,10 @@ export async function flushForms(): Promise<void> {
   const work = async () => {
     try {
       let meta = readMeta();
-      for (const [id, pending] of Object.entries(meta.pending)) {
-        if (pending.conflict || activeUser() !== owner || epoch !== sequence) continue;
+      for (const id of Object.keys(meta.pending)) {
+        // Re-read: another tab may have flushed this entry while we waited for the lock.
+        const pending = readMeta().pending[id];
+        if (!pending || pending.conflict || activeUser() !== owner || epoch !== sequence) continue;
         const updatedAt = new Date(Math.max(Date.now(), Date.parse(pending.base ?? '') + 1 || 0)).toISOString();
         const row = { user_id: owner, form_id: id, ...(pending.payload ? { payload: pending.payload } : pending.base === null ? { payload: pending.deletedPayload } : {}), updated_at: updatedAt, deleted_at: pending.payload ? null : updatedAt };
         // Compare-and-swap prevents quietly overwriting another device, including tombstones.
@@ -97,7 +123,21 @@ export async function flushForms(): Promise<void> {
         meta = readMeta();
         if (result.error || !result.data?.length) {
           const conflict = result.error?.code === '23505' || (!result.error && !result.data?.length);
-          if (conflict && meta.pending[id]) meta.pending[id].conflict = true;
+          if (conflict) {
+            // Before calling it a conflict, check whether the server already has this very change.
+            const server = await cloudClient().from('moa_forms').select('form_id,payload,updated_at,deleted_at').eq('user_id', owner).eq('form_id', id).maybeSingle();
+            if (activeUser() !== owner || epoch !== sequence) return;
+            const remote = (server.data ?? undefined) as Row | undefined;
+            meta = readMeta();
+            const current = meta.pending[id];
+            if (!server.error && sameAsServer(pending, remote)) {
+              if (!current || JSON.stringify(current) === JSON.stringify(pending)) settle(meta, id, remote);
+              else { current.base = remote?.updated_at ?? null; if (remote) meta.versions[id] = remote.updated_at; else delete meta.versions[id]; }
+              persist(meta); report(meta, Object.values(meta.pending).some(p => p.conflict) ? '충돌한 로컬 수정이 남아 있습니다.' : '');
+              continue;
+            }
+            if (current) current.conflict = true;
+          }
           persist(meta);
           report(meta, conflict ? '다른 기기의 변경과 충돌했습니다. 로컬 수정만 보존되었습니다.' : `클라우드 저장 실패 · 이 기기에만 저장됨: ${result.error?.message ?? '알 수 없는 오류'}`);
           if (!conflict) return;
@@ -113,7 +153,7 @@ export async function flushForms(): Promise<void> {
       if (activeUser() === owner && epoch === sequence) report(readMeta(), `클라우드 저장 실패 · 이 기기에만 저장됨: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
-  running = work();
+  running = withSyncLock(owner, work);
   const current = running;
   try { await current; } finally {
     if (running === current) {
