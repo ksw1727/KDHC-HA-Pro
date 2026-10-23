@@ -28,7 +28,7 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
         <i aria-hidden className="grid size-7 place-items-center rounded-[9px] bg-pri text-[10.5px] not-italic text-white">MOA</i>
         한난<span className="-ml-2 text-ink">MOA</span>
       </span>
-      <nav className="flex shrink-0 gap-[18px] self-stretch overflow-x-auto" aria-label="주요 화면">
+      <nav className="flex shrink-0 gap-[18px] self-stretch" aria-label="주요 화면">
         {MAIN.map(([id, label]) => (
           <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}
             className={'-mb-px whitespace-nowrap border-b-2 px-0.5 text-[13.5px] ' + (tab === id ? 'border-pri font-bold text-ink' : 'border-transparent text-sub hover:text-ink')}>
