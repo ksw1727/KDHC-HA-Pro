@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>브랜드 파스텔 시안 5종</title>
+<style>
+/* 브랜드 기준색 (슬로건 가이드라인 4.01): Green R55 G161 B55 / Red R237 G28 B41. 파스텔은 가이드라인의 10~40% 단계에서 */
+:root { --brand-green: #37a137; --brand-red: #ed1c29; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.5 Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+/* ── 시안 고르기 (시안 밖) ── */
+.picker { position: fixed; z-index: 90; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: center;
+  background: #1d2420ee; color: #fff; border-radius: 14px; padding: 8px 10px; box-shadow: 0 10px 30px -10px #0008; max-width: calc(100vw - 20px); }
+.picker .grp { display: flex; gap: 3px; background: #ffffff18; border-radius: 9px; padding: 3px; flex-wrap: wrap; }
+.picker button { border: 0; background: none; color: #cfd8d2; padding: 5px 10px; border-radius: 7px; font-size: 12.5px; white-space: nowrap; }
+.picker button[aria-pressed="true"] { background: #fff; color: #1d2420; font-weight: 700; }
+.picker .lab { font-size: 11px; color: #8fa097; padding-left: 4px; }
+.picker .sw { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+
+/* ── 공통 부품 ── */
+.app { min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 76px; }
+.hdr { display: flex; align-items: center; gap: 14px; padding: 10px 20px; background: var(--hdr); border-bottom: 1px solid var(--line); position: relative; z-index: 5; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 16px; letter-spacing: -.3px; color: var(--pri); white-space: nowrap; }
+.logo i { width: 28px; height: 28px; border-radius: 9px; background: var(--pri); color: #fff; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 800; }
+.logo span { color: var(--ink); }
+.hslogan { height: 30px; padding-left: 14px; border-left: 1px solid var(--line); }
+.tabs { display: flex; gap: 2px; background: var(--tabbg); padding: 3px; border-radius: 10px; }
+.tabs button { border: 0; background: none; padding: 5px 13px; border-radius: 8px; color: var(--sub); white-space: nowrap; }
+.tabs button[aria-current] { background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 2px #0000001a; }
+.tabs.under { background: none; padding: 0; gap: 18px; align-self: stretch; }
+.tabs.under button { border-radius: 0; padding: 0 2px; border-bottom: 2px solid transparent; box-shadow: none; background: none; }
+.tabs.under button[aria-current] { border-bottom-color: var(--pri); color: var(--ink); }
+.sp { flex: 1; }
+.circ { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--line); background: var(--surface); color: var(--sub); position: relative; }
+.circ:hover { border-color: var(--pri); color: var(--pri); }
+.circ svg { width: 17px; height: 17px; }
+.circ.on { border-color: var(--pri); box-shadow: 0 0 0 3px var(--pribg); color: var(--pri); }
+.ava { background: linear-gradient(135deg, var(--avA), var(--avB)); color: #fff; font-weight: 800; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.ava.on { box-shadow: 0 0 0 3px var(--pribg), 0 0 0 1px var(--pri); }
+.ava .caret { position: absolute; right: -6px; bottom: -2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); color: var(--sub); display: grid; place-items: center; font-size: 8px; }
+.menu { position: absolute; right: 16px; top: 52px; width: 240px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px -12px #1d24204d; padding: 6px; z-index: 30; }
+.menu .me { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.menu .me b { display: block; } .menu .me small { color: var(--muted); }
+.menu button { display: flex; width: 100%; align-items: center; gap: 9px; border: 0; background: none; padding: 7px 10px; border-radius: 8px; text-align: left; }
+.menu button:hover { background: var(--pribg); color: var(--pri); }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.tip { position: absolute; top: 40px; right: 50%; transform: translateX(50%); background: #1d2420; color: #fff; font-size: 11px; padding: 3px 7px; border-radius: 6px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.circ:hover .tip { opacity: 1; }
+
+.main { flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 22px 20px 40px; display: flex; flex-direction: column; gap: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.btn { border: 1px solid var(--line2); background: var(--surface); border-radius: var(--rb); padding: 7px 13px; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.btn:hover { border-color: var(--pri); color: var(--pri); }
+.btn.pri { background: var(--pri); border-color: var(--pri); color: #fff; }
+.btn.pri:hover { filter: brightness(.94); color: #fff; }
+.btn.sm { padding: 4px 9px; font-size: 12px; }
+.btn.acc { background: var(--accbg); border-color: transparent; color: var(--accink); }
+.chip { display: inline-flex; border-radius: 999px; padding: 1px 8px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.c-g { background: var(--pribg); color: var(--priink); } .c-r { background: var(--accbg); color: var(--accink); } .c-n { background: var(--tabbg); color: var(--sub); }
+.h2 { margin: 0; font-size: 15px; } .hint { color: var(--muted); font-size: 12px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 18px; align-items: start; }
+.in { width: 100%; height: 38px; border: 1px solid var(--line2); border-radius: var(--rb); padding: 0 11px; background: var(--surface); outline: none; }
+.in:focus { border-color: var(--pri); box-shadow: 0 0 0 3px var(--pribg); }
+label.f { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 12.5px; }
+table.t { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.t th { text-align: left; font-weight: 600; color: var(--sub); background: var(--soft); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+table.t td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+table.t tr:last-child td { border-bottom: 0; }
+
+/* 슬로건 배치 */
+.slogan { display: block; height: auto; }
+.wave { position: relative; overflow: hidden; background: linear-gradient(100deg, var(--waveA) 0%, #fff 50%, var(--waveB) 100%); border-bottom: 1px solid var(--line); }
+.wave svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.wave .in2 { position: relative; max-width: 1200px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 14px; }
+.foot { margin-top: auto; border-top: 1px solid var(--line); background: var(--surface); }
+.foot .in2 { max-width: 1200px; margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+.hero { border-radius: var(--r); padding: 22px 26px; display: flex; align-items: center; gap: 24px; position: relative; overflow: hidden; }
+.hero h1 { margin: 0; font-size: 22px; letter-spacing: -.5px; } .hero p { margin: 4px 0 0; color: var(--sub); }
+
+/* KPI */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { padding: 14px 16px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); }
+.kpi span { font-size: 12px; color: var(--sub); } .kpi b { display: block; font-size: 24px; letter-spacing: -.6px; } .kpi em { font-style: normal; font-size: 12px; color: var(--muted); }
+.kpi.tint-g { background: var(--pribg); border-color: transparent; } .kpi.tint-r { background: var(--accbg); border-color: transparent; }
+
+/* 달력 */
+.cal .dow, .cal .wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.cal .dow div { padding: 6px 8px; font-size: 11.5px; color: var(--muted); background: var(--soft); border-bottom: 1px solid var(--line); }
+.cal .wk { border-bottom: 1px solid var(--line); min-height: 70px; grid-auto-rows: min-content; position: relative; padding-bottom: 4px; }
+.cal .wk:last-child { border-bottom: 0; }
+.cal .d { grid-row: 1; padding: 5px 8px 2px; font-size: 12px; color: var(--sub); }
+.cal .d.t b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 10px; background: var(--pri); color: #fff; font-size: 11px; padding: 0 5px; }
+.cal .bar { margin: 2px 3px 0; height: 19px; border-radius: 5px; font-size: 11px; font-weight: 600; padding: 0 7px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
+
+/* AI 화면 */
+.ai { display: grid; grid-template-columns: minmax(0, 1fr) 420px; flex: 1; min-height: 0; }
+.chat { padding: 22px 28px; display: flex; flex-direction: column; gap: 14px; max-width: 760px; margin: 0 auto; width: 100%; }
+.bub { border-radius: 14px; padding: 11px 14px; max-width: 86%; }
+.bub.me { align-self: flex-end; background: var(--pri); color: #fff; border-bottom-right-radius: 4px; }
+.bub.bot { background: var(--surface); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.compose { margin-top: auto; display: flex; gap: 8px; background: var(--surface); border: 1px solid var(--line2); border-radius: 14px; padding: 8px 8px 8px 14px; align-items: center; }
+.compose input { border: 0; outline: none; flex: 1; background: none; height: 34px; }
+.panel { border-left: 1px solid var(--line); background: var(--surface); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.sheet { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.sheet td, .sheet th { border: 1px solid var(--line); padding: 4px 6px; }
+.sheet th { background: var(--pribg); color: var(--priink); font-weight: 600; }
+.sheet td.y { background: #fff8dc; } .sheet td.c { background: var(--soft); color: var(--sub); }
+
+/* 취합 */
+.drop { border: 2px dashed var(--line2); border-radius: var(--r); padding: 26px; text-align: center; background: var(--soft); color: var(--sub); }
+.drop b { color: var(--ink); font-size: 15px; display: block; margin-bottom: 4px; }
+.stat { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat div { min-width: 100px; padding: 9px 12px; border-radius: var(--rb); border: 1px solid var(--line); background: var(--surface); }
+.stat span { display: block; font-size: 11.5px; color: var(--sub); } .stat b { font-size: 18px; }
+
+/* 로그인 */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 30px 16px 100px; background: var(--loginbg); }
+.lcard { width: 400px; max-width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 30px 32px 26px; box-shadow: 0 1px 2px #0000000a, 0 16px 40px -22px #1d242055; display: flex; flex-direction: column; gap: 14px; }
+.lcard h1 { margin: 0; font-size: 20px; text-align: center; } .lcard .sub { margin: -8px 0 4px; text-align: center; color: var(--sub); }
+.lsplit { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; }
+.lside { display: flex; flex-direction: column; justify-content: center; gap: 26px; padding: 50px 60px; position: relative; overflow: hidden; }
+
+@media (max-width: 900px) { .grid2, .ai, .lsplit { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } .panel { border-left: 0; border-top: 1px solid var(--line); } .hslogan { display: none; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<nav class="picker" aria-label="시안 고르기">
+  <span class="lab">시안</span><div class="grp" id="pick-t"></div>
+  <span class="lab">화면</span><div class="grp" id="pick-p"></div>
+</nav>
+
+<script>
+const SLOGAN = 'assets/slogan-ko.png';   // 가이드라인 1.01 워드마크 (원본 그대로, 흰 바탕·연한 바탕에만)
+/* ───── 시안 5종: 색 토큰 + 슬로건 배치 ───── */
+const THEMES = [
+  { id: 1, name: '새싹 민트', dot: '#9fcf98', desc: '연녹색 바탕 · 머리줄 로고 옆에 슬로건',
+    v: { bg: '#f4f9f2', surface: '#ffffff', soft: '#f1f7ef', hdr: '#ffffff', tabbg: '#e9f3e6', line: '#e1ecdd', line2: '#c9dcc4', ink: '#1f2a22', sub: '#56645a', muted: '#8a978e',
+         pri: '#3f8f49', priink: '#2e6e37', pribg: '#e3f1df', acc: '#e07a72', accink: '#b64a43', accbg: '#fbe9e6', avA: '#7cc47a', avB: '#3f8f49', r: '12px', rb: '8px',
+         waveA: '#e3f1df', waveB: '#fbe9e6', loginbg: 'linear-gradient(180deg,#f4f9f2,#eef6ec)' },
+    slogan: { header: true }, tabs: 'pill', login: 'card-top' },
+  { id: 2, name: '따뜻한 피치', dot: '#f3b2a8', desc: '살구빛 바탕 · 내 업무공간 큰 배너에 슬로건',
+    v: { bg: '#fff8f5', surface: '#ffffff', soft: '#fff3ef', hdr: '#ffffff', tabbg: '#fcebe5', line: '#f3e2dc', line2: '#e8cdc4', ink: '#2c2220', sub: '#6a5a56', muted: '#9b8b86',
+         pri: '#c9473f', priink: '#a5352e', pribg: '#fde8e3', acc: '#4f9c58', accink: '#2f7338', accbg: '#e6f3e3', avA: '#f39b8f', avB: '#c9473f', r: '14px', rb: '9px',
+         waveA: '#fde8e3', waveB: '#e6f3e3', loginbg: '#fff8f5' },
+    slogan: { hero: 'banner' }, tabs: 'pill', login: 'split' },
+  { id: 3, name: '슬로건 물결', dot: 'linear-gradient(90deg,#b9dcb1,#f4c3bf)', desc: '흰 바탕 · 머리줄 아래 녹색→빨강 물결 띠에 슬로건',
+    v: { bg: '#fbfcfa', surface: '#ffffff', soft: '#f6f8f5', hdr: '#ffffff', tabbg: '#f1f4ef', line: '#e5e9e3', line2: '#cfd7cc', ink: '#1e2620', sub: '#58625b', muted: '#8c968f',
+         pri: '#37913f', priink: '#2a6f31', pribg: '#e5f2e1', acc: '#e0605a', accink: '#b8403a', accbg: '#fde9e7', avA: '#8fd08a', avB: '#e8857f', r: '12px', rb: '8px',
+         waveA: '#dff0da', waveB: '#fde3e0', loginbg: '#fbfcfa' },
+    slogan: { wave: true }, tabs: 'under', login: 'wave-top' },
+  { id: 4, name: '크림 세이지', dot: '#cfd8bf', desc: '크림 바탕 · 모든 화면 아래쪽 띠에 슬로건',
+    v: { bg: '#fbf8f1', surface: '#fffdf9', soft: '#f6f1e7', hdr: '#fffdf9', tabbg: '#f1ebdf', line: '#ebe3d4', line2: '#dcd1bd', ink: '#2e332c', sub: '#5f6459', muted: '#979a8e',
+         pri: '#577f55', priink: '#41633f', pribg: '#e7eedc', acc: '#c27c78', accink: '#9b524e', accbg: '#f6e6e2', avA: '#a9bf93', avB: '#577f55', r: '10px', rb: '7px',
+         waveA: '#e7eedc', waveB: '#f6e6e2', loginbg: '#fbf8f1' },
+    slogan: { footer: true }, tabs: 'pill', login: 'card-below' },
+  { id: 5, name: '투톤 카드', dot: 'linear-gradient(90deg,#c6e5bf 50%,#f8cfcb 50%)', desc: '흰 바탕 · 만들기는 연녹색, 취합은 연분홍 카드 · 첫 화면 큰 카드에 슬로건',
+    v: { bg: '#ffffff', surface: '#ffffff', soft: '#f7f8f7', hdr: '#ffffff', tabbg: '#f2f4f2', line: '#e8ebe8', line2: '#d3d8d3', ink: '#1c221d', sub: '#566059', muted: '#8d958f',
+         pri: '#2f8f3a', priink: '#236c2b', pribg: '#e4f3e0', acc: '#de4f48', accink: '#b23731', accbg: '#fde8e6', avA: '#5fbf5f', avB: '#e65a52', r: '16px', rb: '10px',
+         waveA: '#e4f3e0', waveB: '#fde8e6', loginbg: '#ffffff' },
+    slogan: { hero: 'card' }, tabs: 'pill', login: 'split-card' },
+];
+const PAGES = [['login', '로그인'], ['home', '내 업무공간'], ['ai', 'AI로 만들기'], ['agg', '취합하기'], ['account', '내 계정'], ['admin', '관리자']];
+let T = THEMES[0], P = 'home', menu = false;
+
+const I = {
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>',
+  user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21h4"/></svg>',
+  out: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>',
+};
+const swoosh = (h = 60) => `<svg class="bg" viewBox="0 0 1200 ${h}" preserveAspectRatio="none" aria-hidden="true">
+  <defs><linearGradient id="sg" x1="0" x2="1"><stop offset="0" stop-color="#37a137" stop-opacity=".22"/><stop offset=".5" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#ed1c29" stop-opacity=".2"/></linearGradient></defs>
+  <path d="M0 ${h*.75} C 300 ${h*.1}, 700 ${h*1.1}, 1200 ${h*.3} L1200 ${h} L0 ${h} Z" fill="url(#sg)"/></svg>`;
+
+/* ───── 머리줄 ───── */
+function header() {
+  const tabs = [['home', '내 업무공간'], ['ai', 'AI로 만들기'], ['agg', '취합하기']];
+  return `<header class="hdr">
+    <div class="logo"><i>MOA</i>한난<span>MOA</span></div>
+    ${T.slogan.header ? `<img class="hslogan" src="${SLOGAN}" alt="깨끗한 에너지로 세상을 따뜻하게">` : ''}
+    <nav class="tabs ${T.tabs === 'under' ? 'under' : ''}" aria-label="주요 화면">${tabs.map(([id, l]) => `<button data-p="${id}" ${P === id ? 'aria-current="page"' : ''}>${l}</button>`).join('')}</nav>
+    <span class="sp"></span>
+    <button class="circ" aria-label="알림">${I.bell}<span class="tip">알림</span></button>
+    <button class="circ ${P === 'admin' ? 'on' : ''}" data-p="admin" aria-label="관리자">${I.shield}<span class="tip">관리자</span></button>
+    <button class="circ ava ${P === 'account' || menu ? 'on' : ''}" data-menu aria-label="내 계정 메뉴" aria-expanded="${menu}">김<span class="caret">▾</span></button>
+    ${menu ? `<div class="menu" role="menu">
+      <div class="me"><b>김선우</b><small>ksw1727@gmail.com · 고객지원부</small></div>
+      <button data-p="account">${I.user.replace('<svg', '<svg width="15" height="15"')}내 계정</button>
+      <button data-p="admin">${I.shield.replace('<svg', '<svg width="15" height="15"')}관리자</button>
+      <hr><button>${I.out}로그아웃</button></div>` : ''}
+  </header>
+  ${T.slogan.wave ? `<div class="wave">${swoosh(56)}<div class="in2"><span class="hint" style="color:var(--sub)">한국지역난방공사 업무 도구 · 엑셀 양식 생성·취합</span><span class="sp"></span><img class="slogan" style="height:38px" src="${SLOGAN}" alt="깨끗한 에너지로 세상을 따뜻하게"></div></div>` : ''}`;
+}
+function footer() {
+  if (!T.slogan.footer) return '';
+  return `<footer class="foot"><div class="in2"><img class="slogan" style="height:34px" src="${SLOGAN}" alt="깨끗한 에너지로 세상을 따뜻하게"><span>한국지역난방공사 · 한난MOA</span><span class="sp"></span><span>문의: 고객지원부</span></div></footer>`;
+}
+const shell = (body, wide = false) => `<div class="app">${header()}${wide ? body : `<main class="main">${body}</main>`}${footer()}</div>`;
+
+/* ───── 내 업무공간 ───── */
+function home() {
+  const heroBanner = T.slogan.hero === 'banner' ? `<section class="hero" style="background:linear-gradient(110deg,#fde8e3 0%,#fff6f2 55%,#e8f4e5 100%)">
+      ${swoosh(140).replace('class="bg"', 'class="bg" style="position:absolute;inset:0;width:100%;height:100%"')}
+      <div style="position:relative"><h1>김선우 님의 업무공간</h1><p>10월 23일 금요일 · 취합 기다리는 양식 4건, 이번 주 기한 1건</p>
+      <div class="row" style="margin-top:14px"><button class="btn pri">＋ 새 양식 만들기</button><button class="btn">받은 파일 취합하기</button></div></div>
+      <span class="sp"></span><div style="position:relative;background:#fff;border-radius:14px;padding:14px 18px"><img class="slogan" style="height:84px" src="${SLOGAN}" alt="깨끗한 에너지로 세상을 따뜻하게"></div></section>`
+    : T.slogan.hero === 'card' ? `<section class="grid2" style="grid-template-columns:minmax(0,1fr) 360px">
+      <div class="hero" style="background:var(--pribg)"><div><h1>김선우 님의 업무공간</h1><p>10월 23일 금요일 · 취합 기다리는 양식 4건, 이번 주 기한 1건</p>
+        <div class="row" style="margin-top:14px"><button class="btn pri">＋ 새 양식 만들기</button><button class="btn" style="background:var(--accbg);border-color:transparent;color:var(--accink)">받은 파일 취합하기</button></div></div></div>
+      <div class="hero card" style="justify-content:center;padding:18px"><img class="slogan" style="height:96px" src="${SLOGAN}" alt="깨끗한 에너지로 세상을 따뜻하게"></div></section>`
+    : `<section class="row" style="align-items:flex-start"><div><h1 style="margin:0;font-size:20px;letter-spacing:-.4px">김선우 님의 업무공간</h1><p class="hint" style="margin:3px 0 0;font-size:13px;color:var(--sub)">10월 23일 금요일 · 취합 기다리는 양식 4건, 이번 주 기한 1건</p></div><span class="sp"></span><button class="btn">받은 파일 취합하기</button><button class="btn pri">＋ 새 양식 만들기</button></section>`;
+  const tint = T.id === 5;
+  const kpis = `<section class="kpis">
+    <div class="kpi ${tint ? 'tint-g' : ''}"><span>취합 기다리는 양식</span><b>4<small style="font-size:13px;color:var(--muted)">건</small></b><em>내보냈고 아직 취합 전</em></div>
+    <div class="kpi ${tint ? 'tint-r' : ''}"><span>이번 주 제출 기한</span><b style="color:var(--accink)">1<small style="font-size:13px;color:var(--muted)">건</small></b><em>10/24(토) 분기별 에너지 절감량</em></div>
+    <div class="kpi"><span>기한 지났는데 취합 전</span><b>0<small style="font-size:13px;color:var(--muted)">건</small></b><em>제출 기한이 지나면 여기로</em></div>
+    <div class="kpi ${tint ? 'tint-g' : ''}"><span>이번 달 마친 취합</span><b style="color:var(--priink)">2<small style="font-size:13px;color:var(--muted)">건</small></b><em>요약은 취합 이력에</em></div></section>`;
+  const G = (t) => `background:var(--pribg);color:var(--priink)`, R = `background:var(--accbg);color:var(--accink)`, Y = `background:#fff4d6;color:#7a5a00`;
+  const wk = (days, bars, today) => `<div class="wk">${days.map((d, i) => `<div class="d ${d === today ? 't' : ''}" style="grid-column:${i + 1}">${d === today ? `<b>${d}</b>` : d}</div>`).join('')}${bars.map(([a, b, row, st, txt]) => `<div class="bar" style="grid-column:${a}/${b};grid-row:${row};${st}">${txt}</div>`).join('')}</div>`;
+  const cal = `<div class="card cal" style="overflow:hidden"><div class="row" style="padding:10px 12px;border-bottom:1px solid var(--line)"><button class="btn sm">‹</button><b style="font-size:14px">2026년 10월</b><button class="btn sm">›</button><span class="sp"></span><span class="hint">○ 만든 날 → 기한 · ✓ 취합한 날</span></div>
+    <div class="dow">${'일월화수목금토'.split('').map(d => `<div>${d}</div>`).join('')}</div>
+    ${wk([11,12,13,14,15,16,17], [[4,5,2,'background:var(--tabbg);color:var(--muted)','✓ 3분기 교육 이수'],[5,8,2,G(),'○ 분기별 에너지 절감량']])}
+    ${wk([18,19,20,21,22,23,24], [[1,8,2,G(),'분기별 에너지 절감량 · 기한 24일'],[2,3,3,Y,'○ 협력업체 연락처'],[3,8,3,R,'○ 하반기 안전점검 결과'],[5,8,4,`background:#eef0ff;color:#4b56a8`,'○ 동절기 비상연락망']], 23)}
+    ${wk([25,26,27,28,29,30,31], [[1,5,2,R,'하반기 안전점검 결과 · 기한'],[1,7,3,`background:#eef0ff;color:#4b56a8`,'동절기 비상연락망 · 기한 30일']])}</div>`;
+  const wait = (t, d, meta, c) => `<div class="card" style="padding:12px 14px;display:flex;flex-direction:column;gap:7px;${tint ? `background:var(--${c}bg);border-color:transparent` : ''}">
+      <div class="row"><b style="flex:1;font-size:13.5px">${t}</b><span class="chip ${d === 'D-1' ? 'c-r' : 'c-n'}">${d}</span></div>
+      <span class="hint">${meta}</span><div style="font-size:12px;color:var(--sub);background:${tint ? '#ffffffb3' : 'var(--soft)'};border-radius:8px;padding:6px 9px"><b style="color:var(--ink)">취합 전</b> · 받은 파일을 넣으면 누가 냈는지 알려줘요</div>
+      <div class="row"><button class="btn sm pri">받은 파일 취합하기</button><button class="btn sm">양식 열기</button></div></div>`;
+  const forms = `<section><div class="row" style="margin-bottom:10px"><h2 class="h2">내가 만든 양식</h2><span class="hint">12</span><span class="sp"></span><button class="btn sm">취합 이력</button></div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">${[['분기별 에너지 절감량','표형','지사 19곳','취합 전','g'],['하반기 안전점검 결과','목록형','부서 12곳','취합 전','g'],['2027 사업계획 초안','혼합형','부서 12곳','내보내기 전','r'],['3분기 교육 이수 현황','목록형','부서 12곳','10/14 취합함','n']].map(([t, l, w, s, c]) => `
+      <div class="card" style="overflow:hidden"><div style="height:62px;background:${c === 'g' ? 'var(--pribg)' : c === 'r' ? 'var(--accbg)' : 'var(--soft)'};display:grid;place-items:center">
+        <svg width="120" height="40" viewBox="0 0 120 40"><g fill="#fff" stroke="#00000014"><rect x="0" y="0" width="120" height="9" fill="#ffffffaa"/>${[0,1,2].map(r => [0,1,2,3].map(k => `<rect x="${k*30}" y="${10+r*10}" width="30" height="10" fill="${k===0?'#ffffffcc':'#fff8dc'}"/>`).join('')).join('')}</g></svg></div>
+        <div style="padding:10px 12px;display:flex;flex-direction:column;gap:4px"><span class="chip c-g" style="align-self:flex-start">${l}</span><b>${t}</b><span class="hint">${w} · ${s}</span></div></div>`).join('')}</div></section>`;
+  return shell(`${heroBanner}${kpis}<section class="grid2"><div><div class="row" style="margin-bottom:10px"><h2 class="h2">취합 일정</h2><span class="hint">양식을 만든 날 → 제출 기한</span></div>${cal}</div>
+    <aside><div class="row" style="margin-bottom:10px"><h2 class="h2">취합 기다리는 양식</h2><span class="hint">4건</span></div><div style="display:flex;flex-direction:column;gap:10px">
+    ${wait('분기별 에너지 절감량', 'D-1', '표형 · 지사 19곳 · 10/24 기한', 'pri')}${wait('하반기 안전점검 결과', 'D-5', '목록형 · 부서 12곳 · 10/28 기한', 'acc')}</div></aside></section>${forms}`);
+}
+
+/* ───── AI로 만들기 (오른쪽 양식 설정 패널) ───── */
+function ai() {
+  return shell(`<div class="ai"><div style="display:flex;flex-direction:column;background:var(--bg)"><div class="chat">
+      ${T.slogan.hero === 'card' ? `<div class="card" style="padding:14px 16px;display:flex;gap:16px;align-items:center;background:var(--pribg);border-color:transparent"><img class="slogan" style="height:52px;background:#fff;border-radius:10px;padding:6px 10px" src="${SLOGAN}" alt="깨끗한 에너지로 세상을 따뜻하게"><span style="color:var(--sub)">받고 싶은 내용을 말로 적으면 취합할 수 있는 양식을 만들어 드려요.</span></div>` : ''}
+      <div class="bub me">지사별로 분기 에너지 절감량을 받고 싶어. 1~4분기, 단위는 Gcal, 합계도 자동으로</div>
+      <div class="bub bot"><b>표형 양식</b>으로 만들었어요. 지사 19곳이 각자 1~4분기 절감량을 적고, 합계 칸은 자동으로 계산돼요. 숫자는 소수 첫째 자리까지 받을게요.
+        <div class="row" style="margin-top:10px"><button class="btn sm pri">엑셀 내보내기</button><button class="btn sm">설정 패널에서 고치기</button></div></div>
+      <div class="bub me">제출 기한은 10월 24일로 해줘</div>
+      <div class="bub bot">제출 기한을 <b>10월 24일(토)</b>로 정했어요. 내 업무공간 달력에도 표시돼요.</div>
+      <div class="compose"><input placeholder="받고 싶은 것을 말로 적어 주세요"><button class="btn sm">엑셀 올리기</button><button class="btn pri sm">보내기</button></div>
+    </div></div>
+    <aside class="panel"><div class="row"><b style="font-size:14px">양식 설정</b><span class="chip c-g">표형</span><span class="sp"></span><button class="btn sm">닫기</button></div>
+      <label class="f">제목<input class="in" value="분기별 에너지 절감량"></label>
+      <div class="row" style="gap:10px"><label class="f" style="flex:1">제출 기한<input class="in" value="2026-10-24"></label><label class="f" style="flex:1">제출처<input class="in" value="지사 19곳"></label></div>
+      <div style="font-weight:600;font-size:12.5px">미리보기</div>
+      <table class="sheet"><tr><th>지사</th><th>1분기</th><th>2분기</th><th>3분기</th><th>4분기</th><th>합계</th></tr>
+        ${['강원지사','대구지사','세종지사','청주지사'].map(o => `<tr><td class="c">${o}</td><td class="y"></td><td class="y"></td><td class="y"></td><td class="y"></td><td class="c">자동</td></tr>`).join('')}</table>
+      <div class="row hint"><span style="width:10px;height:10px;background:#fff8dc;border:1px solid #efd88a;display:inline-block"></span>작성 칸<span style="width:10px;height:10px;background:var(--soft);border:1px solid var(--line);display:inline-block;margin-left:8px"></span>자동</div>
+      <button class="btn pri" style="justify-content:center">엑셀 내보내기</button></aside></div>`, true);
+}
+
+/* ───── 취합하기 ───── */
+function agg() {
+  return shell(`<section class="row"><h1 style="margin:0;font-size:20px">취합하기</h1><span class="chip c-g">분기별 에너지 절감량 · v4</span><span class="sp"></span><button class="btn">파일 더 넣기</button><button class="btn">처음으로</button></section>
+    <div class="drop" style="${T.id === 5 ? 'background:var(--accbg);border-color:#f2c3bf' : ''}"><b>받은 엑셀 파일을 여기에 끌어다 놓으세요</b>여러 개 또는 zip 한 번에 · 메일·메신저로 받은 그대로</div>
+    <div class="stat"><div style="background:var(--pribg);border-color:transparent"><span>제출</span><b>18/19</b></div><div><span>확인할 칸</span><b style="color:var(--accink)">2</b></div><div><span>자동 정리</span><b>7</b></div><div><span>미제출</span><b>1</b></div><div style="background:var(--pribg);border-color:transparent"><span>검산</span><b style="color:var(--priink)">일치</b></div></div>
+    <section class="grid2"><div class="card" style="overflow:hidden"><table class="t"><tr><th>제출처</th><th>상태</th><th>파일</th><th></th></tr>
+      ${[['강원지사','반영','강원_에너지.xlsx','c-g'],['대구지사','확인 2칸','대구지사 최종.xlsx','c-r'],['세종지사','반영','세종.xlsx','c-g'],['청주지사','반영','청주지사(2).xlsx','c-g'],['동탄지사','미제출','파일이 없어요','c-n']].map(([o, s, f, c]) => `<tr><td><b>${o}</b></td><td><span class="chip ${c}">${s}</span></td><td class="hint">${f}</td><td>${s.startsWith('확인') ? '<button class="btn sm">고치기</button>' : ''}</td></tr>`).join('')}</table></div>
+      <aside class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px"><b>결과 받기</b><span class="hint">취합 결과 파일과 검토 파일을 함께 받아요. 요약은 내 업무공간 취합 이력에 남아요.</span>
+        <button class="btn pri" style="justify-content:center">결과 파일 받기</button><button class="btn" style="justify-content:center">검토 파일만 받기</button></aside></section>`);
+}
+
+/* ───── 내 계정 ───── */
+function account() {
+  const sec = (t, d, body) => `<section class="card" style="padding:16px 18px;display:flex;flex-direction:column;gap:10px"><div><b style="font-size:14px">${t}</b><div class="hint">${d}</div></div>${body}</section>`;
+  return shell(`<section class="row"><div class="circ ava" style="width:52px;height:52px;font-size:18px">김</div><div><h1 style="margin:0;font-size:20px">내 계정</h1><span class="hint">로그인 이메일(아이디) <b style="color:var(--ink)">ksw1727@gmail.com</b> · <span class="chip c-g">관리자</span> · 이메일 인증 완료</span></div></section>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      ${sec('이름', '내 업무공간과 관리자 목록에 보이는 이름이에요', `<div class="row"><input class="in" style="flex:1" value="김선우"><button class="btn pri">저장</button></div>`)}
+      ${sec('로그인 이메일 변경', '새 이메일로 인증코드를 보내 확인해요', `<div class="row"><input class="in" style="flex:1" placeholder="새 이메일"><button class="btn">인증코드 받기</button></div>`)}
+      ${sec('비밀번호 변경', '현재 비밀번호로 바꾸거나, 잊었으면 이메일 코드로 새로 정해요', `<input class="in" type="password" placeholder="현재 비밀번호"><input class="in" type="password" placeholder="새 비밀번호 (8자 이상)"><input class="in" type="password" placeholder="새 비밀번호 확인"><div class="row"><button class="btn pri">비밀번호 바꾸기</button><button class="btn">잊었어요 · 이메일 코드로</button></div>`)}
+      ${sec('로그아웃', '이 기기에서 로그아웃해요', `<div><button class="btn" style="color:var(--accink)">${I.out}로그아웃</button></div>`)}</div>`);
+}
+
+/* ───── 관리자 ───── */
+function admin() {
+  return shell(`<section class="row"><h1 style="margin:0;font-size:20px">관리자</h1><span class="hint">사용자 승인과 AI 사용 한도</span><span class="sp"></span><button class="btn pri">＋ 사용자 추가</button></section>
+    <section class="grid2" style="grid-template-columns:minmax(0,1fr) 320px"><div class="card" style="overflow:hidden"><table class="t"><tr><th>이름 · 이메일</th><th>상태</th><th>오늘 AI</th><th>하루 한도</th><th></th></tr>
+      ${[['김선우','ksw1727@gmail.com','관리자','c-g','3','무제한'],['신혜진','shin@kdhc.co.kr','사용 중','c-g','1','기본(10)'],['이현수','lee@kdhc.co.kr','사용 중','c-g','0','5'],['박지민','park@kdhc.co.kr','중지','c-r','0','기본(10)']].map(([n, e, s, c, u, l]) => `<tr><td><b>${n}</b><div class="hint">${e}</div></td><td><span class="chip ${c}">${s}</span></td><td>${u}회</td><td>${l}</td><td>${s === '관리자' ? '' : s === '중지' ? '<button class="btn sm">다시 허용</button>' : '<button class="btn sm">중지</button>'}</td></tr>`).join('')}</table></div>
+      <aside class="card" style="padding:16px;display:flex;flex-direction:column;gap:10px"><b>AI 사용 한도</b><span class="hint">비우면 무제한 · 하루는 오전 9시에 초기화</span>
+        <label class="f">전체 하루 한도<input class="in" placeholder="무제한"></label><label class="f">사용자 기본 하루 한도<input class="in" value="10"></label><button class="btn pri" style="justify-content:center">저장</button></aside></section>`);
+}
+
+/* ───── 로그인 ───── */
+function login() {
+  const card = (top = '', below = '') => `<div class="lcard">${top}
+    ${top ? '' : `<div style="display:grid;place-items:center"><div class="logo" style="font-size:18px"><i style="width:40px;height:40px;font-size:13px;border-radius:12px">MOA</i></div></div>`}
+    <h1>로그인</h1><p class="sub">아이디와 비밀번호를 넣어 주세요</p>
+    <label class="f">아이디 (회사 이메일)<input class="in" placeholder="name@kdhc.co.kr"></label>
+    <label class="f"><span class="row" style="justify-content:space-between">비밀번호<button class="btn sm" style="border:0;padding:0;color:var(--pri);background:none;font-weight:500">비밀번호를 잊었어요</button></span><input class="in" type="password"></label>
+    <button class="btn pri" style="justify-content:center;height:40px">로그인</button>
+    <p class="hint" style="margin:0;text-align:center">관리자가 승인한 계정만 쓸 수 있어요. 회원가입은 없어요.</p>${below}</div>`;
+  const img = (h) => `<img class="slogan" style="height:${h}px;margin:0 auto" src="${SLOGAN}" alt="깨끗한 에너지로 세상을 따뜻하게">`;
+  if (T.login === 'card-top') return `<div class="login">${card(`<div style="padding:4px 0 6px;border-bottom:1px solid var(--line);margin-bottom:4px">${img(64)}</div>`)}</div>`;
+  if (T.login === 'card-below') return `<div class="login"><div style="display:flex;flex-direction:column;gap:22px;align-items:center">${card()}<div style="display:flex;flex-direction:column;align-items:center;gap:6px">${img(50)}<span class="hint">한국지역난방공사 · 한난MOA</span></div></div></div>`;
+  if (T.login === 'wave-top') return `<div class="login" style="position:relative;overflow:hidden;place-items:start center;padding-top:0">
+      <div class="wave" style="width:100vw;height:220px;margin-bottom:-70px;border:0">${swoosh(220)}<div style="position:relative;display:grid;place-items:center;height:150px">${img(78)}</div></div>${card()}</div>`;
+  if (T.login === 'split') return `<div class="lsplit"><div class="lside" style="background:linear-gradient(160deg,#fde8e3 0%,#fff5f1 55%,#e7f3e4 100%)">
+      <div style="position:relative;background:#fff;border-radius:18px;padding:22px 26px;align-self:flex-start;box-shadow:0 12px 30px -20px #c9473f66">${img(110)}</div>
+      <div style="position:relative"><h2 style="margin:0;font-size:26px;letter-spacing:-.6px">양식을 만들면<br>취합까지 한 번에</h2><p style="color:var(--sub);margin:8px 0 0">취합할 수 있는 엑셀 양식을 만들어 보내고, 돌아온 파일을 넣으면 한 줄도 빠짐없이 모아 드려요.</p></div></div>
+    <div style="display:grid;place-items:center;padding:30px 16px">${card().replace('class="lcard"', 'class="lcard" style="box-shadow:none;border:0"')}</div></div>`;
+  return `<div class="lsplit"><div class="lside" style="background:#fff;align-items:center">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(460px,100%)">
+        <div class="card" style="background:var(--pribg);border:0;padding:18px"><b style="color:var(--priink)">양식 만들기</b><p class="hint" style="margin:4px 0 0">말로 부탁하거나 쓰던 엑셀로</p></div>
+        <div class="card" style="background:var(--accbg);border:0;padding:18px"><b style="color:var(--accink)">취합하기</b><p class="hint" style="margin:4px 0 0">검산과 함께 결과 파일로</p></div>
+        <div class="card" style="grid-column:1/3;padding:20px;display:grid;place-items:center">${img(96)}</div></div></div>
+    <div style="display:grid;place-items:center;padding:30px 16px;background:var(--soft)">${card()}</div></div>`;
+}
+
+/* ───── 그리기 ───── */
+const VIEWS = { login, home, ai, agg, account, admin };
+function render() {
+  for (const [k, v] of Object.entries(T.v)) document.documentElement.style.setProperty('--' + k, v);
+  document.getElementById('root').innerHTML = VIEWS[P]();
+  document.getElementById('pick-t').innerHTML = THEMES.map(t => `<button data-t="${t.id}" aria-pressed="${t === T}" title="${t.desc}"><i class="sw" style="background:${t.dot}"></i>${t.id} ${t.name}</button>`).join('');
+  document.getElementById('pick-p').innerHTML = PAGES.map(([id, l]) => `<button data-pp="${id}" aria-pressed="${P === id}">${l}</button>`).join('');
+  try { history.replaceState(null, '', `#${T.id}-${P}`); } catch {}
+}
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-t]'), pp = e.target.closest('[data-pp]'), p = e.target.closest('[data-p]'), m = e.target.closest('[data-menu]');
+  if (t) { T = THEMES[+t.dataset.t - 1]; menu = false; render(); return; }
+  if (pp) { P = pp.dataset.pp; menu = false; render(); return; }
+  if (m) { menu = !menu; render(); return; }
+  if (p) { P = p.dataset.p; menu = false; render(); return; }
+  if (menu && !e.target.closest('.menu')) { menu = false; render(); }
+});
+const h = location.hash.slice(1).split('-'); if (THEMES[+h[0] - 1]) T = THEMES[+h[0] - 1]; if (VIEWS[h[1]]) P = h[1];
+render();
+</script>
+</body>
+</html>

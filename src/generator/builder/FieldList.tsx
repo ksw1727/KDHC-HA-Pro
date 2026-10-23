@@ -26,7 +26,7 @@ function Row({ f, selected, bad, onClick, onRemove }: { f: Field; selected: bool
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: f.key });
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cx('flex items-center gap-2 border-b border-line bg-white px-2.5 py-1.5 last:border-b-0', selected && 'bg-pri-bg shadow-[inset_3px_0_0_#1f5fbf]', bad && 'bg-err shadow-[inset_3px_0_0_#b42318]', isDragging && 'relative z-10 shadow-lg')}>
+      className={cx('flex items-center gap-2 border-b border-line bg-white px-2.5 py-1.5 last:border-b-0', selected && 'bg-pri-bg shadow-[inset_3px_0_0_var(--color-pri)]', bad && 'bg-err shadow-[inset_3px_0_0_#b42318]', isDragging && 'relative z-10 shadow-lg')}>
       <button type="button" {...attributes} {...listeners} aria-label={`${f.label} 순서 바꾸기`} className="cursor-grab px-0.5 text-xs tracking-[-2px] text-line-strong">⋮⋮</button>
       <button type="button" onClick={onClick} aria-expanded={selected} className="flex flex-1 items-center gap-1.5 text-left outline-none focus-visible:underline">
         <span className={cx(!f.label.trim() && 'text-muted')}>{f.label.trim() || '(이름 없음)'}</span>

@@ -16,7 +16,7 @@ const who = (i: { unit: string; total: number | null }) => (i.total === null ? (
 
 // 양식마다 달력 막대 색 (공공 블루 토큰 안에서)
 const TONES = [
-  { bg: '#e8f0fc', fg: '#174a96', solid: '#1f5fbf' },
+  { bg: '#e5f2e1', fg: '#2a6f31', solid: '#37913f' },
   { bg: '#e5f4ee', fg: '#0f6e56', solid: '#0f6e56' },
   { bg: '#fff5d1', fg: '#7a5a00', solid: '#b58600' },
   { bg: '#fdf1e3', fg: '#9a4a07', solid: '#c4620d' },
@@ -206,7 +206,7 @@ function WaitCard({ i, today, tone, hl, setHl }: { i: WorkItem; today: Date; ton
   const passed = i.deadline && i.deadline > i.made ? Math.max(0, Math.min(1, dayDiff(today, i.made) / dayDiff(i.deadline, i.made))) : 0;
   return (
     <article onMouseEnter={() => setHl(i.schema.formId)} onMouseLeave={() => setHl(null)}
-      className={cx('flex flex-col gap-2 rounded-card border bg-white px-3.5 py-3', hl ? 'border-pri shadow-[0_0_0_2px_#b9cff2]' : 'border-line')}>
+      className={cx('flex flex-col gap-2 rounded-card border bg-white px-3.5 py-3', hl ? 'border-pri shadow-[0_0_0_2px_var(--color-pri-line)]' : 'border-line')}>
       <div className="flex items-center gap-1.5">
         <i className="h-4 w-1 flex-none rounded-sm" style={{ background: tone.solid }} />
         <b className="min-w-0 flex-1 truncate text-[14px]" title={i.schema.title}>{i.schema.title || '제목 없는 양식'}</b>

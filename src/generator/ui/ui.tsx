@@ -136,7 +136,7 @@ export function Checkbox({ checked, onChange, label, disabled, locked }: { check
   const id = useId();
   return (
     <label htmlFor={id} className={cx('flex items-center gap-2', disabled ? 'text-muted' : 'cursor-pointer')}>
-      <input id={id} type="checkbox" className="h-4 w-4 accent-[#1f5fbf]" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <input id={id} type="checkbox" className="h-4 w-4 accent-[var(--color-pri)]" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       <span>{label}</span>
       {locked && <span aria-label="필수">🔒</span>}
     </label>

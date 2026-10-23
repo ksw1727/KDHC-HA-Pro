@@ -7,8 +7,9 @@ import { AdminPage, probeAdmin } from '../admin/AdminPage';
 import { AccountPage } from '../account/AccountPage';
 import { WorkspacePage } from '../workspace/WorkspacePage';
 import type { FormSchema } from '@contract/schema';
+import { AppHeader, type Tab } from './AppHeader';
+import { BrandBand } from './brand';
 
-type Tab = 'home' | 'ai' | 'aggregator' | 'account' | 'admin';
 const PANEL_KEY = 'hanan-moa:builder-panel';   // 양식 설정 패널을 켜 두었는지 (새로고침해도 그대로)
 const WIDTH_KEY = 'hanan-moa:settings-panel-width';
 /** 패널은 340px 이상, AI 대화는 480px 이상 남긴다 */
@@ -65,45 +66,16 @@ function Workspace() {
   }, []);
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-4 overflow-x-auto whitespace-nowrap border-b border-line px-4 py-2.5">
-        <span className="shrink-0 text-[15px] font-extrabold tracking-tight text-pri">
-          한난<span className="text-ink">MOA</span>
-        </span>
-        <nav className="flex shrink-0 gap-0.5 rounded-box bg-chip p-[3px]" aria-label="주요 화면">
-          {(
-            [
-              ['home', '내 업무공간'],
-              ['ai', 'AI로 만들기'],
-              ['aggregator', '취합하기'],
-              ...(cloudEnabled ? [['account', '내 계정']] as const : []),
-              ...(admin ? [['admin', '관리자']] as const : []),
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              aria-current={tab === id ? 'page' : undefined}
-              className={
-                'rounded-[6px] px-3 py-1 ' +
-                (tab === id ? 'bg-white font-semibold text-ink shadow-sm' : 'text-sub')
-              }
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-        <span className="flex-1" />
-        {tab === 'ai' && (
-          <button type="button" role="switch" aria-checked={panel} onClick={() => setPanel((v) => !v)}
-            className="flex shrink-0 items-center gap-2 rounded-btn px-2 py-1 text-[13px] text-sub hover:bg-chip">
-            양식 설정 패널
-            <span className={'relative h-[18px] w-8 rounded-full transition-colors ' + (panel ? 'bg-pri' : 'bg-line-strong')}>
-              <span className={'absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-[left] ' + (panel ? 'left-[16px]' : 'left-[2px]')} />
-            </span>
-          </button>
-        )}
-      </header>
+      <AppHeader tab={tab} setTab={setTab} admin={admin} extra={tab === 'ai' && (
+        <button type="button" role="switch" aria-checked={panel} onClick={() => setPanel((v) => !v)}
+          className="flex shrink-0 items-center gap-2 rounded-btn px-2 py-1 text-[13px] text-sub hover:bg-chip">
+          양식 설정 패널
+          <span className={'relative h-[18px] w-8 rounded-full transition-colors ' + (panel ? 'bg-pri' : 'bg-line-strong')}>
+            <span className={'absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-[left] ' + (panel ? 'left-[16px]' : 'left-[2px]')} />
+          </span>
+        </button>
+      )} />
+      <BrandBand />
       <main className="min-h-0 flex-1">
         {/* AI로 만들기와 설정 패널은 다른 화면에 다녀와도 이어지도록 늘 켜 두고 숨기기만 한다 */}
         <div className={tab === 'ai' ? 'flex h-full min-h-0' : 'hidden'}>

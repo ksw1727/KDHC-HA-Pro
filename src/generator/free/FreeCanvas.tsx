@@ -267,7 +267,7 @@ export function FreeCanvas({ schema, model, sel, onSel, onOp, moving, onMoving, 
                   const g = inCanvas ? regionOf.get(fa) : undefined;
                   const cr = row.r - top + 1;
                   const picked = !!rect && inCanvas && cr >= rect.r1 && cr <= rect.r2 && ci + 1 >= rect.c1 && ci + 1 <= rect.c2;
-                  const shadows = [...(g ? edges(g, cr, ci + 1) : []), ...(picked ? ['inset 0 0 0 1px #1f5fbf'] : [])];
+                  const shadows = [...(g ? edges(g, cr, ci + 1) : []), ...(picked ? ['inset 0 0 0 1px var(--color-pri)'] : [])];
                   const style: CSSProperties = {
                     background: picked ? '#dbe7fb' : g && (c?.role === 'input' || c?.role === 'calc') ? (c.required ? '#fff5d1' : `${REGION_COLOR[g.kind]}12`) : st?.fill,
                     color: st?.color, fontWeight: st?.bold ? 700 : undefined, fontSize: st?.size ? Math.round(st.size * 1.05) : undefined,

@@ -143,7 +143,7 @@ export function StructureStory({ layout, size = 'md', paused = false, still = fa
   const cur = phase < 3 ? 1 : phase < 7 ? 2 : 3;
   const s = STORIES[layout];
   const pane = (n: number, title: string, body: ReactNode) => (
-    <div className={'min-w-0 rounded-box border bg-white p-1.5 transition-shadow ' + (!reduce && cur === n && phase <= 12 ? 'border-pri-line shadow-[0_0_0_3px_#e8f0fc]' : 'border-line')}>
+    <div className={'min-w-0 rounded-box border bg-white p-1.5 transition-shadow ' + (!reduce && cur === n && phase <= 12 ? 'border-pri-line shadow-[0_0_0_3px_var(--color-pri-bg)]' : 'border-line')}>
       <div className="mb-1 text-[10px] font-bold text-muted">{title}</div>{body}
     </div>
   );

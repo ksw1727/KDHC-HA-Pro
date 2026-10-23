@@ -355,7 +355,7 @@ function FormCard({ schema, problems, edited, last, linked, selKey }: { schema: 
     } finally { setBusy(false); }
   };
   return (
-    <div className={cx('overflow-hidden rounded-card border', linked ? 'border-pri-line shadow-[0_0_0_3px_#e8f0fc]' : 'border-line')}>
+    <div className={cx('overflow-hidden rounded-card border', linked ? 'border-pri-line shadow-[0_0_0_3px_var(--color-pri-bg)]' : 'border-line')}>
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-panel px-3 py-2">
         <b>{schema.title || '(제목 없음)'}</b>
         <Chip tone="pri">{LAYOUT_LABELS[schema.layout]}</Chip>
