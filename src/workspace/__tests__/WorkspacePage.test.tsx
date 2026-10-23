@@ -23,7 +23,8 @@ describe('내 업무공간', () => {
     expect(side.textContent).toContain('기다리는 양식');
     expect(side.textContent).toContain('취합 전');
     expect(side.textContent).not.toContain('쓰는 중인 양식');
-    expect(side.textContent).not.toMatch(/\d+\s*\/\s*2/);   // 취합 전에는 몇 곳이 냈는지 보이지 않는다
+    // 취합 전에는 몇 곳이 냈는지 보이지 않는다 (만든 날짜 '10/20'이 걸리지 않게 날짜는 빼고 본다)
+    expect(side.textContent?.replace(/\d+\/\d+ 만듦/g, '')).not.toMatch(/\d+\s*\/\s*2/);
     fireEvent.click(screen.getByRole('tab', { name: /취합 이력/ }));
     expect(screen.getByText('지난 취합')).toBeTruthy();
     expect(screen.getByText('1/2')).toBeTruthy();

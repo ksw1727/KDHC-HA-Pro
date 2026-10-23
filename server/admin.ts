@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { randomBytes, scrypt } from 'node:crypto';
 import { neon } from '@neondatabase/serverless';
 import { SafeError } from './ai';
 import { makeStore, type Query, type Store } from './store';
@@ -22,6 +23,15 @@ export function parseLimit(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v.trim()) : v;
   if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > 100000) throw new SafeError(400, '한도는 0~100000 사이의 정수로 입력하거나 비워 두세요(무제한).');
   return n;
+}
+
+/** 관리자가 새로 만든 계정의 처음 비밀번호. 로그인한 뒤 내 계정에서 바꾼다 */
+export const DEFAULT_PASSWORD = 'kdhc1234!';
+/** Neon 인증(Better Auth)과 같은 방식: scrypt(N=16384,r=16,p=1,64바이트), 16바이트 salt의 hex 문자열을 그대로 salt로 쓰고 "salt:hash"로 저장 */
+export function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString('hex');
+  return new Promise((ok, fail) => scrypt(password.normalize('NFKC'), salt, 64, { N: 16384, r: 16, p: 1, maxmem: 128 * 16384 * 16 * 2 },
+    (err, key) => (err ? fail(err) : ok(`${salt}:${key.toString('hex')}`))));
 }
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,63}$/;
@@ -87,10 +97,14 @@ export async function applyAction(sql: Query, actor: { id: string; email: string
   if (!['add', 'enable', 'disable', 'remove'].includes(String(action))) throw new SafeError(400, '지원하지 않는 작업이에요.');
   if (email === actor.email && action !== 'add' && action !== 'enable') throw new SafeError(400, '자기 자신의 관리자 계정은 중지하거나 삭제할 수 없어요.');
   if (action === 'add') {
-    // 로그인 계정이 없으면 만든다(비밀번호 없음 → 이메일 코드로 로그인). 회원가입은 꺼져 있으므로 관리자만 계정을 만들 수 있다.
+    // 로그인 계정이 없으면 만든다: 기본 비밀번호(DEFAULT_PASSWORD), 관리자가 추가했으니 이메일 인증된 것으로 본다.
+    // 이미 있는 로그인 계정은 비밀번호·인증 상태를 건드리지 않는다. 회원가입은 꺼져 있으므로 관리자만 계정을 만들 수 있다.
     const name = email.split('@')[0].slice(0, 60);
-    await sql`insert into neon_auth."user"(name, email, "emailVerified", banned) select ${name}, ${email}, false, false
-      where not exists (select 1 from neon_auth."user" where lower(email) = ${email})`;
+    const hash = await hashPassword(DEFAULT_PASSWORD);
+    await sql`with nu as (insert into neon_auth."user"(name, email, "emailVerified", banned) select ${name}, ${email}, true, false
+        where not exists (select 1 from neon_auth."user" where lower(email) = ${email}) returning id)
+      insert into neon_auth.account("accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+        select nu.id::text, 'credential', nu.id, ${hash}, now(), now() from nu`;
     await sql`insert into moa_private.moa_allowed_users(email, user_id, enabled, is_admin, updated_at)
       select ${email}, u.id, true, false, now() from neon_auth."user" u where lower(u.email) = ${email} limit 1
       on conflict (email) do update set enabled = true, user_id = coalesce(moa_private.moa_allowed_users.user_id, excluded.user_id), updated_at = now()`;

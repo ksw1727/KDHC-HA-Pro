@@ -2,7 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import type { ServerResponse } from 'node:http';
-import { adminHandler, normalizeEmail, parseLimit, type AdminRequest } from './admin';
+import { scryptSync } from 'node:crypto';
+import { adminHandler, DEFAULT_PASSWORD, hashPassword, normalizeEmail, parseLimit, type AdminRequest } from './admin';
 import { SafeError } from './ai';
 import type { Query, Store } from './store';
 
@@ -61,14 +62,22 @@ describe('관리자 API', () => {
     expect(r.status).toBe(200);
     expect(r.body.users[0]).toMatchObject({ email: 'ksw1727@gmail.com', isAdmin: true, enabled: true });
   });
-  it('추가: 로그인 계정 생성(비밀번호 없음, 미인증)과 승인 목록 등록', async () => {
+  it('추가: 새 로그인 계정은 기본 비밀번호·인증됨으로 만들고 승인 목록에 등록', async () => {
     const { sql, calls } = fakeSql();
     const r = await run({ method: 'POST', body: { action: 'add', email: '  New.User@KDHC.co.kr ' }, sql });
     expect(r.status).toBe(200);
-    expect(calls.some((q) => q.startsWith('insert into neon_auth."user"'))).toBe(true);
+    const create = calls.find((q) => q.startsWith('with nu as (insert into neon_auth."user"'));
+    expect(create).toContain('true, false where not exists');   // 이미 있는 계정은 건드리지 않음
+    expect(create).toContain('insert into neon_auth.account');
     expect(calls.some((q) => q.startsWith('insert into moa_private.moa_allowed_users'))).toBe(true);
     const params = vi.mocked(sql).mock.calls.flatMap((c) => c.slice(1));
     expect(params).toContain('new.user@kdhc.co.kr');
+  });
+  it('기본 비밀번호는 Neon 인증과 같은 scrypt "salt:hash" 형식', async () => {
+    const h = await hashPassword(DEFAULT_PASSWORD);
+    const [salt, key] = h.split(':');
+    expect(salt).toMatch(/^[0-9a-f]{32}$/);
+    expect(key).toBe(scryptSync(DEFAULT_PASSWORD, salt, 64, { N: 16384, r: 16, p: 1, maxmem: 64 * 1024 * 1024 }).toString('hex'));
   });
   it('다른 사이트에서 온 변경 요청과 출처 없는 변경 요청은 막는다', async () => {
     const { sql, calls } = fakeSql();
