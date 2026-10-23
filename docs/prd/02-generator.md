@@ -147,7 +147,7 @@
 
 [엑셀 내보내기]를 누르면 **검사 → ① 일정 정보 → ② 확인 창 → ③ 완료 화면** 순서로 진행한다. 창 제목 옆에 ①·②·③ 단계를 보여 준다. 목업: `docs/mockups/generator-start-export.html` 3~5번, 받을 파일 고르기는 `docs/mockups/export-file-choice.html`, 일정 정보는 `docs/mockups/export-schedule-info.html`.
 
-- **대화 카드의 [엑셀 내보내기]도 같은 창**을 쓴다(`hanan-moa:export-form` → 설정 패널이 그 양식을 열고 창을 띄움). 그래야 기한을 묻고 내보낸 기록(`lastExported`)이 남아, 내 업무공간 취합 일정에 "기다리는 양식"으로 뜬다.
+- **대화 카드의 [엑셀 내보내기]도 같은 창**을 쓴다(버튼은 마지막 양식 카드에만)(`hanan-moa:export-form` → 설정 패널이 그 양식을 열고 창을 띄움). 그래야 기한을 묻고 내보낸 기록(`lastExported`)이 남아, 내 업무공간 취합 일정에 "기다리는 양식"으로 뜬다.
 
 **검사**: 2.2 입력 검증. 통과하지 못하면 검사 창을 띄우고 멈춘다.
 
