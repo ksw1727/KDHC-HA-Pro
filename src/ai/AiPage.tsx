@@ -379,7 +379,8 @@ function FormCard({ schema, problems, edited, last, linked, selKey }: { schema: 
       {problems.length > 0 && <ul className="m-0 border-t border-line px-6 py-2 text-sm text-err-ink">{problems.map((p, i) => <li key={i}>{p}</li>)}</ul>}
       <div className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2">
         {!linked && <Button variant="pri" size="sm" onClick={() => toPanel(schema, { preferStored: true })}>패널에서 고치기</Button>}
-        <Button size="sm" disabled={problems.length > 0} onClick={toExcel}>엑셀 내보내기</Button>
+        {/* 예전 카드는 같은 양식의 옛 모습이라, 거기서 내보내면 버전·내보낸 기록이 꼬인다 → 마지막 카드에서만 */}
+        {last && <Button size="sm" disabled={problems.length > 0} onClick={toExcel}>엑셀 내보내기</Button>}
         <Button size="sm" variant="ghost" onClick={() => exportFormJson(schema)}>양식 파일 저장</Button>
         {problems.length > 0 && <span className="text-xs text-sub">고칠 곳을 AI에게 "고쳐 줘"라고 하거나 오른쪽 패널에서 고쳐 주세요.</span>}
       </div>
