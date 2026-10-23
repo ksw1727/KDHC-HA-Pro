@@ -84,6 +84,8 @@ export function removeForm(formId: string): void {
     store()?.removeItem(scopedStorageKey(PREFIX + formId));
     markRemoved(formId, true);
     queueForm(formId, null, previous ?? undefined);
+    // 설정 패널에 열려 있으면 닫게 한다 (열린 채로 고치면 자동 저장으로 되살아난다)
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('hanan-moa:form-removed', { detail: { formId } }));
   } catch {
     reportStorageFailure();
   }
