@@ -3,7 +3,7 @@ import { describe,it,expect,vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { createServer, request as httpRequest } from 'node:http';
 import { handler, type Request } from './http';
-import { checkedResult, parseInput, callProvider, SafeError, validForm } from './ai';
+import { checkedResult, parseInput, callProvider, SafeError, validForm, limits, rejectReasons } from './ai';
 import { newSchema } from '../src/generator/state/newSchema';
 import type { Store } from './store';
 import type { ServerResponse } from 'node:http';
@@ -46,5 +46,17 @@ describe('cloud AI fail closed',()=>{
    d.provider.mockImplementation(async (_engine,_cfg,_prompt,signal)=>{started();await new Promise<void>(resolve=>{signal.addEventListener('abort',()=>{didAbort=true;resolve();},{once:true});});throw new Error('abort');});
    const server=createServer((req,res)=>{void handler('chat',{...d,env})(req,res);});await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const address=server.address();if(!address||typeof address==='string') throw new Error('address');
    const req=httpRequest({hostname:'127.0.0.1',port:address.port,path:'/api/ai/chat',method:'POST',headers:{authorization:'Bearer fake','content-type':'application/json'}},res=>res.resume());req.on('error',()=>{});req.end(JSON.stringify({engine:'claude',message:'목록'}));await ready;req.destroy();await new Promise(r=>setTimeout(r,30));expect(didAbort).toBe(true);await new Promise<void>(r=>server.close(()=>r()));
+ });
+ it('시간 초과면 화면에 안내 문구를 보낸다 (빈 답으로 끝나지 않게)',async()=>{
+   const d=setup();const saved=limits.timeout;limits.timeout=20;
+   d.provider.mockImplementation(async(_e,_c,_p,signal)=>new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new Error('abort')),{once:true})));
+   try {const r=await run('chat',{engine:'codex',message:'목록'},d);const events=r.parts.map(x=>JSON.parse(x));expect(events.map(e=>e.type)).toEqual(['chat','status','error','done']);expect(events[2].text).toMatch(/오래 걸려/);expect(d.provider).toHaveBeenCalledTimes(1);}
+   finally {limits.timeout=saved;}
+ });
+ it('다시 시도할 때 실패 이유를 AI에게 알려 준다',async()=>{
+   const d=setup();const bad={...form(),org:{mode:'preset' as const,orgs:[]}};d.provider.mockResolvedValueOnce({text:'x',form:bad});
+   await run('chat',{engine:'codex',message:'목록'},d);
+   expect(rejectReasons({text:'x',form:bad},null).length).toBeGreaterThan(0);
+   expect(d.provider.mock.calls[1][2]).toContain('실패 이유');
  });
 });

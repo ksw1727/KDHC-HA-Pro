@@ -56,6 +56,25 @@ export function fillWorksheet(ws: ExcelJS.Worksheet, model: SheetModel, fieldsBy
   ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, ...(model.printArea ? { printArea: model.printArea } : {}) };
 }
 
+type Hash = { algorithmName: string; saltValue: string; spinCount: number; hashValue: string };
+type Protected = ExcelJS.Worksheet & { sheetProtection?: Partial<Hash> };
+let hashCache: Hash | undefined;
+/**
+ * 시트 보호. 암호 해시(SHA-512 10만 번)는 브라우저에서 파일마다 1초 넘게 걸려서,
+ * 처음 한 번만 계산하고 같은 해시를 다른 파일에도 쓴다 (지사 20곳 zip이 25~30초 걸리던 원인)
+ */
+async function protect(ws: ExcelJS.Worksheet) {
+  const options = {
+    selectLockedCells: true, selectUnlockedCells: true, formatCells: false, formatColumns: true, formatRows: true,
+    insertRows: false, deleteRows: false, insertColumns: false, deleteColumns: false, sort: false, autoFilter: false,
+  };
+  const p = ws as Protected;
+  if (hashCache) { await ws.protect('', options); Object.assign(p.sheetProtection!, hashCache); return; }
+  await ws.protect(PROTECT_PASSWORD, options);
+  const { algorithmName, saltValue, spinCount, hashValue } = p.sheetProtection ?? {};
+  if (algorithmName && saltValue && spinCount !== undefined && hashValue) hashCache = { algorithmName, saltValue, spinCount, hashValue };
+}
+
 export interface WriteOptions {
   orgName?: string;      // preset 모드의 이 파일 지사명
   shared?: boolean;      // preset 모드의 공용 파일 1개 (지사명을 목록에서 고름, 메타·속성에 지사 없음)
@@ -81,12 +100,7 @@ export async function writeWorkbook(schema: FormSchema, opts: WriteOptions): Pro
   let lists: ExcelJS.Worksheet | undefined;
   fillWorksheet(ws, model, fieldsByKey, () => (lists ??= wb.addWorksheet(LISTS_SHEET, { state: 'veryHidden' })));
 
-  if (!collect) {
-    await ws.protect(PROTECT_PASSWORD, {
-      selectLockedCells: true, selectUnlockedCells: true, formatCells: false, formatColumns: true, formatRows: true,
-      insertRows: false, deleteRows: false, insertColumns: false, deleteColumns: false, sort: false, autoFilter: false,
-    });
-  }
+  if (!collect) await protect(ws);
 
   const orgName = schema.org.mode === 'preset' && !opts.shared ? opts.orgName : undefined;
   const meta = await buildMeta({

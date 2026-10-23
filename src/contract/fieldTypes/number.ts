@@ -3,7 +3,9 @@ import type { FieldTypeDef } from './types';
 import { notYet } from './types';
 import { messages, numText } from './common';
 
-const LIMIT = 999_999_999_999;
+/** 최소·최대를 정하지 않은 숫자칸의 엑셀 입력 규칙 한도 (취합도 같은 한도로 검사) */
+export const NUMBER_LIMIT = 999_999_999_999;
+const LIMIT = NUMBER_LIMIT;
 
 /** 숫자 표시 서식: 쉼표(기본 켬) · 소수 자릿수 · 단위. 단위는 글자로 붙인다(15 → "15%"). */
 export function numberFormat(field: Field): string {

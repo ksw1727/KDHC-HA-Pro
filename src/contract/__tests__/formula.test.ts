@@ -110,6 +110,9 @@ describe('계산 칸 값 (compute)', () => {
   test('같은 줄, 계산 칸끼리 이어서', () => {
     expect(computeListRow(list, { q: 3, p: 1001 })).toMatchObject({ amt: 3003, vat: 300 });
   });
+  test('소수 계산 찌꺼기 없이 (1.1 × 1.1 = 1.21)', () => {
+    expect(computeListRow(list, { q: 1.1, p: 1.1 })).toMatchObject({ amt: 1.21 });
+  });
   test('위쪽 정보: 목록 열 합계', () => {
     const s = structuredClone(SAMPLE['header-list']) as FormSchema;
     const h = s.blocks[0];

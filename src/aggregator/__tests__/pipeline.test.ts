@@ -151,6 +151,38 @@ describe('목록형 전체 흐름', () => {
   });
 });
 
+describe('테스트에서 나온 문제', () => {
+  test('최소·최대 없는 숫자칸: 엑셀 입력 규칙 한도를 넘는 값은 확인할 칸, 큰 수가 섞여도 검산은 일치', async () => {
+    const r = await runAll([
+      await makeFile(list, '서울.xlsx', { orgName: '서울', fill: put([{ name: '가', qty: 1_000_000_000_000 }, { name: '나', qty: 999_999_999_999 }, { name: '다', qty: 0.1 }]) }),
+      await makeFile(list, '부산.xlsx', { orgName: '부산', fill: put([{ name: '라', qty: -5_000_000_000_000_000 }, { name: '마', qty: '1,234,567,890,123,456,789' }, { name: '바', qty: 0.3 }, { name: '사', qty: '7.7' }, { name: '아', qty: 98_765_432_109_876.54 }, { name: '자', qty: 3_333_333_333_333.37 }]) }),
+    ]);
+    expect(r.res.valueIssues.filter((i) => i.code === 'OUT_OF_RANGE').map((i) => i.message)).toEqual([
+      '엑셀 숫자칸에 넣을 수 있는 범위(±999,999,999,999)를 벗어났어요', '엑셀 숫자칸에 넣을 수 있는 범위(±999,999,999,999)를 벗어났어요', '엑셀 숫자칸에 넣을 수 있는 범위(±999,999,999,999)를 벗어났어요', '엑셀 숫자칸에 넣을 수 있는 범위(±999,999,999,999)를 벗어났어요', '엑셀 숫자칸에 넣을 수 있는 범위(±999,999,999,999)를 벗어났어요']);
+    expect(r.out.verify.ok).toBe(true);
+    const m = SAMPLE.matrix;
+    const fill = (vals: number[][], org: string) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
+      ws.getCell(model.cellMap.orgCell!).value = org;
+      const mm = model.cellMap.blocks.b1;
+      if (mm.kind === 'matrix') vals.forEach((row, rr) => row.forEach((v, c) => { ws.getCell(mm.cells[rr][c]).value = v; }));
+    };
+    const big = await runAll([
+      await makeFile(m, 'a.xlsx', { fill: fill([[123_456_789_012_345_678, 0.1], [3, 9e18]], '서울') }),
+      await makeFile(m, 'b.xlsx', { fill: fill([[987_654_321_098_765_432, 0.2], [-7e17, 1]], '부산') }),
+    ]);
+    expect(big.out.verify.ok).toBe(true);
+  });
+
+  test('빈칸채우기형: 파일 하나에서 필수 칸을 비우면 그 파일의 확인할 칸으로 잡힌다', async () => {
+    const g: FormSchema = structuredClone(SAMPLE['fill-in']);
+    const b = g.blocks[0];
+    if (b.kind !== 'grid' || b.rows[0][2].kind !== 'input') throw new Error();
+    b.rows[0][2].field.required = true;
+    const r = await runAll([await makeFile(g, 'a.xlsx')]);
+    expect(r.res.crossIssues.map((i) => [i.fileId, i.message])).toEqual([[r.res.files[0].fileId, '어느 파일에도 채워지지 않은 필수 칸이에요']]);
+  });
+});
+
 describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
   test('표형: 칸마다 합, 합계 행·계 열은 다시 계산, 지사별 시트', async () => {
     const m = SAMPLE.matrix;   // input 모드, 지사 목록 없음

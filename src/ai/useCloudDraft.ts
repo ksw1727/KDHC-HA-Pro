@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { cloudEnabled, readCloudChat, scopedStorageKey, writeCloudChat } from '../cloud';
+import { canonicalJSON } from '@contract/checksum';
 
 export interface Draft { chatId: string | null; msgs: unknown[]; aiVersion: string | null }
 const empty = (): Draft => ({ chatId: null, msgs: [], aiVersion: null });
 const key = () => scopedStorageKey('hanan-moa:ai-chat');
-const signature = (value: Draft) => JSON.stringify(value);
+// 서버(jsonb)는 키 순서를 바꿔 돌려주므로 키 순서와 무관하게 비교한다
+const signature = (value: Draft) => canonicalJSON(value);
 export function parseDraft(value: unknown): Draft | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<Draft>;

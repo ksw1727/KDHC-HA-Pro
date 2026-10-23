@@ -1,6 +1,7 @@
 import { validateSchema } from '@contract/schema';
 import { readMeta } from '@contract/metaIO';
 import { loadForm, type StoredForm } from './localForms';
+import { sameForm } from '../state/versioning';
 
 export type OpenResult = { ok: true; entry: StoredForm } | { ok: false; message: string };
 
@@ -13,7 +14,9 @@ export function openFormJson(text: string): OpenResult {
     return { ok: false, message: '이 파일은 양식 파일이 아니에요.' };
   }
   if (!r.ok) return { ok: false, message: '이 파일은 양식 파일이 아니에요.' };
-  return { ok: true, entry: { schema: r.schema, lastExported: loadForm(r.schema.formId)?.lastExported, savedAt: '' } };
+  // 같은 번호를 쓰는 다른 양식의 내보내기 기록은 이어받지 않는다 (버전이 엉뚱하게 오르지 않게)
+  const prev = loadForm(r.schema.formId)?.lastExported;
+  return { ok: true, entry: { schema: r.schema, lastExported: prev && sameForm(prev, r.schema) ? prev : undefined, savedAt: '' } };
 }
 
 /** [엑셀에서 양식 되살리기]: 한난MOA로 만든 빈 양식·제출본·취합본 xlsx의 _meta → 양식. 내보낸 파일이므로 그 양식을 마지막 내보내기로 본다 */

@@ -30,6 +30,8 @@ function solve(calcs: Field[], base: (name: string, agg: boolean) => Value | Val
     const n = nodeOf(f.formula);
     let v: Value = null;
     try { v = n ? evaluate(n, valueOf) : null; } catch { v = null; }
+    // 소수 계산 찌꺼기(93.60000000000001)는 엑셀처럼 유효숫자 15자리로 정리
+    if (typeof v === 'number' && Number.isFinite(v)) v = Number(v.toPrecision(15));
     busy.delete(name);
     done.set(name, v);
     return v;
