@@ -33,7 +33,7 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
       </span>
       <MainNav tab={tab} setTab={setTab} />
       <span className="flex-1" />
-      {extra}
+      {extra && <span className="relative">{extra}</span>}
       {admin && (
         <Circle label="관리자" on={tab === 'admin'} onClick={() => go('admin')}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-[17px]"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z" /><path d="m9 12 2 2 4-4" /></svg>
@@ -86,7 +86,7 @@ function MainNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
 function Circle({ label, on, onClick, children }: { label: string; on: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button type="button" aria-label={label} title={label} aria-current={on ? 'page' : undefined} onClick={onClick}
-      className={'grid size-[34px] shrink-0 place-items-center rounded-full border bg-white ' + (on ? 'border-pri text-pri shadow-[0_0_0_3px_var(--color-pri-bg)]' : 'border-line text-sub hover:border-pri hover:text-pri')}>
+      className={'relative grid size-[34px] shrink-0 place-items-center rounded-full border bg-white ' + (on ? 'border-pri text-pri shadow-[0_0_0_3px_var(--color-pri-bg)]' : 'border-line text-sub hover:border-pri hover:text-pri')}>
       {children}
     </button>
   );
