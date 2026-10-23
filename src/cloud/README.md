@@ -27,7 +27,7 @@ AI 서버 히스토리는 별도 테이블이며 이 모듈에서 쓰지 않는�
 4. `GET /api/account`에 JWT Bearer를 보낸다. 응답은 `{id,email,emailVerified:true,approved:true}`이며 현재 세션과 id/email이 같아야 한다. 401/403, 누락, 잘못된 응답은 모두 fail-closed다.
 5. 사용자 namespace를 설정한 후 Data API에서 양식을 가져온다. 초기 양식 조회도 실패하면 앱을 열지 않는다.
 
-로그인/로그아웃은 호환 어댑터를 사용한다. 비밀번호 설정은 미지원 `updateUser({password})`를 호출하지 않는다. 네이티브 `requestPasswordReset({email,redirectTo})`으로 메일을 요청하고 URL의 `token`을 `resetPassword({newPassword,token})`에 전달한다. 성공 시 URL에서 token을 제거하고 새 비밀번호 로그인 화면으로 돌아간다. 초대받은 사용자의 최초 비밀번호 설정도 관리자가 이 재설정 링크를 제공하는 흐름이다. Supabase의 hash `type=invite/recovery`나 조직 초대 수락 흐름은 사용하지 않는다.
+로그인 화면은 `LoginScreen.tsx`(시안 A, `docs/mockups/login-mockups.html`). 기본은 아이디(이메일)·비밀번호 `signInWithPassword`. [비밀번호를 잊었어요]는 네이티브 email-otp로: `sendVerificationOtp({type:'forget-password'})` → `checkVerificationOtp`(코드만 확인, 쓰지 않음) → `emailOtp.resetPassword({email,otp,password})` → 새 비밀번호로 `signInWithPassword`. reset-password는 이메일 인증도 함께 끝낸다. 로그인 뒤 `verifyCloudAccount`가 막으면 문구로 화면을 고른다: 이메일 인증 필요 → `emailOtp.verifyEmail`, 허용목록 밖 → 승인 요청 안내. 비밀번호 설정은 미지원 `updateUser({password})`를 호출하지 않는다. 예전 재설정 메일 링크(URL `token`)는 `resetPassword({newPassword,token})`로 계속 받고, 성공하면 URL에서 token을 지운다. Supabase의 hash `type=invite/recovery`나 조직 초대 수락 흐름은 사용하지 않는다.
 
 ## 양식 저장
 
