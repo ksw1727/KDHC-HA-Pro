@@ -3,6 +3,7 @@ import { validateSchema, blockFields, type FormSchema, type Layout } from '../sr
 import { validateForExport } from '../src/generator/state/validateForExport';
 import { newSchema } from '../src/generator/state/newSchema';
 import { KDHC_TREE, allBranches } from '../src/generator/org/kdhcOrg';
+import { AGGREGATION_IDS, availableAggregations, requiredAggregations, type AggregationId } from '../src/contract/aggregationIds';
 
 export class SafeError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -113,6 +114,16 @@ export async function callProvider(engine: Engine, cfg: ProviderConfig, prompt: 
   if (isClaude) return data.content?.find((c: {type:string;name?:string}) => c.type==='tool_use' && c.name==='submit_form')?.input;
   const text=(data.output ?? []).flatMap((o: {content?: {type:string;text?:string}[]})=>o.content ?? []).filter((c: {type:string})=>c.type==='output_text').map((c: {text:string})=>c.text).join('');
   return JSON.parse(text);
+}
+/** AI 답의 양식에서 취합 방식만 이 양식에 맞춘다: 쓸 수 없는 방식은 빼고 필수 방식은 넣는다.
+ *  (예: 제출처 구분 없음인데 시작 양식의 제출 현황표를 그대로 둠) 이것 때문에 다시 묻다가 시간 초과가 나지 않게 */
+export function tidyAggregations(x: unknown): unknown {
+  if (!object(x) || !object(x.form) || !Array.isArray(x.form.aggregations) || !object(x.form.org) || !Array.isArray(x.form.blocks) || typeof x.form.layout!=='string') return x;
+  try {
+    const f=x.form as unknown as FormSchema;
+    const allowed=availableAggregations(f), given=(x.form.aggregations as unknown[]).filter((a):a is AggregationId=>AGGREGATION_IDS.includes(a as AggregationId) && allowed.includes(a as AggregationId));
+    return {...x,form:{...x.form,aggregations:[...new Set([...requiredAggregations(f),...given])]}};
+  } catch { return x; }
 }
 /** 다시 시도할 때 AI에게 알려 줄 실패 이유 (사용자 입력·비밀은 넣지 않고 검사 문구만) */
 export function rejectReasons(x: unknown, previous: FormSchema | null, fresh: FormSchema[] = []): string[] {

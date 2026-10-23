@@ -3,7 +3,7 @@ import { describe,it,expect,vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { createServer, request as httpRequest } from 'node:http';
 import { handler, type Request } from './http';
-import { checkedResult, parseInput, callProvider, SafeError, validForm, limits, rejectReasons, freshTemplates } from './ai';
+import { checkedResult, parseInput, callProvider, SafeError, validForm, limits, rejectReasons, freshTemplates, tidyAggregations } from './ai';
 import { newSchema } from '../src/generator/state/newSchema';
 import type { Store } from './store';
 import type { ServerResponse } from 'node:http';
@@ -46,6 +46,13 @@ describe('cloud AI fail closed',()=>{
    expect(checkedResult({text:'ok',form:fresh},f,[],[])).toBeNull();
    expect(checkedResult({text:'ok',form:{...fresh,createdAt:'2020-01-01T00:00:00.000Z'}},f,[],[t])).toBeNull();
    expect(rejectReasons({text:'ok',form:{...fresh,formId:USER}},f,[t])[0]).toContain('templates');});
+ it('fixes aggregations the form cannot use instead of asking again',()=>{const t=freshTemplates()[0];
+   const none={...t,title:'명단',org:{mode:'none' as const}};   // 제출처 구분 없음 + 시작 양식의 제출 현황표
+   expect(checkedResult({text:'ok',form:none},null,[])).toBeNull();
+   const fixed=tidyAggregations({text:'ok',form:none}) as {form:typeof none};
+   expect(fixed.form.aggregations).not.toContain('submission-status');
+   expect(checkedResult(fixed,null,[])).not.toBeNull();
+   expect(tidyAggregations({text:'x',form:null})).toEqual({text:'x',form:null});});
  it('uses fixed endpoints and suppresses provider error payload',async()=>{const fetcher=vi.fn(async()=>new Response('raw secret upstream',{status:400})) as unknown as typeof fetch;await expect(callProvider('codex',{key:'fake',model:'explicit'},'{}',new AbortController().signal,fetcher)).rejects.toThrow('인공지능 연결');expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('https://api.openai.com/v1/responses');});
  it('rejects unsupported source payload without storing it',()=>{expect(()=>parseInput({engine:'codex',message:'x',sources:[{name:'a',text:'x'.repeat(12001)}]})).toThrow();});
  it('aborts provider when HTTP response is disconnected',async()=>{
