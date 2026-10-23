@@ -173,7 +173,9 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const spreadOn = available.includes('spread') && (required.includes('spread') || methods.includes('spread'));
   const rowsTotal = res.included.reduce((s, x) => s + x.rows.length + (x.gridSpareRows?.length ?? 0), 0);
   // 파일 목록에서 운영자가 손댈 것: 제출처 이름 확인, 중복 파일
-  const fileAttention = res.files.filter((f) => f.status === 'included' && (f.needsOrgLink || (f.dupGroup?.length ?? 0) > 1)).length;
+  // 다른 제출처 칸에 적어 쓰지 않은 값 (빈칸채우기 작성처). 결과는 맞지만 운영자가 알아야 해서 요약·파일 목록에 드러낸다
+  const otherOrgCount = res.files.filter((f) => f.status === 'included').reduce((n, f) => n + otherOrgCells(f).length, 0);
+  const fileAttention = res.files.filter((f) => f.status === 'included' && (f.needsOrgLink || (f.dupGroup?.length ?? 0) > 1 || otherOrgCells(f).length > 0)).length;
   const autoRows = res.included.flatMap((s) => s.autoFixed.filter((a) => s.marks.get(slotIdOf(a.slot))?.mark === 'auto-fixed')
     .map((a) => ({ who: s.label, where: `${a.address} ${fieldOf.get(a.slot.key)?.label ?? ''}`.trim(), from: a.from, to: a.to })));
 
@@ -220,6 +222,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const stats: [string, ReactNode, Tone?][] = [
     ['제출', orgsTotal ? `${orgsTotal - res.missingOrgs.length}/${orgsTotal}${outsideList ? ` + 목록 밖 ${outsideList}` : ''}` : res.included.length],
     ...(!collect ? [['확인할 칸', pending, pending ? 'req' : undefined] as [string, ReactNode, Tone?], ['자동 정리', autoCount] as [string, ReactNode], ['작성자 메모', noteCount] as [string, ReactNode]] : []),
+    ...(otherOrgCount ? [['쓰지 않은 값', otherOrgCount, 'warn'] as [string, ReactNode, Tone?]] : []),
     ['제외', excluded],
     ...(orgsTotal ? [['미제출', res.missingOrgs.length] as [string, ReactNode]] : []),
     ...(!collect ? [['검산', pv.verify.ok ? '일치' : '불일치', pv.verify.ok ? 'ok' : 'err'] as [string, ReactNode, Tone?]] : []),
@@ -414,6 +417,9 @@ function hasOtherValues(schema: FormSchema, fin: Resolved['included'][number]): 
   return Object.entries(fin.header).some(([k, v]) => !calc.has(k) && filled(v)) || Object.values(fin.matrices ?? {}).some((m) => m.flat().some(filled)) || (fin.matrix ?? []).flat().some(filled);
 }
 
+/** 다른 제출처가 채우는 칸에 적어 쓰지 않은 값 (OTHER_ORG_CELL) */
+export const otherOrgCells = (s: FileState) => s.parsed?.issues.filter((i) => i.code === 'OTHER_ORG_CELL') ?? [];
+
 const STATUS_TONE: Record<FileState['status'], Tone> = { included: 'ok', duplicate: 'pri', operator: 'gray', 'form-sheet-missing': 'err', 'other-form': 'err', unreadable: 'err', 'duplicate-content': 'err' };
 
 function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved; d: Decisions; set: (p: (x: Decisions) => Decisions) => void }) {
@@ -434,7 +440,9 @@ function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved;
             const fin = res.included.find((x) => x.fileId === s.fileId);
             const issues = [...res.valueIssues, ...res.crossIssues].filter((i) => i.fileId === s.fileId).length;   // 빈칸채우기 필수 빈칸도 함께
             const infos = s.parsed?.issues.filter((i) => i.severity === 'info') ?? [];
+            const others = s.status === 'included' ? otherOrgCells(s) : [];
             const chip = s.needsOrgLink ? <Chip tone="warn">{s.orgBlank ? `${L}명 없음` : `${L} 확인`}</Chip> : issues && s.status === 'included' ? <Chip tone="req">확인할 칸 {issues}</Chip>
+              : others.length ? <Chip tone="warn">남의 칸에 적음 {others.length}</Chip>
               : s.dupGroup && s.status === 'included' ? <Chip tone="pri">중복 {s.dupGroup.length}개</Chip>
               : infos.some((i) => ['COLUMNS_REORDERED', 'HEADER_MOVED', 'COLUMN_MISSING', 'LABEL_MOVED'].includes(i.code)) && s.status === 'included' ? <Chip>구조 변경</Chip>
               : <Chip tone={STATUS_TONE[s.status]}>{s.status === 'included' && fin && !fin.rows.length && schema.blocks.some((b) => b.kind === 'list') && !hasOtherValues(schema, fin) ? '해당 없음' : s.status === 'included' ? '정상' : STATUS_LABEL[s.status]}</Chip>;
@@ -469,6 +477,11 @@ function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved;
                   </div>
                 </td>
               </tr>,
+              others.length > 0 && (
+                <tr key={`${s.fileId}-o`} className="border-b border-line"><td colSpan={4} className="px-2 pb-2">
+                  {others.map((i) => <div key={i.id} className="rounded-btn border border-[#f3cfa5] bg-warn px-2.5 py-1 text-[12.5px] text-warn-ink">⚠ {i.address} · {i.message}</div>)}
+                </td></tr>
+              ),
               open === s.fileId && s.parsed && (
                 <tr key={`${s.fileId}-d`} className="border-b border-line bg-panel"><td colSpan={4} className="px-3 py-2.5"><FileDetail res={res} s={s} /></td></tr>
               ),
@@ -520,7 +533,7 @@ function FileDetail({ res, s }: { res: Resolved; s: FileState }) {
       {r.authorNotes.length > 0 && <div>작성자 메모 {r.authorNotes.length}개: {r.authorNotes.map((n) => `${n.address} "${n.text}"`).join(', ')}</div>}
       {r.unreadSheets.length > 0 && <div>읽지 않은 시트: {r.unreadSheets.join(', ')} (작성자가 추가한 시트라 읽지 않았어요)</div>}
       {r.extraColumns.length > 0 && <div>양식에 없는 칸: {r.extraColumns.map((e) => e.header).join(', ')} → 결과 파일 "추가 칸" 시트에 담아요</div>}
-      {p.issues.filter((i) => i.severity === 'info').map((i) => <div key={i.id} className="text-sub">· {i.message}</div>)}
+      {p.issues.filter((i) => i.severity === 'info' && i.code !== 'OTHER_ORG_CELL').map((i) => <div key={i.id} className="text-sub">· {i.message}</div>)}
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { resolve } from '../pipeline/resolve';
 import { writeResult } from '../pipeline/write';
 import { emptyDecisions, type Decisions, type LoadedFile } from '../pipeline/types';
 import { firstRow, listCol, makeFile, NOW } from './makeFile';
+import { otherOrgCells } from '../AggregatePage';
 
 const ctx = { year: 2026, today: NOW };
 
@@ -47,6 +48,27 @@ describe('공용 파일 1개로 받은 preset 양식', () => {
     const { res } = await runAll(files);
     expect(res.files.map((x) => [x.fileName, x.org, x.needsOrgLink])).toEqual([['a.xlsx', '서울', false], ['b.xlsx', '부산', false], ['c.xlsx', undefined, true]]);
     expect(res.missingOrgs).toEqual(['대구']);
+  });
+
+  test('빈칸채우기형 공용 파일: 칸이 다 열려 있어도 자기 칸만 쓰고, 남의 칸에 적은 값은 화면에 드러낸다', async () => {
+    const g: FormSchema = {
+      ...structuredClone(SAMPLE['fill-in']), org: { mode: 'preset', orgs: ['서울', '부산'] },
+      blocks: [{
+        kind: 'grid', id: 'b1', colLabels: ['설비', '서울', '부산'], spareRows: 0,
+        rows: [[{ kind: 'fixed', value: '보일러' }, { kind: 'input', field: f('s', '보일러 · 서울', { type: 'number' }) }, { kind: 'input', field: f('p', '보일러 · 부산', { type: 'number' }) }]],
+      }],
+    };
+    const fill = (org: string, vals: Record<string, number>) => (ws: ExcelJS.Worksheet, model: Parameters<typeof firstRow>[0]) => {
+      ws.getCell(model.cellMap.orgCell!).value = org;
+      const gm = model.cellMap.blocks.b1;
+      if (gm.kind === 'grid') for (const [k, v] of Object.entries(vals)) ws.getCell(gm.inputCells[k]).value = v;
+    };
+    const { res } = await runAll([
+      await makeFile(g, 'a.xlsx', { shared: true, fill: fill('서울', { s: 10, p: 99 }) }),
+      await makeFile(g, 'b.xlsx', { shared: true, fill: fill('부산', { p: 30 }) }),
+    ]);
+    expect([res.gridOverlay.s.value, res.gridOverlay.p.value]).toEqual([10, 30]);
+    expect(res.files.map((x) => [x.fileName, otherOrgCells(x).map((i) => `${i.address} ${i.raw}`)])).toEqual([['a.xlsx', ['C7 99']], ['b.xlsx', []]]);
   });
 });
 

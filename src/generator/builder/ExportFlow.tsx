@@ -290,5 +290,7 @@ function fileContents(s: FormSchema, label: string, shared: boolean): string[] {
   out.push('인쇄 영역');
   out.push(`숨김 시트 (양식${s.org.mode === 'none' ? '' : `·${label}`} 정보)`);
   if (m.freeze) out.push('틀 고정');
+  // 빈칸채우기 작성처: 제출처별 파일은 다른 제출처 칸이 잠기고, 공용 파일은 모두 열린다
+  if (s.layout === 'fill-in' && s.org.mode === 'preset' && gridOwners(s).size) out.push(shared ? `모든 ${label} 칸이 열려 있음` : `다른 ${label} 칸은 회색·잠금`);
   return out;
 }
