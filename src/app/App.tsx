@@ -68,7 +68,7 @@ function Workspace() {
       <AppHeader tab={tab} setTab={setTab} admin={admin} extra={tab === 'ai' && (
         <button type="button" role="switch" aria-checked={panel} onClick={() => setPanel((v) => !v)}
           className="flex shrink-0 items-center gap-2 rounded-btn px-2 py-1 text-[14px] text-sub hover:bg-chip">
-          양식 설정 패널
+          <span className="max-xl:sr-only">양식 설정 패널</span>
           <span className={'relative h-5 w-9 rounded-full transition-colors ' + (panel ? 'bg-pri' : 'bg-line-strong')}>
             <span className={'absolute top-[2px] size-4 rounded-full bg-white shadow-sm transition-[left] ' + (panel ? 'left-[18px]' : 'left-[2px]')} />
           </span>
