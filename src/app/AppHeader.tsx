@@ -5,7 +5,7 @@ export type Tab = 'home' | 'ai' | 'aggregator' | 'account' | 'admin';
 const MAIN: [Tab, string][] = [['home', '내 업무공간'], ['ai', 'AI로 만들기'], ['aggregator', '취합하기']];
 
 /**
- * 머리줄: 로고 · 주요 화면 탭(밑줄) · 오른쪽 위 둥근 아이콘 (관리자, 내 계정 프로필 메뉴 — GitHub처럼).
+ * 머리줄: 로고 · 오른쪽 위 둥근 아이콘 (관리자, 내 계정 프로필 메뉴 — GitHub처럼).
  * 관리자 아이콘은 관리자에게만, 프로필은 온라인(로그인) 모드에서만 보인다.
  */
 export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t: Tab) => void; admin: boolean; extra?: ReactNode }) {
@@ -28,14 +28,6 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
         <i aria-hidden className="grid size-7 place-items-center rounded-[9px] bg-pri text-[10.5px] not-italic text-white">MOA</i>
         한난<span className="-ml-2 text-ink">MOA</span>
       </span>
-      <nav className="flex shrink-0 gap-[18px] self-stretch" aria-label="주요 화면">
-        {MAIN.map(([id, label]) => (
-          <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}
-            className={'-mb-px whitespace-nowrap border-b-2 px-0.5 text-[13.5px] ' + (tab === id ? 'border-pri font-bold text-ink' : 'border-transparent text-sub hover:text-ink')}>
-            {label}
-          </button>
-        ))}
-      </nav>
       <span className="flex-1" />
       {extra}
       {admin && (
@@ -66,6 +58,23 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
         </div>
       )}
     </header>
+  );
+}
+
+/** 주요 화면 단추 (슬로건 띠 안). 지금 화면은 녹색으로 채운다 */
+export function MainNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  return (
+    <nav className="flex shrink-0 gap-2" aria-label="주요 화면">
+      {MAIN.map(([id, label]) => (
+        <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}
+          className={'whitespace-nowrap rounded-full border px-4 py-[7px] text-[13.5px] font-semibold transition-colors ' +
+            (tab === id
+              ? 'border-pri bg-pri text-white shadow-[0_2px_8px_-2px_#37a13780]'
+              : 'border-line bg-white/85 text-ink shadow-[0_1px_2px_#1d242014] hover:border-pri hover:bg-white hover:text-pri')}>
+          {label}
+        </button>
+      ))}
+    </nav>
   );
 }
 

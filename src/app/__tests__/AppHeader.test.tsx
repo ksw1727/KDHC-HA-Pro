@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 const m = vi.hoisted(() => ({ session: null as null | { email: string; status: string; busy: boolean; signOut: () => void } }));
 vi.mock('../../cloud', () => ({ useCloudSession: () => m.session }));
-import { AppHeader } from '../AppHeader';
+import { AppHeader, MainNav } from '../AppHeader';
 
 describe('머리줄: 계정·관리자는 오른쪽 위 둥근 아이콘', () => {
-  it('주요 탭은 셋, 관리자 아이콘은 관리자에게만, 프로필은 로그인했을 때만', () => {
+  it('주요 탭은 셋(슬로건 띠 안), 관리자 아이콘은 관리자에게만, 프로필은 로그인했을 때만', () => {
     m.session = null;
-    const { rerender } = render(<AppHeader tab="home" setTab={() => {}} admin={false} />);
+    const nav = render(<MainNav tab="home" setTab={() => {}} />);
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['내 업무공간', 'AI로 만들기', '취합하기']);
+    nav.unmount();
+    const { rerender } = render(<AppHeader tab="home" setTab={() => {}} admin={false} />);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
     m.session = { email: 'ksw1727@gmail.com', status: '클라우드 동기화 준비됨', busy: false, signOut: vi.fn() };
     rerender(<AppHeader tab="home" setTab={() => {}} admin />);
     expect(screen.getByRole('button', { name: '관리자' })).toBeTruthy();
