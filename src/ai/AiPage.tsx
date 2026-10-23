@@ -11,6 +11,7 @@ import { downloadBlob, exportFormJson } from '@gen/export/exportJson';
 import { noticeText } from '@gen/export/noticeText';
 import { PreviewGrid } from '@gen/preview/PreviewGrid';
 import { loadForm } from '@gen/storage/localForms';
+import { isRemoved } from '@gen/storage/removedForms';
 import { describeChanges } from './formDiff';
 import { Button, Chip, TextArea, cx } from '@gen/ui/ui';
 
@@ -148,8 +149,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     const last = [...current.msgs].reverse().find((m) => m.form)?.form;
     const stored = last ? loadForm(last.formId)?.schema : undefined;
     if (stored) apply(stored);
-    // 새로고침해도 패널이 대화의 마지막 양식을 연다
-    if (last) toPanel(stored ?? last, { auto: true, preferStored: true });
+    // 새로고침해도 패널이 대화의 마지막 양식을 연다 (내 업무공간에서 지운 양식은 다시 열지 않는다)
+    if (last && !isRemoved(last.formId)) toPanel(stored ?? last, { auto: true, preferStored: true });
     // 이전 화면에서 바뀐 카드라 원래 양식을 모르면 AI 작업 폴더의 양식을 가져온다
     const i = current.msgs.map((m) => !!m.form).lastIndexOf(true);
     if (i >= 0 && current.msgs[i].edited && !current.msgs[i].base && current.chatId) {

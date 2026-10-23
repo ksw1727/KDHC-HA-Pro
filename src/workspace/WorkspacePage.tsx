@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LAYOUT_LABELS, type Layout } from '@contract/schema';
-import { listForms } from '@gen/storage/localForms';
+import { listForms, removeForm } from '@gen/storage/localForms';
 import { StructureStory } from '@gen/builder/StructureStory';
-import { Button, Chip, cx } from '@gen/ui/ui';
+import { Button, Chip, Dialog, cx } from '@gen/ui/ui';
 import { listLocalAggregations, loadAggregations, type AggregationRecord } from './history';
 import { byDeadline, counts, DAY, dayDiff, midnight, weekBars, workItems, type WorkItem } from './plan';
 
@@ -37,7 +37,9 @@ export function WorkspacePage() {
     void loadAggregations().then((r) => { if (!alive) return; setAggs(r.list); setSyncError(r.error ?? ''); });
     return () => { alive = false; };
   }, []);
-  const items = useMemo(() => workItems(listForms(), aggs), [aggs]);
+  const [rev, setRev] = useState(0);   // 양식을 지우면 목록을 다시 읽는다
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const items = useMemo(() => workItems(listForms(), aggs), [aggs, rev]);
   const c = counts(items, aggs, today);
   const waiting = items.filter((i) => i.state === 'waiting').sort(byDeadline);
   const tone = useMemo(() => {
@@ -105,7 +107,7 @@ export function WorkspacePage() {
             </button>
           ))}
         </div>
-        {tab === 'forms' ? <Forms items={items} /> : <History aggs={aggs} items={items} />}
+        {tab === 'forms' ? <Forms items={items} onRemoved={() => setRev((n) => n + 1)} /> : <History aggs={aggs} items={items} />}
       </section>
     </div>
   );
@@ -238,8 +240,9 @@ function WaitCard({ i, today, tone, hl, setHl }: { i: WorkItem; today: Date; ton
 
 const LAYOUT_FILTERS: Layout[] = ['matrix', 'list', 'header-list', 'fill-in', 'collect', 'free'];
 
-function Forms({ items }: { items: WorkItem[] }) {
+function Forms({ items, onRemoved }: { items: WorkItem[]; onRemoved: () => void }) {
   const [only, setOnly] = useState<Layout | null>(null);
+  const [del, setDel] = useState<WorkItem | null>(null);
   const shown = items.filter((i) => !only || i.schema.layout === only);
   const used = LAYOUT_FILTERS.filter((l) => items.some((i) => i.schema.layout === l));
   return (
@@ -274,12 +277,21 @@ function Forms({ items }: { items: WorkItem[] }) {
                   {i.state === 'draft'
                     ? <Button size="sm" variant="pri" onClick={() => openForm(i)}>이어서 고치기</Button>
                     : <><Button size="sm" onClick={() => openForm(i)}>열기</Button><Button size="sm" onClick={() => go('aggregator', i.schema.formId)}>취합하기</Button></>}
+                  <Button size="sm" variant="ghost" className="ml-auto" aria-label={`${i.schema.title || '제목 없는 양식'} 삭제`} onClick={() => setDel(i)}>삭제</Button>
                 </div>
               </div>
             </article>
           );
         })}
       </div>
+      {del && (
+        <Dialog title="양식을 지울까요?" onClose={() => setDel(null)}
+          footer={<><span className="flex-1" /><Button onClick={() => setDel(null)}>취소</Button>
+            <Button variant="danger" onClick={() => { removeForm(del.schema.formId); setDel(null); onRemoved(); }}>삭제</Button></>}>
+          <p className="m-0"><b>{del.schema.title || '제목 없는 양식'}</b> 양식을 내 양식 목록과 취합 일정에서 지워요.</p>
+          <p className="m-0 text-[13px] text-sub">이미 보낸 엑셀 파일과 취합 이력은 그대로 남아요. 양식 파일(.form.json)이 있으면 다시 열 수 있어요.</p>
+        </Dialog>
+      )}
     </>
   );
 }
