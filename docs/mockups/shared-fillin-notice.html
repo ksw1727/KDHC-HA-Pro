@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공용 파일 빈칸채우기 알림</title>
+<style>
+:root{--page:#eef1f5;--bg:#fff;--panel:#f6f8fb;--ink:#18202b;--sub:#56616e;--muted:#8a95a2;--line:#e2e7ee;--line2:#cbd3dd;
+--pri:#1f5fbf;--pri-ink:#174a96;--pri-bg:#e8f0fc;--pri-line:#b9cff2;--req:#fff5d1;--ok:#e8f5ea;--ok-ink:#2f7a3b;--ok-line:#b7dfbd;
+--warn:#fdf1e3;--warn-ink:#9a4a07;--warn-line:#f3cfa5;--err:#fdecea;--err-ink:#b42318;--err-line:#f5c2bd}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Malgun Gothic",sans-serif;font-size:15px;line-height:1.65}
+.page{max-width:1120px;margin:0 auto;padding:36px 16px 80px}
+.eyebrow{font-size:13px;color:var(--muted)}
+h1{font-size:27px;margin:4px 0 8px}
+.lead{color:var(--sub);margin:0;max-width:860px}
+.sec{margin-top:44px}
+.sec-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sec-h .no{background:var(--ink);color:#fff;border-radius:6px;font-size:13px;font-weight:700;padding:1px 9px}
+.sec-h h2{font-size:21px;margin:0}
+.desc{color:var(--sub);margin:6px 0 16px;max-width:860px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.row3{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:14px;align-items:center}
+@media (max-width:900px){.row,.row3{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+.card h3{margin:0 0 10px;font-size:15px}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:1px 10px;margin-bottom:8px}
+.tag.now{background:var(--err);color:var(--err-ink);border:1px solid var(--err-line)}
+.tag.fix{background:var(--ok);color:var(--ok-ink);border:1px solid var(--ok-line)}
+.arrow{font-size:26px;color:var(--muted);text-align:center}
+.muted{color:var(--muted)}.sub{color:var(--sub)}
+/* excel */
+.xl{border:1px solid #cfd6df;border-radius:10px;overflow:hidden;background:#fff}
+.xl-h{background:#1d6f42;color:#fff;font-size:12.5px;padding:5px 10px;font-weight:600}
+.xl table{border-collapse:collapse;width:100%;font-size:13px}
+.xl td,.xl th{border:1px solid #dfe3e8;padding:5px 8px;height:30px;text-align:center}
+.xl th{background:#f3f4f6;color:#8a95a2;font-weight:400;width:26px}
+.xl .lb{background:#eef1f5;font-weight:700}
+.xl .mine{background:#e8f0fc}
+.xl .bad{background:#fdecea;color:var(--err-ink);font-weight:800;outline:2px solid #e8796d;outline-offset:-2px}
+.xl .ok{background:var(--ok);font-weight:700}
+.xl .gone{color:#a6aeb8;text-decoration:line-through}
+.legend{font-size:12.5px;color:var(--sub);margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px;border:1px solid #cfd6df}
+/* app screen */
+.app{border:1px solid #cfd6df;border-radius:12px;overflow:hidden;background:#fff;font-size:13px}
+.app-h{background:var(--panel);border-bottom:1px solid var(--line);padding:8px 12px;font-weight:700;display:flex;gap:8px;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px 12px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.kpi b{display:block;font-size:17px}
+.kpi span{font-size:11.5px;color:var(--muted)}
+.kpi.hl{border-color:var(--warn-line);background:var(--warn)}
+.kpi.hl b{color:var(--warn-ink)}
+.fold{border-top:1px solid var(--line);padding:9px 12px;display:flex;gap:6px;align-items:center}
+.fold .caret{color:var(--muted)}
+.ftable{width:100%;border-collapse:collapse}
+.ftable td{border-top:1px solid var(--line);padding:7px 12px;vertical-align:top}
+.chip{display:inline-block;font-size:11.5px;border-radius:5px;padding:0 7px;border:1px solid var(--line);background:#f1f4f8;color:var(--sub);white-space:nowrap}
+.chip.ok{background:var(--ok);border-color:var(--ok-line);color:var(--ok-ink)}
+.chip.warn{background:var(--warn);border-color:var(--warn-line);color:var(--warn-ink)}
+.notice{margin:0 12px 10px;border-radius:8px;padding:7px 10px;font-size:12.5px}
+.notice.hidden{background:#f6f8fb;color:#a6aeb8;border:1px dashed var(--line2)}
+.notice.shown{background:var(--warn);color:var(--warn-ink);border:1px solid var(--warn-line)}
+.callout{margin-top:10px;font-size:13.5px;border-radius:8px;padding:8px 12px}
+.callout.bad{background:var(--err);color:var(--err-ink)}
+.callout.good{background:var(--ok);color:var(--ok-ink)}
+/* dialog list */
+ul.ck{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;font-size:13px}
+ul.ck li::before{content:"✓ ";color:#0f6e56;font-weight:700}
+ul.ck li.new{background:var(--ok);border-radius:5px;padding:0 6px;font-weight:700}
+.warnbox{background:var(--warn);border:1px solid var(--warn-line);color:var(--warn-ink);border-radius:8px;padding:7px 10px;font-size:12.5px;margin-bottom:10px}
+.summary{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+.summary ol{margin:6px 0 0;padding-left:20px}
+.summary li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="eyebrow">한난MOA · 운영 시험 결과 · 2026-10-23</div>
+  <h1>공용 파일로 받은 빈칸채우기형: 무엇이 문제인가</h1>
+  <p class="lead">값은 정확히 모였어요. 다만 <b>작성자가 남의 칸에 적은 값을 버렸다는 사실이 운영자 눈에 잘 안 보여요.</b> 아래에서 순서대로 보여 드릴게요.</p>
+
+  <section class="sec">
+    <div class="sec-h"><span class="no">1</span><h2>무슨 일이 있었나</h2></div>
+    <p class="desc">공용 파일은 누가 쓸지 모르기 때문에 다른 지사 칸을 잠그지 못해요. 그래서 중앙지사가 실수로 동탄지사 칸에 숫자를 적을 수 있어요.</p>
+    <div class="row3">
+      <div class="xl">
+        <div class="xl-h">중앙지사가 보낸 파일</div>
+        <table>
+          <tr><th></th><th>A</th><th>B</th><th>C</th></tr>
+          <tr><th>4</th><td class="lb">지사명</td><td colspan="2">중앙지사</td></tr>
+          <tr><th>6</th><td class="lb">설비</td><td class="lb">중앙지사</td><td class="lb">동탄지사</td></tr>
+          <tr><th>7</th><td class="lb">보일러</td><td class="mine">10</td><td class="bad">99</td></tr>
+          <tr><th>8</th><td class="lb">펌프</td><td class="mine">20</td><td></td></tr>
+        </table>
+      </div>
+      <div class="arrow">＋</div>
+      <div class="xl">
+        <div class="xl-h">동탄지사가 보낸 파일</div>
+        <table>
+          <tr><th></th><th>A</th><th>B</th><th>C</th></tr>
+          <tr><th>4</th><td class="lb">지사명</td><td colspan="2">동탄지사</td></tr>
+          <tr><th>6</th><td class="lb">설비</td><td class="lb">중앙지사</td><td class="lb">동탄지사</td></tr>
+          <tr><th>7</th><td class="lb">보일러</td><td></td><td class="mine">30</td></tr>
+          <tr><th>8</th><td class="lb">펌프</td><td></td><td class="mine">40</td></tr>
+        </table>
+      </div>
+      <div class="arrow">→</div>
+      <div class="xl">
+        <div class="xl-h">취합 결과 (정확함)</div>
+        <table>
+          <tr><th></th><th>A</th><th>B</th><th>C</th></tr>
+          <tr><th>6</th><td class="lb">설비</td><td class="lb">중앙지사</td><td class="lb">동탄지사</td></tr>
+          <tr><th>7</th><td class="lb">보일러</td><td class="ok">10</td><td class="ok">30 <span class="gone">99</span></td></tr>
+          <tr><th>8</th><td class="lb">펌프</td><td class="ok">20</td><td class="ok">40</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="legend"><span><i style="background:#e8f0fc"></i>자기 칸</span><span><i style="background:#fdecea"></i>남의 칸에 적은 값</span><span><i style="background:#e8f5ea"></i>취합에 쓴 값</span></div>
+    <div class="callout good">✓ 프로그램은 각 칸을 <b>그 칸 주인 지사의 파일에서만</b> 읽어요. 그래서 99는 버리고 동탄지사가 적은 30을 썼어요. <b>결과는 맞아요.</b></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h"><span class="no">2</span><h2>문제 ①: 99를 버렸다는 알림이 숨어 있어요</h2></div>
+    <p class="desc">운영자는 "중앙지사가 동탄 칸에 99를 적었다"는 걸 알아야 해요. 숫자를 잘못 옮겨 적은 것일 수도 있어서 확인이 필요하거든요. 그런데 지금 화면에서는 아무 데도 표시가 없어 그냥 넘어가기 쉬워요.</p>
+    <div class="row">
+      <div class="card">
+        <span class="tag now">지금</span>
+        <div class="app">
+          <div class="app-h">[TEST] 빈칸채우기 공용 확인</div>
+          <div class="kpis">
+            <div class="kpi"><b>2/2</b><span>제출</span></div>
+            <div class="kpi"><b>0</b><span>확인할 칸</span></div>
+            <div class="kpi"><b>0</b><span>작성자 메모</span></div>
+            <div class="kpi"><b>일치</b><span>검산</span></div>
+          </div>
+          <div class="fold"><span class="caret">▸</span><b>파일</b><span class="muted">2개</span></div>
+          <table class="ftable">
+            <tr><td>중앙지사<br><span class="muted">중앙_회신.xlsx</span></td><td><span class="chip ok">정상</span></td><td>채운 칸 2개</td></tr>
+          </table>
+          <div class="notice hidden">· 동탄지사 칸에 적은 값 '99'는 쓰지 않았어요 <br>(← 파일 목록을 펼치고 이 줄을 눌러야만 보여요)</div>
+          <table class="ftable">
+            <tr><td>동탄지사<br><span class="muted">동탄_회신.xlsx</span></td><td><span class="chip ok">정상</span></td><td>채운 칸 2개</td></tr>
+          </table>
+        </div>
+        <div class="callout bad">✕ 모든 숫자가 "문제없음"으로 보여요. 파일 목록은 접혀 있고, 상태도 <b>정상</b>이에요.</div>
+      </div>
+      <div class="card">
+        <span class="tag fix">고친 뒤</span>
+        <div class="app">
+          <div class="app-h">[TEST] 빈칸채우기 공용 확인</div>
+          <div class="kpis">
+            <div class="kpi"><b>2/2</b><span>제출</span></div>
+            <div class="kpi"><b>0</b><span>확인할 칸</span></div>
+            <div class="kpi hl"><b>1</b><span>쓰지 않은 값</span></div>
+            <div class="kpi"><b>일치</b><span>검산</span></div>
+          </div>
+          <div class="fold"><span class="caret">▾</span><b>파일</b><span class="muted">2개 · <b style="color:var(--warn-ink)">살펴볼 파일 1개</b></span></div>
+          <table class="ftable">
+            <tr><td>중앙지사<br><span class="muted">중앙_회신.xlsx</span></td><td><span class="chip warn">남의 칸에 적음</span></td><td>채운 칸 2개</td></tr>
+          </table>
+          <div class="notice shown">⚠ 동탄지사 칸(C7)에 적은 값 '99'는 쓰지 않았어요. 이 칸은 동탄지사가 채워요.</div>
+          <table class="ftable">
+            <tr><td>동탄지사<br><span class="muted">동탄_회신.xlsx</span></td><td><span class="chip ok">정상</span></td><td>채운 칸 2개</td></tr>
+          </table>
+        </div>
+        <div class="callout good">✓ 요약 숫자에 "쓰지 않은 값 1"이 보이고, 파일 목록이 펼쳐진 채로 알림이 바로 보여요.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h"><span class="no">3</span><h2>문제 ②: 내보내기 창에 "칸이 열려 있음"이 빠졌어요</h2></div>
+    <p class="desc">공용 파일을 고르면 주황 경고는 잘 떠요. 그런데 아래 "파일마다 들어가는 것" 목록에는 <b>다른 지사 칸도 열려 있다</b>는 말이 없어요. 처음 그린 시안에는 있었는데 만들 때 빠뜨렸어요. 경고에 같은 말이 있어서 급하진 않아요.</p>
+    <div class="row">
+      <div class="card">
+        <span class="tag now">지금</span>
+        <div class="warnbox">⚠ <b>빈칸채우기형은 공용 파일이면 다른 지사 칸이 잠기지 않아요.</b> 다른 지사 칸에 적은 값은 취합할 때 쓰지 않고 알림으로 알려 드려요.</div>
+        <div class="muted" style="font-size:12px;margin-bottom:4px">파일마다 들어가는 것</div>
+        <ul class="ck"><li>입력 규칙</li><li>제목 줄 잠금 · 지사명은 목록에서 고르기</li><li>인쇄 영역</li><li>숨김 시트</li><li>틀 고정</li></ul>
+      </div>
+      <div class="card">
+        <span class="tag fix">고친 뒤</span>
+        <div class="warnbox">⚠ <b>빈칸채우기형은 공용 파일이면 다른 지사 칸이 잠기지 않아요.</b> 다른 지사 칸에 적은 값은 취합할 때 쓰지 않고 알림으로 알려 드려요.</div>
+        <div class="muted" style="font-size:12px;margin-bottom:4px">파일마다 들어가는 것</div>
+        <ul class="ck"><li>입력 규칙</li><li>제목 줄 잠금 · 지사명은 목록에서 고르기</li><li>인쇄 영역</li><li>숨김 시트</li><li>틀 고정</li><li class="new">모든 지사 칸이 열려 있음</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="summary">
+      <b>정리</b>
+      <ol>
+        <li><b>데이터는 맞아요.</b> 남의 칸에 적은 값은 자동으로 버려져요.</li>
+        <li><b>①은 고치는 게 좋아요.</b> 운영자가 "누가 남의 칸에 적었는지" 바로 알아야 확인 연락을 할 수 있어요. 공용 파일에서는 이런 실수가 자주 날 수 있어요.</li>
+        <li><b>②는 문구 한 줄이에요.</b> 경고 상자가 이미 같은 말을 해서 급하진 않아요.</li>
+      </ol>
+      <p class="sub" style="margin:8px 0 0">지사별 파일(zip)로 보내면 남의 칸이 회색으로 잠겨 있어서 이런 일이 거의 없어요. 그래서 내보내기 창에서도 지사별 파일을 추천으로 두고 있어요.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
