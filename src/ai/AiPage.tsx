@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
-import { buildCloudChatBody, prepareCloudSources } from './cloudAttachments';
+import { buildCloudChatBody, prepareCloudSources, type CloudSource } from './cloudAttachments';
 import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
@@ -13,6 +13,8 @@ import { PreviewGrid } from '@gen/preview/PreviewGrid';
 import { loadForm } from '@gen/storage/localForms';
 import { isRemoved } from '@gen/storage/removedForms';
 import { describeChanges } from './formDiff';
+import { sameForm } from '@gen/state/versioning';
+import { randomFormId } from '@gen/state/newSchema';
 import { Button, Chip, TextArea, cx } from '@gen/ui/ui';
 
 const aiFetch: typeof fetch = (url, init) => cloudEnabled ? cloudFetch(String(url), init) : fetch(url, init);
@@ -52,6 +54,10 @@ async function toBase64(f: File): Promise<string> {
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
+}
+const SOURCES_KEY = 'hanan-moa:ai-sources';
+function loadSources(): CloudSource[] {
+  try { const xs = JSON.parse(sessionStorage.getItem(scopedStorageKey(SOURCES_KEY)) ?? '[]'); return Array.isArray(xs) ? xs : []; } catch { return []; }
 }
 function loadChat(): { chatId: string | null; msgs: Msg[]; aiVersion: string | null } {
   const draft = loadDraft();
@@ -99,10 +105,14 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   };
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  // 온라인: 이 대화에서 올린 엑셀 요약. 서버는 대화 글만 기억하므로 다음 말("네" 등)에도 함께 보낸다 (이 탭에서만 보관)
+  const sources = useRef<CloudSource[]>(loadSources());
+  const keepSources = (xs: CloudSource[]) => { sources.current = xs; try { sessionStorage.setItem(scopedStorageKey(SOURCES_KEY), JSON.stringify(xs)); } catch { /* 보관 못 해도 됨 */ } };
   const end = useRef<HTMLDivElement>(null);
 
   const draftSync = useCloudDraft({ chatId, msgs, aiVersion }, busy, (draft: Draft) => {
     setChatId(draft.chatId); setMsgs(draft.msgs as Msg[]); setAiVersion(draft.aiVersion);
+    if (!draft.msgs.length) keepSources([]);
   });
   useEffect(() => {
     aiFetch('/api/ai/health').then(requireOk).then((r) => r.json()).then((j) => {
@@ -147,7 +157,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     const current = cloudEnabled ? { msgs, chatId } : saved;
     // 새로고침 전에 고친 것도 맞춘다
     const last = [...current.msgs].reverse().find((m) => m.form)?.form;
-    const stored = last ? loadForm(last.formId)?.schema : undefined;
+    const found = last ? loadForm(last.formId)?.schema : undefined;
+    const stored = found && last && sameForm(last, found) ? found : undefined;
     if (stored) apply(stored);
     // 새로고침해도 패널이 대화의 마지막 양식을 연다 (내 업무공간에서 지운 양식은 다시 열지 않는다)
     if (last && !isRemoved(last.formId)) toPanel(stored ?? last, { auto: true, preferStored: true });
@@ -188,7 +199,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       const text = form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message;
       // 온라인 서버는 engine(codex = OpenAI)·요약(sources)만 받고, 로컬 연결 서버는 model·원본 파일을 받는다
       const body = cloudEnabled
-        ? buildCloudChatBody({ chatId: chatId ?? undefined, engine: 'codex', message: text, form, sources: await prepareCloudSources(files, consent) })
+        ? buildCloudChatBody({ chatId: chatId ?? undefined, engine: 'codex', message: text, form, sources: files.length ? await prepareCloudSources(files, consent).then((xs) => { keepSources(xs); return xs; }) : sources.current })
         : JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: text, form, files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) });
       if (ctl.signal.aborted) throw new DOMException('취소됨', 'AbortError');
       setAttached([]); setConsent(false);
@@ -198,14 +209,24 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
         if (e.type === 'chat') setChatId(e.chatId);
         else if (e.type === 'status') patchLast((m) => ({ ...m, status: e.text }));
         else if (e.type === 'text') patchLast((m) => ({ ...m, text: m.text ? `${m.text}\n\n${e.text}` : e.text }));
-        else if (e.type === 'form') { const c = checkForm(e.schema); patchLast((m) => ({ ...m, ...c })); if (c.form) { setAiVersion(sig(c.form)); toPanel(c.form, { auto: true }); } }
+        else if (e.type === 'form') {
+          const c = checkForm(e.schema);
+          const fromAi = c.form;
+          // 같은 대화에서 전혀 다른 양식을 새로 만들면 AI는 이전 양식 번호를 그대로 쓴다 → 새 번호를 줘서
+          // 이전 양식의 내보내기 기록과 섞여 버전이 오르지 않게 한다 (다음 말에 새 번호 양식을 AI에게 넘긴다)
+          if (c.form && lastForm && c.form.formId === lastForm.formId && !sameForm(lastForm, c.form)) {
+            c.form = { ...c.form, formId: randomFormId(), createdAt: new Date().toISOString(), formVersion: 1 };
+          }
+          patchLast((m) => ({ ...m, ...c }));
+          if (c.form && fromAi) { setAiVersion(sig(fromAi)); toPanel(c.form, { auto: true }); }
+        }
         else if (e.type === 'error') patchLast((m) => ({ ...m, error: e.text }));
       });
     } catch (err) {
       if ((err as Error).name !== 'AbortError') patchLast((m) => ({ ...m, error: err instanceof ServerMessageError ? err.message : `연결이 끊겼어요: ${(err as Error).message}` }));
       else patchLast((m) => ({ ...m, error: '멈췄어요' }));
     } finally {
-      patchLast((m) => ({ ...m, status: undefined, text: m.text || (m.form || m.error ? m.text : '(답이 없어요)') }));
+      patchLast((m) => ({ ...m, status: undefined, ...(m.text || m.form || m.error ? {} : { error: 'AI 답을 받지 못했어요. 같은 말을 한 번 더 보내 주세요.' }) }));
       setBusy(false);
       abort.current = null;
     }
@@ -215,7 +236,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     if (msgs.length && !window.confirm(cloudEnabled ? '화면 대화를 새로 시작할까요? 서버 대화 기록은 삭제되지 않고, 현재 저장 초안만 비워요. 만든 양식은 빌더·양식 파일에 남아요.' : '지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
     if (busy || (cloudEnabled && !draftSync.ready)) return;
     draftSync.markCleared();
-    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]);
+    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); keepSources([]);
   };
 
   if (health === 'off' || health === 'nokey') {

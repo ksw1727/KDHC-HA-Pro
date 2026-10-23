@@ -4,6 +4,7 @@ import { newSchema, randomFormId, randomKey } from './state/newSchema';
 import { loadForm, type StoredForm } from './storage/localForms';
 import { openFormJson, openFormXlsx, type OpenResult } from './storage/openForm';
 import { BuilderPage } from './pages/BuilderPage';
+import { sameForm } from './state/versioning';
 import { Button, Dialog } from './ui/ui';
 
 /**
@@ -27,8 +28,10 @@ export function FormPanel({ incoming }: { incoming?: Incoming }) {
   // 대화에서 넘어온 양식 (AI가 새로 만들었거나 [패널에서 고치기]). 브라우저에 고친 것이 있으면 그것부터
   useEffect(() => {
     if (!incoming) return;
-    const stored = loadForm(incoming.schema.formId);
-    setOpen({ at: incoming.at, start: incoming.preferStored && stored ? stored : { schema: incoming.schema, lastExported: incoming.lastExported ?? stored?.lastExported, savedAt: '' } });
+    // 같은 번호를 쓰는 다른 양식이 저장돼 있으면 그것(과 그 내보내기 기록)은 쓰지 않는다
+    const found = loadForm(incoming.schema.formId);
+    const stored = found && sameForm(found.schema, incoming.schema) ? found : null;
+    setOpen({ at: incoming.at, start: incoming.preferStored && stored ? stored : { schema: incoming.schema, lastExported: incoming.lastExported ?? (stored?.lastExported && sameForm(stored.lastExported, incoming.schema) ? stored.lastExported : undefined), savedAt: '' } });
   }, [incoming]);
   useEffect(() => {
     const on = (e: Event) => setFocus({ key: (e as CustomEvent<{ key: string }>).detail.key, at: Date.now() });

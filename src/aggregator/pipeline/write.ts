@@ -19,11 +19,11 @@ const FORBIDDEN = /[\\/?*[\]:]/g;
 
 const stamp = (d: Date) => fmtTime(d.toISOString()).replace(/[-:]/g, '').replace(' ', '-');
 
-/** 엑셀 시트 이름 규칙: 31자, 금지 문자 → _, 같은 이름이면 (2) */
+/** 엑셀 시트 이름 규칙: 31자, 금지 문자 → _, ' → ’(sheetNameOf와 같은 이유), 같은 이름이면 (2) */
 export function sheetNamer() {
   const used = new Set<string>();
   return (name: string) => {
-    const base = (name.replace(FORBIDDEN, '_').trim() || '시트').slice(0, 31);
+    const base = (name.replace(FORBIDDEN, '_').replace(/'/g, '’').trim() || '시트').slice(0, 31);
     let s = base;
     for (let i = 2; used.has(s.toLowerCase()); i++) s = `${base.slice(0, 31 - `(${i})`.length)}(${i})`;
     used.add(s.toLowerCase());

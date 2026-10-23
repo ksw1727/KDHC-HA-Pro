@@ -206,7 +206,9 @@ export function resolve(schema: FormSchema, all: IdentifiedFile[], parsed: Parse
       if (!got.length) {
         // 작성처가 정해진 칸: 그 제출처가 냈는데 비었을 때만 (안 냈으면 미제출로 보인다)
         const ownerIn = owner ? included.find((x) => x.org && sameOrg(x.org, owner)) : undefined;
-        if (cell.field.required && (!owner || ownerIn)) crossIssues.push({ id: `grid-required:${key}`, fileId: ownerIn?.fileId ?? '', code: 'REQUIRED_EMPTY', severity: 'value', sheet: '', location: cell.field.label, fieldLabel: cell.field.label, message: owner ? `${josa(owner, '이', '가')} 채우지 않은 필수 칸이에요` : '어느 파일에도 채워지지 않은 필수 칸이에요' });
+        // 작성처가 없는 칸은 파일이 하나뿐이면 그 파일 몫으로 (파일 목록에 '확인할 칸'으로 보이게)
+        const who = ownerIn ?? (!owner && included.length === 1 ? included[0] : undefined);
+        if (cell.field.required && (!owner || ownerIn)) crossIssues.push({ id: `grid-required:${key}`, fileId: who?.fileId ?? '', code: 'REQUIRED_EMPTY', severity: 'value', sheet: '', location: cell.field.label, fieldLabel: cell.field.label, message: owner ? `${josa(owner, '이', '가')} 채우지 않은 필수 칸이에요` : '어느 파일에도 채워지지 않은 필수 칸이에요' });
         continue;
       }
       const distinct = [...new Set(got.map((g) => JSON.stringify(g.v)))];

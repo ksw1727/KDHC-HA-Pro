@@ -155,4 +155,22 @@ describe('내보내기 묶음 (exportForm)', () => {
     expect(r.download.name).toBe(`${exportNames(SAMPLE['fill-in']).fileOf()}`);
     expect(r.files).toHaveLength(1);
   });
+
+  test("제목에 '가 있어도(맨 앞·가운데) 파일이 깨지지 않고 다시 열린다", async () => {
+    for (const title of ["'26년 동절기 점검", "홍길동's 점검"]) {
+      const s = { ...clone(SAMPLE.list), title };
+      const wb = await open(await writeWorkbook(s, { orgName: '서울', now }));
+      expect(wb.worksheets[0].name).toBe(title.replace(/'/g, '’'));
+      expect(wb.worksheets[0].pageSetup.printArea).toBeTruthy();
+      expect((await readMeta(wb)).status).toBe('ok');
+    }
+  });
+
+  test('시트 보호 암호 해시는 한 번만 계산해 여러 파일에 같이 쓴다 (내보내기 속도)', async () => {
+    const a = protection((await open(await writeWorkbook(SAMPLE.list, { orgName: '서울', now }))).worksheets[0]) as Record<string, unknown>;
+    const b = protection((await open(await writeWorkbook(SAMPLE.list, { orgName: '부산', now }))).worksheets[0]) as Record<string, unknown>;
+    expect(a).toMatchObject({ sheet: true, algorithmName: 'SHA-512', spinCount: 100000 });
+    expect(a.hashValue).toBeTruthy();
+    expect([b.hashValue, b.saltValue]).toEqual([a.hashValue, a.saltValue]);
+  });
 });

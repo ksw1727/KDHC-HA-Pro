@@ -9,6 +9,8 @@ export interface VerifyResult { ok: boolean; lines: VerifyLine[] }
 
 const n = (v: unknown) => (typeof v === 'number' ? v : 0);
 const round = (x: number) => Math.round(x * 1e6) / 1e6;
+/** 합이 같은지: 아주 큰 수는 소수점 아래까지 정확히 셀 수 없어 상대 오차로 본다 */
+const same = (a: number, b: number) => Math.abs(a - b) <= Math.max(1e-6, 1e-13 * Math.max(Math.abs(a), Math.abs(b)));
 
 export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): VerifyResult {
   const lines: VerifyLine[] = [];
@@ -63,7 +65,7 @@ export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): V
       }
       const expected = round(source + fixed + removed + hiddenOut);
       const diffs = [fixed && `수정으로 ${fixed > 0 ? '+' : ''}${round(fixed)}`, removed && `운영자 제외로 ${round(removed)}`, hiddenOut && `숨긴 줄 제외로 ${round(hiddenOut)}`].filter(Boolean);
-      lines.push({ check: `숫자 합계 · ${f.label}`, detail: `원본 ${round(source)}${diffs.length ? ` (${diffs.join(', ')})` : ''} → 같은 틀 시트 ${round(sheet)}`, ok: round(sheet) === expected });
+      lines.push({ check: `숫자 합계 · ${f.label}`, detail: `원본 ${round(source)}${diffs.length ? ` (${diffs.join(', ')})` : ''} → 같은 틀 시트 ${round(sheet)}`, ok: same(sheet, expected) });
     }
   }
   for (const matrix of schema.blocks) {
@@ -75,7 +77,7 @@ export function verify(schema: FormSchema, res: Resolved, model?: SheetModel): V
       const addrs = new Set(mm.cells.flat());
       for (const c of model.cells) if (addrs.has(c.address)) sheet += n(c.value);
     }
-    lines.push({ check: `숫자 합계 · ${matrix.title?.trim() || '표'}`, detail: `제출 값 합 ${round(source)} → 같은 틀 시트 ${round(sheet)}`, ok: round(source) === round(sheet) });
+    lines.push({ check: `숫자 합계 · ${matrix.title?.trim() || '표'}`, detail: `제출 값 합 ${round(source)} → 같은 틀 시트 ${round(sheet)}`, ok: same(source, sheet) });
   }
 
   // 4. 원본 파일에 적힌 합계와 대조 (합계 줄·합계 행·계 열)

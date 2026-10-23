@@ -2,7 +2,7 @@ import type ExcelJS from 'exceljs';
 import { META_SHEET } from '@contract/metaIO';
 import { addr, colLetter, colNumber, parseAddr } from '@contract/layout';
 import type { CellMap, FieldsBlockMap, GridBlockMap, ListBlockMap, MatrixBlockMap, RowFlag } from '@contract/meta';
-import type { Field, FieldsBlock, FormSchema, GridBlock, ListBlock, MatrixBlock } from '@contract/schema';
+import { orgLabel, sameOrg, type Field, type FieldsBlock, type FormSchema, type GridBlock, type ListBlock, type MatrixBlock } from '@contract/schema';
 import type { BaseForm, IdentifiedFile, Question, RawCell, ReadResult, ReadRow, Slot } from './types';
 import { normalize } from './normalize';
 import { cellText, formLabels, isBlank, noteText, normLabel, plainValue, similar } from './cellValue';
@@ -149,7 +149,14 @@ export function readSubmission(f: IdentifiedFile, base: BaseForm): ReadResult {
   out.unreadSheets = visibleSheets(wb).filter((s) => s !== ws).map((s) => s.name);
   for (const name of out.unreadSheets) out.infos.push({ code: 'EXTRA_SHEET', message: `작성자가 추가한 "${name}" 시트는 읽지 않았어요` });
 
-  out.org = f.orgFromFile ?? (cellMap.orgCell ? cellText(ws.getCell(cellMap.orgCell).value).trim() || undefined : undefined);
+  const orgCell = cellMap.orgCell ? cellText(ws.getCell(cellMap.orgCell).value).trim() : '';
+  out.org = f.orgFromFile ?? (orgCell || undefined);
+  // 제출처마다 나간 파일은 제출처명 칸이 잠겨 있다. 잠금을 풀고 바꿨으면 알린다 (파일에 적힌 제출처로 취합)
+  if (f.orgFromFile && cellMap.orgCell && !sameOrg(orgCell, f.orgFromFile)) {
+    const L = orgLabel(schema);
+    out.infos.push({ code: 'FIXED_CELL_CHANGED', address: cellMap.orgCell,
+      message: `잠긴 ${L}명 칸이 ${orgCell ? `"${orgCell}"(으)로 바뀌어` : '지워져'} 있었어요. 이 파일을 받은 ${L} "${f.orgFromFile}"(으)로 취합했어요` });
+  }
 
   const h = new HiddenArea(ws, out);
   for (const b of schema.blocks) {

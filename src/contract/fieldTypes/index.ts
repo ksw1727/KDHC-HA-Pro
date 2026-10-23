@@ -14,7 +14,7 @@ export const FIELD_TYPES: Record<FieldType, FieldTypeDef> = { text, number, date
 export const FIELD_TYPE_ORDER: FieldType[] = ['text', 'number', 'date', 'select', 'memo', 'pattern', 'calc'];
 
 export type { FieldTypeDef, IssueCode, NormalizeResult } from './types';
-export { numberFormat } from './number';
+export { numberFormat, NUMBER_LIMIT } from './number';
 export { DATE_EXAMPLE } from './date';
 export { PATTERN_INFO } from './pattern';
 export { selectNeedsRange } from './select';

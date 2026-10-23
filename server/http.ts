@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
-import { SafeError, limits, uuid, parseInput, providerConfig, context, callProvider, checkedResult, ensureTitle, type Turn } from './ai';
+import { SafeError, limits, uuid, parseInput, providerConfig, context, callProvider, checkedResult, ensureTitle, rejectReasons, type Turn } from './ai';
 import { makeStore, type Store } from './store';
 export type Request = IncomingMessage & {body?:unknown};
 export interface Dependencies { env?:NodeJS.ProcessEnv; store?:Store; provider?:typeof callProvider }
@@ -12,12 +12,14 @@ async function body(req:Request):Promise<unknown> {
 }
 export function handler(route:'health'|'chat'|'form'|'account', deps:Dependencies={}) {
   return async (req:Request,res:ServerResponse) => {
-    const env=deps.env ?? process.env; let streaming=false; let store:Store|undefined; let user=''; let chatId=''; let lease=''; let reserved=false; let saved=false;
+    const env=deps.env ?? process.env; let streaming=false; let timedOut=false; let store:Store|undefined; let user=''; let chatId=''; let lease=''; let reserved=false; let saved=false;
     const controller=new AbortController();
     const abort=()=>controller.abort(); const closed=()=>{if(!res.writableEnded) abort();};
     req.on('aborted',abort); res.on('close',closed);
-    const timeout=setTimeout(abort,limits.timeout);
-    const emit=(value:unknown)=>{ if(!controller.signal.aborted && !res.destroyed) res.write(JSON.stringify(value)+'\n'); };
+    const started=Date.now();
+    const timeout=setTimeout(()=>{timedOut=true;abort();},limits.timeout);
+    // 시간 초과로 멈춘 것은 연결이 살아 있으니 안내 문구를 보낸다 (안 보내면 화면에 '(답이 없어요)'만 남는다)
+    const emit=(value:unknown)=>{ if(!res.destroyed && !res.writableEnded) res.write(JSON.stringify(value)+'\n'); };
     const json=(status:number,value:unknown)=>{res.statusCode=status;res.setHeader('content-type','application/json; charset=utf-8');res.end(JSON.stringify(value));};
     res.setHeader('Cache-Control','no-store'); res.setHeader('X-Content-Type-Options','nosniff');
     try {
@@ -57,10 +59,15 @@ export function handler(route:'health'|'chat'|'form'|'account', deps:Dependencie
       emit({type:'chat',chatId});emit({type:'status',text:'양식을 준비하고 있어요.'});
       let result:ReturnType<typeof checkedResult>=null;
       const secrets=[env.ANTHROPIC_API_KEY,env.OPENAI_API_KEY,env.DATABASE_URL].filter((s):s is string=>!!s);
+      let reasons:string[]=[];
       for(let attempt=0;attempt<3 && !controller.signal.aborted;attempt++) {
-        try { const raw=await (deps.provider ?? callProvider)(input.engine,cfg,prompt+(attempt?'\n이전 응답은 계약/내보내기/식별자 검사에 실패했다. 같은 요구를 다시 검토하고 유효한 JSON으로 고쳐라. 확신 없으면 form:null로 설명하라.':''),controller.signal); result=checkedResult(raw,previous,secrets); } catch(e) { if(e instanceof SafeError || controller.signal.aborted) throw e; }
+        // 남은 시간이 첫 시도에 걸린 시간보다 짧으면 다시 시도하지 않는다(시간 초과로 아무 답도 못 받는 것보다 낫다)
+        if(attempt && Date.now()-started>limits.timeout*0.6) break;
+        const retry=attempt?`\n이전 응답은 계약/내보내기/식별자 검사에 실패했다.${reasons.length?` 실패 이유: ${reasons.join(' / ')}.`:''} 같은 요구를 다시 검토하고 유효한 JSON으로 고쳐라. 확신 없으면 form:null로 설명하라.`:'';
+        try { const raw=await (deps.provider ?? callProvider)(input.engine,cfg,prompt+retry,controller.signal); result=checkedResult(raw,previous,secrets); if(!result) reasons=rejectReasons(raw,previous); } catch(e) { if(controller.signal.aborted) break; if(e instanceof SafeError) throw e; }
         if(result) break;
       }
+      if(timedOut) throw new SafeError(504,'AI 답이 오래 걸려 멈췄어요. 같은 말을 한 번 더 보내거나, 요청을 조금 나눠 보내 주세요.');
       if(controller.signal.aborted) throw new SafeError(408,'요청 시간이 지났거나 연결이 끊겼어요.');
       if(!result) throw new SafeError(502,'안전한 양식을 만들지 못했어요. 요청을 나눠 다시 시도해 주세요.');
       if(result.form) result={...result,form:ensureTitle(result.form,input.message,previous)};
