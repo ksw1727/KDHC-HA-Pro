@@ -3,7 +3,7 @@ import { describe,it,expect,vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { createServer, request as httpRequest } from 'node:http';
 import { handler, type Request } from './http';
-import { checkedResult, parseInput, callProvider, SafeError, validForm, limits, rejectReasons } from './ai';
+import { checkedResult, parseInput, callProvider, SafeError, validForm, limits, rejectReasons, freshTemplates } from './ai';
 import { newSchema } from '../src/generator/state/newSchema';
 import type { Store } from './store';
 import type { ServerResponse } from 'node:http';
@@ -39,6 +39,13 @@ describe('cloud AI fail closed',()=>{
  it('emits compatible NDJSON only after validated save',async()=>{const d=setup(),r=await run('chat',{engine:'claude',message:'목록'},d);const events=r.parts.map(x=>JSON.parse(x));expect(events.map(e=>e.type)).toEqual(['chat','status','text','form','done']);expect(d.store.finish).toHaveBeenCalledTimes(1);expect(events[3].schema.title).toBe('교육');});
  it('invalid repair output is never emitted',async()=>{const d=setup();d.provider.mockResolvedValue({text:'bad',form:{} as ReturnType<typeof form>});const r=await run('chat',{engine:'claude',message:'목록'},d);expect(d.provider).toHaveBeenCalledTimes(3);expect(r.parts.map(x=>JSON.parse(x).type)).toEqual(['chat','status','error','done']);expect(d.store.finish).toHaveBeenCalledWith(USER,expect.any(String),expect.any(String),null,null);});
  it('repairs once and preserves identifiers',async()=>{const f=form();expect(checkedResult({text:'ok',form:{...f,formId:USER}},f,[])).toBeNull();expect(checkedResult({text:'test-secret-key',form:f},f,['test-secret-key'])).toBeNull();expect(checkedResult({text:'ok',form:f},f,[])).not.toBeNull();});
+ it('accepts a different new form only from this request templates',()=>{const f=form(),t=freshTemplates()[0];
+   const fresh={...t,title:'[테스트] 버튼 확인',org:{...t.org,orgs:['강남지사']}};
+   // 같은 이름 항목의 key가 달라도 새 양식이면 받는다 / 이번 요청에서 주지 않은 번호는 받지 않는다
+   expect(checkedResult({text:'ok',form:fresh},f,[],[t])).not.toBeNull();
+   expect(checkedResult({text:'ok',form:fresh},f,[],[])).toBeNull();
+   expect(checkedResult({text:'ok',form:{...fresh,createdAt:'2020-01-01T00:00:00.000Z'}},f,[],[t])).toBeNull();
+   expect(rejectReasons({text:'ok',form:{...fresh,formId:USER}},f,[t])[0]).toContain('templates');});
  it('uses fixed endpoints and suppresses provider error payload',async()=>{const fetcher=vi.fn(async()=>new Response('raw secret upstream',{status:400})) as unknown as typeof fetch;await expect(callProvider('codex',{key:'fake',model:'explicit'},'{}',new AbortController().signal,fetcher)).rejects.toThrow('인공지능 연결');expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('https://api.openai.com/v1/responses');});
  it('rejects unsupported source payload without storing it',()=>{expect(()=>parseInput({engine:'codex',message:'x',sources:[{name:'a',text:'x'.repeat(12001)}]})).toThrow();});
  it('aborts provider when HTTP response is disconnected',async()=>{
