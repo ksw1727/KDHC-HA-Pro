@@ -11,6 +11,7 @@ import { Button, Dialog } from './ui/ui';
  * AI로 만들기 화면 오른쪽 설정 패널: 대화 속 마지막 양식을 ①~⑤로 고친다 (미리보기는 대화의 양식 카드).
  * 화면끼리는 window 이벤트로 주고받는다.
  *  - 받기 `hanan-moa:select-field` {key}: 카드 미리보기에서 머리글을 눌렀다 → 그 항목을 연다
+ *  - 받기 `hanan-moa:form-removed` {formId}: 내 업무공간에서 지운 양식이 열려 있으면 닫는다
  *  - 보내기 `hanan-moa:form-edit` (FormSchema): 고칠 때마다 → 카드가 바로 따라 바뀐다
  *  - 보내기 `hanan-moa:field-selected` {key}: 고른 항목 → 카드에 표시
  *  - 보내기 `hanan-moa:form-opened` {schema, how}: 패널에서 양식을 새로 열었다 → 대화에 카드를 붙인다
@@ -38,6 +39,16 @@ export function FormPanel({ incoming }: { incoming?: Incoming }) {
     window.addEventListener('hanan-moa:select-field', on);
     return () => window.removeEventListener('hanan-moa:select-field', on);
   }, []);
+  const openId = open?.start.schema.formId;
+  useEffect(() => {
+    const removed = (e: Event) => {
+      if ((e as CustomEvent<{ formId: string }>).detail.formId !== openId) return;
+      setOpen(null);
+      setFull(false);
+    };
+    window.addEventListener('hanan-moa:form-removed', removed);
+    return () => window.removeEventListener('hanan-moa:form-removed', removed);
+  }, [openId]);
 
   const start = (entry: StoredForm, how: 'new' | 'file') => { setOpen({ start: entry, at: Date.now() }); emit('hanan-moa:form-opened', { schema: entry.schema, how }); };
   if (!open) return <EmptyPanel onStart={start} />;
