@@ -58,7 +58,8 @@ export function LoginScreen({ initialEmail, checking, problem, recoveryToken, on
   useEffect(() => { if (resendAt <= Date.now()) return; const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, [resendAt]);
   const wait = Math.max(0, Math.ceil((resendAt - now) / 1000));
   const auth = () => cloudClient().auth.getBetterAuthInstance();
-  const target = email.trim();
+  // 로그인 뒤 막힌 화면(이메일 인증·승인 전)은 세션의 이메일을 바로 쓴다. 입력칸 값이 아직 안 넘어온 첫 화면에서도 맞게
+  const target = ((problem || checking ? initialEmail : '') || email || initialEmail).trim();
 
   const run = (fn: () => Promise<void>) => async (e?: FormEvent) => {
     e?.preventDefault();
