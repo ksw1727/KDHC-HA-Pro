@@ -59,7 +59,37 @@ test('conflict preserves local data and blocks silent overwrite', async () => {
   const r = await setup(); r.saveForm({ schema: SAMPLE.list }, new Date());
   const insert = query({ data: null, error: { code: '23505', message: 'duplicate' } }); mock.client.from.mockReturnValue(insert);
   await r.flushForms(); expect(r.syncStatus().conflict).toBe(true); expect(r.syncStatus().pending).toBe(1); expect(r.loadForm(SAMPLE.list.formId)).not.toBeNull();
-  await r.flushForms(); expect(mock.client.from).toHaveBeenCalledTimes(1);
+  // One insert plus one lookup of the server row; the conflicted entry is not retried.
+  await r.flushForms(); expect(mock.client.from).toHaveBeenCalledTimes(2);
+});
+test('충돌처럼 보여도 서버에 이미 같은 내용이 있으면(다른 탭이 먼저 저장) 충돌로 남기지 않는다', async () => {
+  const r = await setup(); r.saveForm({ schema: SAMPLE.list }, new Date());
+  const payload = JSON.parse(localStorage.getItem(r.scopedStorageKey('hanan-moa:forms:' + SAMPLE.list.formId))!);
+  // jsonb reorders keys, so the server copy comes back with a different key order.
+  const reordered = Object.fromEntries(Object.entries(payload).reverse());
+  mock.client.from.mockReturnValueOnce(query({ data: null, error: { code: '23505', message: 'duplicate' } }))
+    .mockReturnValueOnce(query({ data: { form_id: SAMPLE.list.formId, payload: reordered, updated_at: '2026-02-01', deleted_at: null }, error: null }));
+  await r.flushForms();
+  expect(r.syncStatus()).toMatchObject({ pending: 0, conflict: false, message: '' });
+});
+test('다시 불러올 때 남아 있던 충돌이 서버와 같은 내용이면 저절로 지운다', async () => {
+  const r = await setup(); r.saveForm({ schema: SAMPLE.list }, new Date());
+  const payload = JSON.parse(localStorage.getItem(r.scopedStorageKey('hanan-moa:forms:' + SAMPLE.list.formId))!);
+  mock.client.from.mockReturnValueOnce(query({ data: null, error: { code: '23505', message: 'duplicate' } }))
+    .mockReturnValueOnce(query({ data: null, error: { message: 'offline' } }));
+  await r.flushForms(); expect(r.syncStatus().conflict).toBe(true);
+  r.stopFormSync();
+  mock.client.from.mockReturnValueOnce(query({ data: [{ form_id: SAMPLE.list.formId, payload, updated_at: '2026-02-01', deleted_at: null }], error: null }));
+  await r.hydrateForms(); await r.flushForms();
+  expect(r.syncStatus()).toMatchObject({ pending: 0, conflict: false });
+});
+test('여러 탭이 동시에 저장하지 않도록 브라우저 잠금 안에서 서버와 주고받는다', async () => {
+  const request = vi.fn((_name: string, fn: () => Promise<void>) => fn());
+  vi.stubGlobal('navigator', { ...navigator, locks: { request } });
+  const r = await setup(); r.saveForm({ schema: SAMPLE.list }, new Date());
+  mock.client.from.mockReturnValueOnce(query({ data: [{ updated_at: '2026-02-01' }], error: null }));
+  await r.flushForms();
+  expect(request).toHaveBeenCalledWith('hanan-moa:form-sync:user-a', expect.any(Function)); expect(r.syncStatus().pending).toBe(0);
 });
 test('offline save persists pending queue, reload hydrates same-user pending and retries', async () => {
   const r = await setup(); r.saveForm({ schema: SAMPLE.list }, new Date());
