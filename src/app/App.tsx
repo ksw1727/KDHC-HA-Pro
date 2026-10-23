@@ -1,4 +1,4 @@
-import { CloudGate } from '../cloud';
+import { CloudGate, cloudEnabled } from '../cloud';
 import { useEffect, useLayoutEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { FormPanel, type Incoming } from '@gen/FormPanel';
 import { AggregatorRoot } from '@agg/index';
@@ -75,7 +75,7 @@ function Workspace() {
               ['home', '내 업무공간'],
               ['ai', 'AI로 만들기'],
               ['aggregator', '취합하기'],
-              ...(admin ? [['account', '내 계정']] as const : []),   // 내 계정도 관리자에게만
+              ...(cloudEnabled ? [['account', '내 계정']] as const : []),
               ...(admin ? [['admin', '관리자']] as const : []),
             ] as const
           ).map(([id, label]) => (
@@ -120,7 +120,7 @@ function Workspace() {
         </div>
         {tab === 'home' && <div className="h-full overflow-auto"><WorkspacePage /></div>}
         {tab === 'aggregator' && <div className="h-full overflow-auto"><AggregatorRoot formId={formId} /></div>}
-        {tab === 'account' && admin && <div className="h-full overflow-auto"><AccountPage /></div>}
+        {tab === 'account' && cloudEnabled && <div className="h-full overflow-auto"><AccountPage /></div>}
         {tab === 'admin' && admin && <div className="h-full overflow-auto"><AdminPage /></div>}
       </main>
     </div>
