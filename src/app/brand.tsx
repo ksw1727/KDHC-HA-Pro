@@ -5,8 +5,8 @@ import slogan from '../assets/brand/slogan-ko.png';
  * 가이드라인 4.06: 흰 바탕·아주 연한 바탕에만 둔다. 색·비율을 바꾸지 않는다.
  */
 export const SLOGAN_ALT = '깨끗한 에너지로 세상을 따뜻하게';
-export function Slogan({ height, className }: { height: number; className?: string }) {
-  return <img src={slogan} alt={SLOGAN_ALT} style={{ height }} className={'block w-auto select-none ' + (className ?? '')} draggable={false} />;
+export function Slogan({ height, className }: { height?: number; className?: string }) {
+  return <img src={slogan} alt={SLOGAN_ALT} style={height ? { height } : undefined} className={'block w-auto select-none ' + (className ?? '')} draggable={false} />;
 }
 
 /** 녹색 → 흰색 → 빨강 물결 (가이드라인 표지의 곡선 모티브) */

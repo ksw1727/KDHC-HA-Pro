@@ -24,12 +24,13 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
   const initial = (session?.email[0] ?? '?').toUpperCase();
 
   return (
-    <header className="relative z-20 flex h-[72px] shrink-0 items-center gap-[26px] border-b border-line bg-[linear-gradient(100deg,#dff0da_0%,#ffffff_50%,#fde3e0_100%)] px-[26px]">
+    <header className="relative z-20 flex h-[72px] shrink-0 items-center gap-[26px] max-xl:gap-3.5 max-xl:px-4 border-b border-line bg-[linear-gradient(100deg,#dff0da_0%,#ffffff_50%,#fde3e0_100%)] px-[26px]">
       {/* 물결은 띠 안에서만 (프로필 메뉴는 띠 밖으로 펼쳐져야 해서 머리줄 자체는 자르지 않는다) */}
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden"><Swoosh h={72} /></div>
       <span className="relative flex shrink-0 items-center gap-2 text-[18px] font-extrabold tracking-tight text-pri">
         <i aria-hidden className="grid size-9 place-items-center rounded-[11px] bg-pri text-[13.5px] not-italic text-white">MOA</i>
-        한난<span className="-ml-2 text-ink">MOA</span>
+        {/* 좁은 창에서는 글자를 숨기고 MOA 아이콘만 (슬로건이 잘리지 않게) */}
+        <span className="max-xl:sr-only">한난<span className="text-ink">MOA</span></span>
       </span>
       <MainNav tab={tab} setTab={setTab} />
       <span className="flex-1" />
@@ -61,7 +62,7 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
           )}
         </div>
       )}
-      <Slogan height={46} className="relative shrink-0" />
+      <Slogan className="relative h-[46px] shrink-0 max-xl:h-9" />
     </header>
   );
 }
@@ -69,10 +70,10 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
 /** 주요 화면 단추. 지금 화면은 녹색으로 채운다 */
 function MainNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   return (
-    <nav className="relative flex shrink-0 gap-2.5" aria-label="주요 화면">
+    <nav className="relative flex shrink-0 gap-2.5 max-xl:gap-1.5" aria-label="주요 화면">
       {MAIN.map(([id, label]) => (
         <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}
-          className={'h-[42px] whitespace-nowrap rounded-full border px-5 text-[15.5px] font-semibold transition-colors ' +
+          className={'h-[42px] whitespace-nowrap rounded-full border px-5 text-[15.5px] font-semibold transition-colors max-xl:h-[38px] max-xl:px-3.5 max-xl:text-[14px] ' +
             (tab === id
               ? 'border-pri bg-pri text-white shadow-[0_2px_8px_-2px_#37a13780]'
               : 'border-line bg-white/85 text-ink shadow-[0_1px_2px_#1d242014] hover:border-pri hover:bg-white hover:text-pri')}>
