@@ -9,6 +9,8 @@ const ROUTES = new Set([
   'verify-email', 'send-verification-email', 'email-otp/send-verification-otp', 'email-otp/verify-email',
   // 내 계정: 비밀번호 변경·이메일 코드로 비밀번호 설정, 이름 변경, 이메일 변경
   'change-password', 'email-otp/reset-password', 'update-user', 'change-email',
+  // 로그인 화면 [비밀번호를 잊었어요]: 인증코드가 맞는지 먼저 확인 (코드를 쓰지는 않음)
+  'email-otp/check-verification-otp',
 ]);
 export function proxyCookie(cookie: string): string {
   // Upstream 전용 Domain/Path는 제거하고 이 사이트의 /api/auth에서만 전달한다.
