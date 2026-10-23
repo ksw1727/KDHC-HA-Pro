@@ -64,14 +64,14 @@ export function AdminPage() {
     e.preventDefault();
     const target = email.trim();
     if (!target) return;
-    void act('add', target, `${target} 계정을 추가했어요. 로그인 화면에서 "로그인 코드 받기"로 들어오면 돼요.`).then(() => setEmail(''));
+    void act('add', target, `${target} 계정을 추가했어요. 처음 비밀번호는 kdhc1234! 이에요. 로그인한 뒤 [내 계정]에서 바꾸도록 알려 주세요.`).then(() => setEmail(''));
   };
 
   return (
     <div className="mx-auto flex max-w-[960px] flex-col gap-4 px-4 py-5">
       <div>
         <h1 className="m-0 text-xl font-bold">관리자 · 사용자 관리</h1>
-        <p className="m-0 mt-1 text-sm text-sub">여기에 추가한 이메일만 한난MOA에 로그인할 수 있어요. 추가된 사람은 로그인 화면에서 이메일 코드를 받아 들어와요(비밀번호 없음).</p>
+        <p className="m-0 mt-1 text-sm text-sub">여기에 추가한 이메일만 한난MOA에 로그인할 수 있어요. 추가된 사람은 이메일과 처음 비밀번호 <b>kdhc1234!</b>로 로그인하고, [내 계정]에서 비밀번호를 바꿔요.</p>
       </div>
 
       <form onSubmit={add} className="flex flex-wrap items-end gap-2 rounded-card border border-line bg-panel p-3">
