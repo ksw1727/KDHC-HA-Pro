@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCloudSession } from '../cloud';
+import { Slogan, Swoosh } from './brand';
 
 export type Tab = 'home' | 'ai' | 'aggregator' | 'account' | 'admin';
 const MAIN: [Tab, string][] = [['home', '내 업무공간'], ['ai', 'AI로 만들기'], ['aggregator', '취합하기']];
 
 /**
- * 머리줄: 로고 · 오른쪽 위 둥근 아이콘 (관리자, 내 계정 프로필 메뉴 — GitHub처럼).
+ * 머리줄 = 슬로건 띠 한 줄: 로고 · 주요 화면 단추 · 둥근 아이콘 (관리자, 내 계정 프로필 메뉴 — GitHub처럼) · 슬로건.
  * 관리자 아이콘은 관리자에게만, 프로필은 온라인(로그인) 모드에서만 보인다.
  */
 export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t: Tab) => void; admin: boolean; extra?: ReactNode }) {
@@ -23,11 +24,14 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
   const initial = (session?.email[0] ?? '?').toUpperCase();
 
   return (
-    <header className="relative z-20 flex shrink-0 items-center gap-5 border-b border-line bg-white px-5">
-      <span className="flex shrink-0 items-center gap-2 py-2.5 text-[15px] font-extrabold tracking-tight text-pri">
+    <header className="relative z-20 flex shrink-0 items-center gap-5 border-b border-line bg-[linear-gradient(100deg,#dff0da_0%,#ffffff_50%,#fde3e0_100%)] px-5">
+      {/* 물결은 띠 안에서만 (프로필 메뉴는 띠 밖으로 펼쳐져야 해서 머리줄 자체는 자르지 않는다) */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden"><Swoosh h={56} /></div>
+      <span className="relative flex shrink-0 items-center gap-2 py-2.5 text-[15px] font-extrabold tracking-tight text-pri">
         <i aria-hidden className="grid size-7 place-items-center rounded-[9px] bg-pri text-[10.5px] not-italic text-white">MOA</i>
         한난<span className="-ml-2 text-ink">MOA</span>
       </span>
+      <MainNav tab={tab} setTab={setTab} />
       <span className="flex-1" />
       {extra}
       {admin && (
@@ -36,7 +40,7 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
         </Circle>
       )}
       {session && (
-        <div ref={box} className="relative py-2">
+        <div ref={box} className="relative">
           <button type="button" aria-label="내 계정 메뉴" aria-haspopup="menu" aria-expanded={open} title={session.email} onClick={() => setOpen((v) => !v)}
             className={'relative grid size-[34px] place-items-center rounded-full border-2 border-white bg-[linear-gradient(135deg,#8fd08a,#e8857f)] text-[13px] font-extrabold text-white ' +
               (open || tab === 'account' ? 'shadow-[0_0_0_3px_var(--color-pri-bg),0_0_0_4px_var(--color-pri)]' : 'shadow-[0_0_0_1px_var(--color-line)]')}>
@@ -57,14 +61,15 @@ export function AppHeader({ tab, setTab, admin, extra }: { tab: Tab; setTab: (t:
           )}
         </div>
       )}
+      <Slogan height={34} className="relative shrink-0" />
     </header>
   );
 }
 
-/** 주요 화면 단추 (슬로건 띠 안). 지금 화면은 녹색으로 채운다 */
-export function MainNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+/** 주요 화면 단추. 지금 화면은 녹색으로 채운다 */
+function MainNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   return (
-    <nav className="flex shrink-0 gap-2" aria-label="주요 화면">
+    <nav className="relative flex shrink-0 gap-2" aria-label="주요 화면">
       {MAIN.map(([id, label]) => (
         <button key={id} type="button" onClick={() => setTab(id)} aria-current={tab === id ? 'page' : undefined}
           className={'whitespace-nowrap rounded-full border px-4 py-[7px] text-[13.5px] font-semibold transition-colors ' +

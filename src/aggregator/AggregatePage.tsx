@@ -207,7 +207,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
       recordAggregation({
         formId: schema.formId, formVersion: schema.formVersion, title: schema.title, layout: schema.layout,
         unit: schema.org.mode === 'none' ? '파일' : L, total: orgsTotal || null, got: res.included.length,
-        missing: res.missingOrgs, rows, checked: res.valueIssues.length, verifyOk: out.verify.ok,
+        missing: res.missingOrgs, rows, checked: res.valueIssues.length + res.crossIssues.length, verifyOk: out.verify.ok,
       }, at);
       setStage('done');
     } catch (e) {
@@ -407,6 +407,13 @@ function Upload({ hint, onForget, bag, setBag, reading, error, onAdd, onStart }:
   );
 }
 
+/** 목록 줄은 0개여도 위쪽 정보·숫자 표에 적은 값이 있으면 '해당 없음'이 아니다 */
+const filled = (v: unknown) => v !== null && v !== undefined && v !== '';
+function hasOtherValues(schema: FormSchema, fin: Resolved['included'][number]): boolean {
+  const calc = new Set(schema.blocks.flatMap((b) => (b.kind === 'fields' ? b.fields.filter((f) => f.type === 'calc').map((f) => f.key) : [])));
+  return Object.entries(fin.header).some(([k, v]) => !calc.has(k) && filled(v)) || Object.values(fin.matrices ?? {}).some((m) => m.flat().some(filled)) || (fin.matrix ?? []).flat().some(filled);
+}
+
 const STATUS_TONE: Record<FileState['status'], Tone> = { included: 'ok', duplicate: 'pri', operator: 'gray', 'form-sheet-missing': 'err', 'other-form': 'err', unreadable: 'err', 'duplicate-content': 'err' };
 
 function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved; d: Decisions; set: (p: (x: Decisions) => Decisions) => void }) {
@@ -414,7 +421,7 @@ function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved;
   const L = orgLabel(schema);
   const orgs = schema.org.orgs ?? [];
   const order = (s: FileState) => {
-    const p = res.valueIssues.some((i) => i.fileId === s.fileId) || s.needsOrgLink ? 0 : s.status === 'included' ? 1 : s.status === 'duplicate' ? 2 : 3;
+    const p = [...res.valueIssues, ...res.crossIssues].some((i) => i.fileId === s.fileId) || s.needsOrgLink ? 0 : s.status === 'included' ? 1 : s.status === 'duplicate' ? 2 : 3;
     return p;
   };
   const rows = [...res.files].sort((a, b) => order(a) - order(b));
@@ -425,12 +432,12 @@ function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved;
         <tbody>
           {rows.map((s) => {
             const fin = res.included.find((x) => x.fileId === s.fileId);
-            const issues = res.valueIssues.filter((i) => i.fileId === s.fileId).length;
+            const issues = [...res.valueIssues, ...res.crossIssues].filter((i) => i.fileId === s.fileId).length;   // 빈칸채우기 필수 빈칸도 함께
             const infos = s.parsed?.issues.filter((i) => i.severity === 'info') ?? [];
             const chip = s.needsOrgLink ? <Chip tone="warn">{s.orgBlank ? `${L}명 없음` : `${L} 확인`}</Chip> : issues && s.status === 'included' ? <Chip tone="req">확인할 칸 {issues}</Chip>
               : s.dupGroup && s.status === 'included' ? <Chip tone="pri">중복 {s.dupGroup.length}개</Chip>
               : infos.some((i) => ['COLUMNS_REORDERED', 'HEADER_MOVED', 'COLUMN_MISSING', 'LABEL_MOVED'].includes(i.code)) && s.status === 'included' ? <Chip>구조 변경</Chip>
-              : <Chip tone={STATUS_TONE[s.status]}>{s.status === 'included' && fin && !fin.rows.length && schema.blocks.some((b) => b.kind === 'list') ? '해당 없음' : s.status === 'included' ? '정상' : STATUS_LABEL[s.status]}</Chip>;
+              : <Chip tone={STATUS_TONE[s.status]}>{s.status === 'included' && fin && !fin.rows.length && schema.blocks.some((b) => b.kind === 'list') && !hasOtherValues(schema, fin) ? '해당 없음' : s.status === 'included' ? '정상' : STATUS_LABEL[s.status]}</Chip>;
             const content = fin ? summary(schema, fin, s) : s.reason ?? '';
             const canOpen = !!s.parsed;
             return [

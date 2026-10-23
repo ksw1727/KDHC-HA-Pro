@@ -113,7 +113,9 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
 
   const grid = schema.blocks.find((b) => b.kind === 'grid');
   if (grid?.kind === 'grid') {
-    data.grid = clean ? Object.fromEntries(Object.entries(res.gridOverlay).map(([k, v]) => [k, { value: v.value, note: '' }])) : res.gridOverlay;
+    data.grid = clean ? Object.fromEntries(Object.entries(res.gridOverlay).map(([k, v]) => [k, { value: v.value, note: '' }])) : { ...res.gridOverlay };
+    // 검토 파일: 비어 있는 필수 칸에 이유를 단다
+    if (!clean) for (const i of res.crossIssues) if (i.code === 'REQUIRED_EMPTY') data.grid[i.id.replace(/^grid-required:/, '')] = { value: null, note: `[자동] ${i.message}` };
     if (grid.spareRows > 0) {
       data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...(keepSource ? ['출처 파일'] : []), ...(clean ? [] : ['원본 줄'])];
       data.gridSpare = res.included.flatMap((s) => (s.gridSpareRows ?? []).map((r) => {

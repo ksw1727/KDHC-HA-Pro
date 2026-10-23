@@ -21,9 +21,12 @@ export function layoutSheet(schema: FormSchema, input: LayoutInput, opts: { toda
 
 const FORBIDDEN_SHEET = /[\\/?*[\]:]/g;
 
-/** 엑셀 시트 이름 규칙: 31자 이하, 금지 문자 → '_'. 비면 '양식'. */
+/**
+ * 엑셀 시트 이름 규칙: 31자 이하, 금지 문자 → '_'. 비면 '양식'.
+ * 작은따옴표(')는 ’로 바꾼다: 엑셀은 '로 시작·끝나는 이름을 막고, ExcelJS는 인쇄 영역 이름에서 '를 이스케이프하지 않아 파일이 깨진다.
+ */
 export function sheetNameOf(title: string): string {
-  const s = title.replace(FORBIDDEN_SHEET, '_').trim().slice(0, 31);
+  const s = title.replace(FORBIDDEN_SHEET, '_').replace(/'/g, '’').trim().slice(0, 31);
   return s || '양식';
 }
 

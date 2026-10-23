@@ -1,5 +1,5 @@
 import type { Block, Field, FormSchema } from '@contract/schema';
-import { LAYOUT_LABELS } from '@contract/schema';
+import { LAYOUT_LABELS, blockFields } from '@contract/schema';
 
 /**
  * 칸 구조 열쇠. 이 값이 바뀌면 다시 내보낼 때 formVersion을 올린다 (02-generator.md 2.6).
@@ -19,6 +19,19 @@ export function structureKey(s: FormSchema): string {
   };
   // 자유 제작형은 칸 위치(놓인 자리·합친 칸)도 구조다: 바뀌면 이전 파일의 셀 지도와 맞지 않는다
   return JSON.stringify([s.layout, s.blocks.map(blockKey), s.collect?.scope ?? null, ...(s.free ? [s.free.places, s.free.merges] : [])]);
+}
+
+/**
+ * 같은 양식(고친 것)인지, 같은 번호(formId)만 물려받은 다른 양식인지.
+ * 제목이 같거나 항목 key가 절반 이상 겹치면 같은 양식으로 본다. 다른 양식이면 버전 판단에 쓰지 않는다.
+ */
+export function sameForm(a: FormSchema, b: FormSchema): boolean {
+  if (a.formId !== b.formId) return false;
+  if (a.title.trim() === b.title.trim()) return true;
+  const keys = (s: FormSchema) => s.blocks.flatMap((x) => blockFields(x).map((f) => f.key));
+  const old = new Set(keys(a));
+  const now = keys(b);
+  return now.length > 0 && now.filter((k) => old.has(k)).length * 2 >= now.length;
 }
 
 /** 다음에 내보낼 버전 */

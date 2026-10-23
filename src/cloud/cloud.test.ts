@@ -85,7 +85,20 @@ test('chat requires read first and refuses timestamp conflicts', async () => {
   await setup(); const chat = await import('./chat');
   await expect(chat.writeCloudChat({ msgs: [] })).rejects.toThrow(/먼저/);
   mock.client.from.mockReturnValueOnce(query({ data: { payload: { msgs: ['old'] }, updated_at: '2026-01-01' }, error: null })); expect(await chat.readCloudChat()).toEqual({ msgs: ['old'] });
-  const update = query({ data: [], error: null }); mock.client.from.mockReturnValueOnce(update); await expect(chat.writeCloudChat({ msgs: ['new'] })).rejects.toThrow(/다른 기기/); expect(update.eq).toHaveBeenCalledWith('updated_at', '2026-01-01');
+  const update = query({ data: [], error: null }); mock.client.from.mockReturnValueOnce(update)
+    .mockReturnValueOnce(query({ data: { payload: { msgs: ['other device'] }, updated_at: '2026-01-02' }, error: null }));
+  await expect(chat.writeCloudChat({ msgs: ['new'] })).rejects.toThrow(/다른 기기/); expect(update.eq).toHaveBeenCalledWith('updated_at', '2026-01-01');
+});
+
+test('chat: 같은 창에서 시간표만 어긋났으면(서버 내용은 그대로) 다시 맞춰 저장한다', async () => {
+  await setup(); const chat = await import('./chat');
+  mock.client.from.mockReturnValueOnce(query({ data: { payload: { msgs: ['old'], chatId: 'c' }, updated_at: '2026-01-01' }, error: null })); await chat.readCloudChat();
+  const retry = query({ data: [{ updated_at: '2026-01-03' }], error: null });
+  mock.client.from.mockReturnValueOnce(query({ data: [], error: null }))
+    .mockReturnValueOnce(query({ data: { payload: { chatId: 'c', msgs: ['old'], savedAt: 'x' }, updated_at: '2026-01-02' }, error: null }))
+    .mockReturnValueOnce(retry);
+  await chat.writeCloudChat({ msgs: ['new'] });
+  expect(retry.eq).toHaveBeenCalledWith('updated_at', '2026-01-02');
 });
 
 test('Neon client uses first-party cookie auth and distinct Data API', async () => {

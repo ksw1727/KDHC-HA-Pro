@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import slogan from '../assets/brand/slogan-ko.png';
 
 /**
@@ -23,19 +22,5 @@ export function Swoosh({ h }: { h: number }) {
       </defs>
       <path d={`M0 ${h * 0.75} C 300 ${h * 0.1}, 700 ${h * 1.1}, 1200 ${h * 0.3} L1200 ${h} L0 ${h} Z`} fill={`url(#swoosh-${h})`} />
     </svg>
-  );
-}
-
-/** 머리줄 아래 띠: 왼쪽 주요 화면 단추, 오른쪽 슬로건 */
-export function BrandBand({ children }: { children?: ReactNode }) {
-  return (
-    <div className="relative shrink-0 overflow-hidden border-b border-line bg-[linear-gradient(100deg,#dff0da_0%,#ffffff_50%,#fde3e0_100%)]">
-      <Swoosh h={48} />
-      <div className="relative flex items-center gap-3 px-5 py-[7px]">
-        {children}
-        <span className="flex-1" />
-        <Slogan height={32} />
-      </div>
-    </div>
   );
 }

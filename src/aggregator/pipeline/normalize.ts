@@ -1,6 +1,6 @@
 import type { CellValue } from '@contract/meta';
 import type { Field, FieldType } from '@contract/schema';
-import { PATTERN_INFO, resolveDate, type IssueCode, type NormalizeResult } from '@contract/fieldTypes';
+import { NUMBER_LIMIT, PATTERN_INFO, resolveDate, type IssueCode, type NormalizeResult } from '@contract/fieldTypes';
 import { isBlank, normLabel, similar } from './cellValue';
 
 /**
@@ -78,7 +78,8 @@ function number(raw: unknown, field: Field): NormalizeResult {
       return invalid(raw, 'NOT_NUMBER');
     }
   }
-  if ((field.min != null && n < field.min) || (field.max != null && n > field.max)) return { status: 'invalid', value: n, issue: 'OUT_OF_RANGE' };
+  // 최소·최대가 없으면 빈 양식의 입력 규칙과 같은 한도(±999,999,999,999)로 본다
+  if (n < (field.min ?? -NUMBER_LIMIT) || n > (field.max ?? NUMBER_LIMIT)) return { status: 'invalid', value: n, issue: 'OUT_OF_RANGE' };
   const d = field.decimals ?? 0;
   const rounded = Math.round(n * 10 ** d) / 10 ** d;
   if (rounded !== n) return { status: 'proposal', value: rawText(raw), proposal: rounded, issue: 'NOT_NUMBER' };
@@ -199,7 +200,7 @@ export function issueMessage(code: IssueCode, field: Field): string {
     case 'TOO_LONG': return `${field.maxLength}자를 넘어요`;
     case 'NOT_NUMBER': return (field.decimals ?? 0) > 0 ? `숫자(소수 ${field.decimals}자리까지)로 읽기 어려워요` : '숫자로 읽기 어려워요';
     case 'NOT_DATE': return '날짜로 읽기 어려워요';
-    case 'OUT_OF_RANGE': return `허용 범위를 벗어났어요${field.min != null || field.max != null ? ` (${field.min ?? ''}~${field.max ?? ''})` : ''}`;
+    case 'OUT_OF_RANGE': return field.min != null || field.max != null ? `허용 범위를 벗어났어요 (${field.min ?? ''}~${field.max ?? ''})` : '엑셀 숫자칸에 넣을 수 있는 범위(±999,999,999,999)를 벗어났어요';
     case 'NOT_IN_OPTIONS': return `선택 목록에 없는 값이에요 (${(field.options ?? []).slice(0, 5).join(', ')})`;
     case 'BAD_PATTERN': return `${field.pattern ? PATTERN_INFO[field.pattern].label : ''} 형식이 아니에요`;
     case 'FORMULA_ERROR': return '수식 오류 값(#REF! 등)이에요';
