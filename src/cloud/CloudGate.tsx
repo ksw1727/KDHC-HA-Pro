@@ -81,7 +81,9 @@ function AuthenticatedGate({ children }: { children: ReactNode }) {
   if (ready && !recovery) return <SessionContext.Provider value={{ email, busy, signOut, status: sync.pending ? `미동기화 ${sync.pending}건 · 이 기기에만 저장됨` : '클라우드 동기화 준비됨' }}><div className="flex h-full flex-col">
     {(sync.message || error) && <div role="alert" className="border-b border-line bg-warn px-4 py-2 text-sm text-warn-ink">
       {error || sync.message}
-      <button className="ml-3 underline" type="button" onClick={() => void flushForms()}>저장 재시도</button>
+      {!error && sync.conflict && <span className="ml-2">충돌한 양식: {sync.conflicted.map(t => `'${t}'`).join(', ')}</span>}
+      {/* Retrying never touches conflicted forms, so offer it only when something else can still be saved. */}
+      {(error || sync.pending > sync.conflicted.length) && <button className="ml-3 underline" type="button" onClick={() => void flushForms()}>저장 재시도</button>}
       {sync.pending > 0 && <button className="ml-3 underline" type="button" onClick={() => {
         if (window.confirm('이 기기의 미동기화 양식 수정을 모두 버리고 서버 양식을 불러올까요?')) void run(async () => { await discardLocalChanges(); setRevision(v => v + 1); });
       }}>로컬 수정 버리고 서버 불러오기</button>}

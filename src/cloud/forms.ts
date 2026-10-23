@@ -5,13 +5,15 @@ import { activeUser, cloudClient, cloudEnabled, requireUser, scopedStorageKey } 
 interface Row { form_id: string; payload: StoredForm; updated_at: string; deleted_at: string | null }
 interface Pending { payload: StoredForm | null; deletedPayload?: StoredForm; base: string | null; conflict?: boolean }
 interface CacheMeta { versions: Record<string, string>; pending: Record<string, Pending> }
-export interface SyncStatus { pending: number; message: string; conflict: boolean }
-let status: SyncStatus = { pending: 0, message: '', conflict: false };
+/** `conflicted` lists the titles of forms held back by a conflict, so the banner can name them. */
+export interface SyncStatus { pending: number; message: string; conflict: boolean; conflicted: string[] }
+let status: SyncStatus = { pending: 0, message: '', conflict: false, conflicted: [] };
 const listeners = new Set<() => void>();
 export function syncStatus(): SyncStatus { return status; }
 export function subscribeSync(listener: () => void): () => void { listeners.add(listener); return () => { listeners.delete(listener); }; }
 function report(meta?: CacheMeta, message = '') {
-  status = { pending: Object.keys(meta?.pending ?? {}).length, message, conflict: Object.values(meta?.pending ?? {}).some(p => p.conflict) ?? false };
+  const conflicted = Object.values(meta?.pending ?? {}).filter(p => p.conflict).map(p => (p.payload ?? p.deletedPayload)?.schema.title?.trim() || '이름 없는 양식');
+  status = { pending: Object.keys(meta?.pending ?? {}).length, message, conflict: conflicted.length > 0, conflicted };
   listeners.forEach(f => f());
 }
 const PREFIX = 'hanan-moa:forms:';

@@ -58,7 +58,7 @@ test('hydrate includes tombstones, then save uses timestamp CAS', async () => {
 test('conflict preserves local data and blocks silent overwrite', async () => {
   const r = await setup(); r.saveForm({ schema: SAMPLE.list }, new Date());
   const insert = query({ data: null, error: { code: '23505', message: 'duplicate' } }); mock.client.from.mockReturnValue(insert);
-  await r.flushForms(); expect(r.syncStatus().conflict).toBe(true); expect(r.syncStatus().pending).toBe(1); expect(r.loadForm(SAMPLE.list.formId)).not.toBeNull();
+  await r.flushForms(); expect(r.syncStatus().conflict).toBe(true); expect(r.syncStatus().pending).toBe(1); expect(r.syncStatus().conflicted).toEqual([SAMPLE.list.title]); expect(r.loadForm(SAMPLE.list.formId)).not.toBeNull();
   // One insert plus one lookup of the server row; the conflicted entry is not retried.
   await r.flushForms(); expect(mock.client.from).toHaveBeenCalledTimes(2);
 });
