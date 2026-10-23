@@ -145,14 +145,28 @@
 
 ### 2.6 내보내기
 
-[엑셀 내보내기]를 누르면 **① 검사 → ② 확인 창 → ③ 완료 화면** 순서로 진행한다. 목업: `docs/mockups/generator-start-export.html` 3~5번, 받을 파일 고르기는 `docs/mockups/export-file-choice.html`.
+[엑셀 내보내기]를 누르면 **검사 → ① 일정 정보 → ② 확인 창 → ③ 완료 화면** 순서로 진행한다. 창 제목 옆에 ①·②·③ 단계를 보여 준다. 목업: `docs/mockups/generator-start-export.html` 3~5번, 받을 파일 고르기는 `docs/mockups/export-file-choice.html`, 일정 정보는 `docs/mockups/export-schedule-info.html`.
 
-**① 검사**: 2.2 입력 검증. 통과하지 못하면 검사 창을 띄우고 멈춘다.
+- **대화 카드의 [엑셀 내보내기]도 같은 창**을 쓴다(`hanan-moa:export-form` → 설정 패널이 그 양식을 열고 창을 띄움). 그래야 기한을 묻고 내보낸 기록(`lastExported`)이 남아, 내 업무공간 취합 일정에 "기다리는 양식"으로 뜬다.
+
+**검사**: 2.2 입력 검증. 통과하지 못하면 검사 창을 띄우고 멈춘다.
+
+**① 일정 정보** (`ExportFlow` 안 `ScheduleInfo`, 계산은 `state/schedule.ts`): 내 업무공간 취합 일정(달력)은 양식의 **제출 기한**으로 막대를 그린다. 기한이 **비었거나 이미 지났을 때만** 이 단계를 보여 주고, 오늘 이후 기한이 들어 있으면 건너뛴다.
+| 항목 | 내용 |
+|---|---|
+| 안내 | "내 업무공간 취합 일정에 올리려면 제출 기한이 필요해요. 엑셀 안내 줄과 보낼 안내문에도 들어가요" |
+| 지난 기한 | 노란 상자 "들어 있던 기한 10/10(금)은 이미 지났어요. 지난 차수 양식이면 새 기한을 골라 주세요" (입력칸은 비워 둠) |
+| 제출 기한 | 날짜 입력(오늘 이후) + 빠른 버튼 **3일 뒤 · 1주 뒤 · 2주 뒤 · 이번 달 말**(말일이면 다음 달 말). 고르면 "✓ 10/30(금)까지 · 오늘부터 7일" |
+| 문의처 | 선택. 엑셀 안내 줄·안내문에 들어감 |
+| 제출처 | preset이면 "지사 15곳 ✓"만 보여 줌(비었으면 이미 검사에서 막힘) |
+| 버튼 | 작은 링크 [기한 없이 내보내기](상시 취합용, 취합 일정에는 "기한 없음") / [취소] / [다음 →](기한을 골라야 켜짐) |
+- 여기서 넣은 값은 `meta/set`으로 양식에 저장한다 → 설정 패널 ①·대화 카드·자동 저장에 바로 반영. 기한만 바뀌므로 버전은 그대로.
+- AI는 사용자가 기한을 말하지 않으면 `deadline`을 지어내지 않고 비워 둔다(`tools/ai/skills/excel-form.md`).
 
 **② 확인 창**
 | 항목 | 내용 |
 |---|---|
-| 요약 | 양식 이름·구조, 제출 기한·문의처. 제출처 목록이 없으면 "엑셀 1개" |
+| 요약 | 양식 이름·구조, 제출 기한(예: 10/30(금), 없으면 "기한 없음" + 취합 일정 안내)·문의처와 [바꾸기](① 일정 정보로). 제출처 목록이 없으면 "엑셀 1개" |
 | 받을 파일 | 제출처 목록이 있을 때(preset)만. **[{제출처}별 파일 n개 (압축 파일 1개)] 추천·기본** / **[공용 파일 1개]** (아래 "공용 파일") |
 | 버전 안내 | 칸 구조가 바뀌었으면 노란 상자로 "v1 → v2, 바뀐 것: 교육비 항목 추가, 직급 선택지 변경. 이미 보낸 v1 파일이 돌아오면 취합할 때 알려 드려요". 안 바뀌었으면 회색으로 "v1 그대로 내보내요" |
 | 파일 이름 | zip 이름과 안의 파일 이름 2개 + "… n개 더" |
@@ -169,6 +183,7 @@
 
 **③ 완료 화면**
 - "엑셀 15개를 만들었어요"와 내려받은 파일(zip, 양식 파일) 카드. 각 카드에 [다시 받기](화면을 닫기 전까지 다시 만들지 않고 같은 파일을 받음). zip 안 파일 목록 미리보기.
+- 파일 카드 아래 한 줄: "**내 업무공간 취합 일정**에 올라갔어요 · 오늘 → 10/30(금)까지 (7일)"(기한이 없으면 "기한 없음") + [일정 보기](내 업무공간 탭으로).
 - **이제 이렇게 하세요** 3단계: ① 지사에 파일 보내기 ② 돌아온 파일 모으기("파일 이름이 바뀌어도 괜찮아요") ③ 취합하기 [취합하기로 이동 →](이 양식이 선택된 상태로 취합하기 탭을 연다).
 - **안내문 복사**: ①단계 아래에 지사에 보낼 안내문을 만들어 보여주고 [안내문 복사]로 클립보드에 복사한다. 프로그램이 메시지를 보내지는 않는다(메일 자동 발송 없음 원칙 유지). 기본 문구:
   > [{제목}] 첨부 파일을 작성해 **{제출 기한 M월 D일}까지** 회신 부탁드립니다. MS Excel 또는 한셀로 작성해 주세요. 노란 칸은 꼭 채워 주시고, 칸 이름과 순서는 바꾸지 말아 주세요. 참고 사항은 칸에 엑셀 메모로 달아 주시고, 계산이 필요하면 새 시트를 추가해 써 주세요. 문의: {문의처}
@@ -233,13 +248,14 @@ src/generator/
   builder/            ① MetaPanel.tsx  ② LayoutPanel.tsx  ③ FieldsPanel.tsx · FieldList.tsx · FieldEditor.tsx ·
                       FormatEditor.tsx · FormulaEditor.tsx · BlockSettings.tsx · GridEditor.tsx · CollectSettings.tsx
                       ④ AggPanel.tsx  ⑤ OrgPanel.tsx, Panel.tsx (접는 칸 틀),
-                      CheckDialog.tsx · ExportFlow.tsx (내보내기 확인 → 진행 → 완료),
+                      CheckDialog.tsx · ExportFlow.tsx (내보내기 ① 일정 정보 → ② 확인 → 진행 → ③ 완료),
                       gridOps.ts (빈칸채우기 표 편집), parsePastedTable.ts (엑셀에서 붙여넣기),
                       StructureStory.tsx (② 구조 바꾸기 창의 3컷 이야기)
   free/               FreeCanvas.tsx (자유 제작형 그리는 판), FreePanel.tsx (③ 고른 영역)
   org/                OrgTree.tsx (⑤ 한난 조직 트리 체크 고르기), kdhcOrg.ts (조직 데이터 읽기)
   state/              formReducer.ts (useReducer), useBuilder.ts, newSchema.ts, fieldDefaults.ts,
-                      changeLayout.ts (구조 바꾸기), freeEdit.ts (판 편집), validateForExport.ts, versioning.ts
+                      changeLayout.ts (구조 바꾸기), freeEdit.ts (판 편집), validateForExport.ts, versioning.ts,
+                      schedule.ts (내보내기 ① 일정 정보: 기한 필요 여부·빠른 버튼)
   storage/            localForms.ts (이 브라우저에 자동 저장), openForm.ts (.form.json 열기·엑셀에서 되살리기)
   preview/            PreviewGrid.tsx, formatSample.ts (서식대로 보이기), sampleAggregate.ts (취합본 미리보기용 가짜 데이터)
   export/             writeWorkbook.ts, exportZip.ts, exportJson.ts, noticeText.ts (안내문)

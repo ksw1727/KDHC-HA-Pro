@@ -57,11 +57,16 @@ function Workspace() {
       setIncoming({ schema: d.schema, lastExported: d.lastExported, preferStored: d.preferStored, at: Date.now() });
       if (!d.auto) { setTab('ai'); setPanel(true); }
     };
+    // 카드 머리글 고르기·[엑셀 내보내기]: 패널(과 그 안의 창)이 보여야 해서 켠다
     const pick = () => setPanel(true);
     window.addEventListener('hanan-moa:tab', on);
     window.addEventListener('hanan-moa:open-form', open);
     window.addEventListener('hanan-moa:select-field', pick);
-    return () => { window.removeEventListener('hanan-moa:tab', on); window.removeEventListener('hanan-moa:open-form', open); window.removeEventListener('hanan-moa:select-field', pick); };
+    window.addEventListener('hanan-moa:export-form', pick);
+    return () => {
+      window.removeEventListener('hanan-moa:tab', on); window.removeEventListener('hanan-moa:open-form', open);
+      window.removeEventListener('hanan-moa:select-field', pick); window.removeEventListener('hanan-moa:export-form', pick);
+    };
   }, []);
   return (
     <div className="flex h-full flex-col">

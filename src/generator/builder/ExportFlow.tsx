@@ -7,12 +7,20 @@ import { canShare, exportForm, exportNames, type ExportResult } from '../export/
 import { downloadBlob, exportFormJson, safeFileName } from '../export/exportJson';
 import { noticeText } from '../export/noticeText';
 import { josa } from '@contract/josa';
-import { Button, Dialog, TextArea } from '../ui/ui';
+import { Button, Chip, Dialog, TextArea, TextInput } from '../ui/ui';
+import { daysFrom, isoDay, needsSchedule, quickDeadlines, shortDate } from '../state/schedule';
 
-/** 내보내기 ② 확인 창 → 진행 → ③ 완료 화면 (02-generator.md 2.6) */
-export function ExportFlow({ schema, lastExported, onClose, onExported }: {
-  schema: FormSchema; lastExported?: FormSchema; onClose: () => void; onExported: (exported: FormSchema) => void;
+type Meta = Pick<FormSchema, 'deadline' | 'contact'>;
+
+/**
+ * 내보내기 ① 일정 정보 → ② 확인 창 → 진행 → ③ 완료 화면 (02-generator.md 2.6).
+ * onMeta: ①에서 넣은 제출 기한·문의처를 양식에 저장. 기한이 비었거나 지났을 때만 ①을 보여 준다 (내 업무공간 취합 일정에 필요)
+ */
+export function ExportFlow({ schema, lastExported, onClose, onExported, onMeta }: {
+  schema: FormSchema; lastExported?: FormSchema; onClose: () => void; onExported: (exported: FormSchema) => void; onMeta?: (patch: Meta) => void;
 }) {
+  const [today] = useState(() => new Date());
+  const [step, setStep] = useState<'info' | 'confirm'>(() => (onMeta && needsSchedule(schema, today) ? 'info' : 'confirm'));
   const version = nextVersion(schema, lastExported);
   const target = useMemo<FormSchema>(() => ({ ...schema, formVersion: version }), [schema, version]);
   const changes = lastExported ? diffSummary(lastExported, schema) : [];
@@ -48,11 +56,12 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
     }
   };
 
-  if (result) return <ExportDone schema={target} result={result} withJson={withJson} shared={share} onClose={onClose} />;
+  if (result) return <ExportDone schema={target} result={result} withJson={withJson} shared={share} onClose={onClose} today={today} />;
+  if (step === 'info') return <ScheduleInfo schema={schema} today={today} onClose={onClose} onNext={(patch) => { onMeta?.(patch); setStep('confirm'); }} />;
 
   const sample = names.preset ? orgs.slice(0, 2).map((o) => names.fileOf(o)) : [names.fileOf()];
   return (
-    <Dialog title="엑셀로 내보내기" onClose={progress ? () => {} : onClose}
+    <Dialog title={<>엑셀로 내보내기 {onMeta && <Steps at={2} />}</>} onClose={progress ? () => {} : onClose}
       footer={<>
         <Button onClick={onClose} disabled={!!progress}>미리보기로 돌아가기</Button>
         <span className="flex-1" />
@@ -62,7 +71,12 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
       <dl className="m-0 grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5 text-[13.5px]">
         <dt className="text-muted">양식</dt><dd className="m-0"><b>{schema.title}</b> · {LAYOUT_LABELS[schema.layout]}</dd>
         {schema.org.mode !== 'preset' && <><dt className="text-muted">만들 파일</dt><dd className="m-0"><b>엑셀 1개</b></dd></>}
-        {(schema.deadline || schema.contact) && <><dt className="text-muted">제출 기한</dt><dd className="m-0">{[schema.deadline, schema.contact && `문의 ${schema.contact}`].filter(Boolean).join(' · ')}</dd></>}
+        <dt className="text-muted">제출 기한</dt>
+        <dd className="m-0">
+          {schema.deadline ? <b>{shortDate(schema.deadline)}</b> : <><Chip tone="warn">기한 없음</Chip> <span className="text-xs text-muted">내 업무공간 취합 일정에는 "기한 없음"으로 보여요</span></>}
+          {schema.contact && ` · 문의 ${schema.contact}`}
+          {onMeta && !progress && <button type="button" className="ml-2 text-xs text-sub underline" onClick={() => setStep('info')}>바꾸기</button>}
+        </dd>
       </dl>
 
       {schema.org.mode === 'preset' && (
@@ -121,7 +135,65 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
   );
 }
 
-function ExportDone({ schema, result, withJson, shared, onClose }: { schema: FormSchema; result: ExportResult; withJson: boolean; shared: boolean; onClose: () => void }) {
+/** ① 일정 정보: 제출 기한(빠른 버튼) · 문의처 · 제출처 수 확인 */
+function ScheduleInfo({ schema, today, onClose, onNext }: { schema: FormSchema; today: Date; onClose: () => void; onNext: (patch: Meta) => void }) {
+  const min = isoDay(today);
+  const past = !!schema.deadline && schema.deadline < min;
+  const [deadline, setDeadline] = useState(past ? '' : schema.deadline ?? '');
+  const [contact, setContact] = useState(schema.contact ?? '');
+  const ok = !!deadline && deadline >= min;
+  const label = orgLabel(schema);
+  const n = schema.org.orgs?.length ?? 0;
+  return (
+    <Dialog title={<>엑셀로 내보내기 <Steps at={1} /></>} onClose={onClose}
+      footer={<>
+        <button type="button" className="text-[13px] text-sub underline" onClick={() => onNext({ deadline: undefined, contact: contact.trim() || undefined })}>기한 없이 내보내기</button>
+        <span className="flex-1" />
+        <Button onClick={onClose}>취소</Button>
+        <Button variant="pri" disabled={!ok} onClick={() => onNext({ deadline, contact: contact.trim() || undefined })}>다음 →</Button>
+      </>}>
+      <div className="flex items-start gap-2.5 rounded-card border border-pri-line bg-pri-bg px-3 py-2.5 text-[13px] text-pri-ink">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-0.5 shrink-0" aria-hidden><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+        <span><b>내 업무공간 취합 일정</b>에 올리려면 제출 기한이 필요해요. 엑셀 안내 줄과 {schema.org.mode === 'none' ? '' : `${label}에 `}보낼 안내문에도 들어가요.</span>
+      </div>
+      {past && <div className="rounded-card border border-[#f3cfa5] bg-warn px-3 py-2 text-[13px] text-warn-ink" role="alert">⚠ 들어 있던 기한 <b>{shortDate(schema.deadline!)}</b>은 이미 지났어요. 지난 차수 양식이면 새 기한을 골라 주세요.</div>}
+      <div className="grid grid-cols-[96px_1fr] items-start gap-x-3 gap-y-3 text-[13.5px]">
+        <label htmlFor="export-deadline" className="pt-1.5 text-muted">제출 기한</label>
+        <div>
+          <TextInput id="export-deadline" type="date" className="max-w-[200px]" min={min} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {quickDeadlines(today).map(([t, v]) => (
+              <button key={t} type="button" aria-pressed={deadline === v} onClick={() => setDeadline(v)}
+                className={'rounded-full border px-2.5 py-0.5 text-[12.5px] ' + (deadline === v ? 'border-pri bg-pri-bg font-semibold text-pri-ink' : 'border-line-strong bg-white')}>
+                {t} · {shortDate(v).replace(/\(.\)$/, '')}
+              </button>
+            ))}
+          </div>
+          <div className="mt-1 text-xs">{ok ? <span className="font-semibold text-auto-ink">✓ {shortDate(deadline)}까지 · 오늘부터 {daysFrom(deadline, today)}일</span> : <span className="text-muted">오늘({shortDate(min).replace(/\(.\)$/, '')}) 이후 날짜를 골라 주세요.</span>}</div>
+        </div>
+        <label htmlFor="export-contact" className="pt-1.5 text-muted">문의처 <Chip>선택</Chip></label>
+        <TextInput id="export-contact" value={contact} placeholder="예: 인사부 02-000-0000" onChange={(e) => setContact(e.target.value)} />
+        {schema.org.mode === 'preset' && <>
+          <span className="text-muted">제출처</span>
+          <div>{label} {n}곳 <span className="font-semibold text-auto-ink">✓</span> <span className="text-xs text-muted">— 다 내면 취합 일정에서 "{n}/{n} 제출"로 보여요</span></div>
+        </>}
+      </div>
+    </Dialog>
+  );
+}
+
+/** 창 제목 옆 ① 일정 정보 · ② 확인 · ③ 완료 */
+function Steps({ at }: { at: 1 | 2 | 3 }) {
+  return (
+    <span className="ml-2 inline-flex gap-1 align-middle text-[11.5px] font-normal">
+      {['일정 정보', '확인', '완료'].map((t, i) => (
+        <span key={t} className={'rounded-full px-2 py-px ' + (i + 1 === at ? 'bg-pri font-bold text-white' : i + 1 < at ? 'bg-auto text-auto-ink' : 'bg-chip text-muted')}>{i + 1 < at ? '✓' : i + 1} {t}</span>
+      ))}
+    </span>
+  );
+}
+
+function ExportDone({ schema, result, withJson, shared, onClose, today }: { schema: FormSchema; result: ExportResult; withJson: boolean; shared: boolean; onClose: () => void; today: Date }) {
   const [notice, setNotice] = useState(() => noticeText(schema, shared));
   const [copied, setCopied] = useState(false);
   const label = orgLabel(schema);
@@ -148,6 +220,10 @@ function ExportDone({ schema, result, withJson, shared, onClose }: { schema: For
             sub={`엑셀 ${result.files.length}개 · ${size < 1024 * 1024 ? `${Math.max(1, Math.round(size / 1024))}KB` : `${(size / 1024 / 1024).toFixed(1)}MB`}`}
             onAgain={() => downloadBlob(result.download.blob, result.download.name)} />
           {withJson && <FileCard tag="JSON" name={`${safeFileName(schema.title || '새 양식')}.form.json`} sub="양식 파일 · 다음 차수에 다시 쓸 때" onAgain={() => exportFormJson(schema)} gray />}
+          <div className="flex items-center gap-2 rounded-card border border-pri-line bg-pri-bg px-3 py-2 text-[13px] text-pri-ink">
+            <span className="min-w-0 flex-1"><b>내 업무공간 취합 일정</b>에 올라갔어요 · {schema.deadline ? `오늘 → ${shortDate(schema.deadline)}까지 (${daysFrom(schema.deadline, today)}일)` : '기한 없음'}</span>
+            <Button size="sm" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('hanan-moa:tab', { detail: { tab: 'home' } })); }}>일정 보기</Button>
+          </div>
           {result.files.length > 1 && (
             <div className="max-h-44 overflow-auto rounded-card border border-line">
               {result.files.map((f) => (

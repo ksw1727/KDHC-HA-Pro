@@ -12,6 +12,7 @@ import { Button, Dialog } from './ui/ui';
  * 화면끼리는 window 이벤트로 주고받는다.
  *  - 받기 `hanan-moa:select-field` {key}: 카드 미리보기에서 머리글을 눌렀다 → 그 항목을 연다
  *  - 받기 `hanan-moa:form-removed` {formId}: 내 업무공간에서 지운 양식이 열려 있으면 닫는다
+ *  - 받기 `hanan-moa:export-form` {schema}: 카드의 [엑셀 내보내기] → 그 양식을 열고 내보내기 창(① 일정 정보부터)을 띄운다
  *  - 보내기 `hanan-moa:form-edit` (FormSchema): 고칠 때마다 → 카드가 바로 따라 바뀐다
  *  - 보내기 `hanan-moa:field-selected` {key}: 고른 항목 → 카드에 표시
  *  - 보내기 `hanan-moa:form-opened` {schema, how}: 패널에서 양식을 새로 열었다 → 대화에 카드를 붙인다
@@ -25,6 +26,7 @@ export function FormPanel({ incoming }: { incoming?: Incoming }) {
   const [open, setOpen] = useState<{ start: StoredForm; at: number } | null>(null);
   const [full, setFull] = useState(false);
   const [focus, setFocus] = useState<{ key: string; at: number }>();
+  const [exportReq, setExportReq] = useState<number>();
 
   // 대화에서 넘어온 양식 (AI가 새로 만들었거나 [패널에서 고치기]). 브라우저에 고친 것이 있으면 그것부터
   useEffect(() => {
@@ -37,7 +39,19 @@ export function FormPanel({ incoming }: { incoming?: Incoming }) {
   useEffect(() => {
     const on = (e: Event) => setFocus({ key: (e as CustomEvent<{ key: string }>).detail.key, at: Date.now() });
     window.addEventListener('hanan-moa:select-field', on);
-    return () => window.removeEventListener('hanan-moa:select-field', on);
+    // 카드에서 내보내기: 빌더의 내보내기 창을 거쳐야 기한을 묻고 내보낸 기록이 남는다 (내 업무공간 취합 일정)
+    const exp = (e: Event) => {
+      const s = (e as CustomEvent<{ schema: FormSchema }>).detail.schema;
+      setOpen((o) => {
+        if (o && o.start.schema.formId === s.formId) return o;
+        const found = loadForm(s.formId);
+        return { at: Date.now(), start: found && sameForm(found.schema, s) ? found : { schema: s, savedAt: '' } };
+      });
+      setFull(false);
+      setExportReq(Date.now());
+    };
+    window.addEventListener('hanan-moa:export-form', exp);
+    return () => { window.removeEventListener('hanan-moa:select-field', on); window.removeEventListener('hanan-moa:export-form', exp); };
   }, []);
   const openId = open?.start.schema.formId;
   useEffect(() => {
@@ -58,7 +72,7 @@ export function FormPanel({ incoming }: { incoming?: Incoming }) {
   const common = { start: open.start, onChange: (s: FormSchema) => emit('hanan-moa:form-edit', s), onSelectKey: (key: string | null) => emit('hanan-moa:field-selected', { key }) };
   return (
     <>
-      {!full && <BuilderPage key={`${open.start.schema.formId}-${open.at}`} compact focus={focus} onExpand={() => { reopen(); setFull(true); }} {...common} />}
+      {!full && <BuilderPage key={`${open.start.schema.formId}-${open.at}`} compact focus={focus} exportReq={exportReq} onExportReq={() => setExportReq(undefined)} onExpand={() => { reopen(); setFull(true); }} {...common} />}
       {full && (
         <div className="fixed inset-0 z-40 flex flex-col bg-white" role="dialog" aria-label="양식 크게 보기">
           <div id="app-header-slot" className="flex min-h-[45px] flex-wrap items-center gap-2 border-b border-line px-4 py-1.5" />
