@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { cloudClient } from './runtime';
+import { Slogan, Swoosh } from '../app/brand';
 
 /**
  * 로그인 화면 (시안 A 가운데 카드, docs/mockups/login-mockups.html).
@@ -201,8 +202,13 @@ const LINK = 'border-0 bg-transparent p-0 text-[12.5px] text-pri hover:underline
 
 function Card({ title, sub, children, foot, back, flow }: { title: string; sub: string; children: ReactNode; foot?: string; back?: () => void; flow?: 1 | 2 | 3 }) {
   return (
-    <div className="grid min-h-full place-items-center bg-panel px-4 py-10">
-      <section className="w-[400px] max-w-full rounded-[12px] border border-line bg-white px-8 pb-7 pt-8 shadow-[0_1px_2px_#0000000a,0_12px_32px_-18px_#18202b33] max-sm:px-5">
+    <div className="flex min-h-full flex-col items-center bg-page px-4 pb-10">
+      {/* 슬로건 물결 (시안 3): 위쪽 띠에 회사 슬로건, 카드가 살짝 겹친다 */}
+      <div className="relative -mx-4 mb-[-64px] h-[210px] w-[calc(100%+2rem)] shrink-0 overflow-hidden bg-[linear-gradient(100deg,#dff0da_0%,#ffffff_50%,#fde3e0_100%)]">
+        <Swoosh h={210} />
+        <div className="relative grid h-[150px] place-items-center"><Slogan height={76} /></div>
+      </div>
+      <section className="relative w-[400px] max-w-full rounded-[16px] border border-line bg-white px-8 pb-7 pt-8 shadow-[0_1px_2px_#0000000a,0_16px_40px_-22px_#1d242055] max-sm:px-5">
         {back && <button type="button" className={LINK + ' -mt-3 mb-3 block'} onClick={back}>← 비밀번호로 로그인</button>}
         <div className="mb-5 flex flex-col items-center gap-1.5 text-center">
           <div aria-hidden className="mb-1.5 grid size-11 place-items-center rounded-[11px] bg-pri text-[15px] font-extrabold text-white">MOA</div>

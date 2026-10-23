@@ -149,7 +149,7 @@ export function PreviewGrid({ model, schema, selectedKey, onSelect, showSampleFo
                     textAlign: st.align ?? (typeof c.value === 'number' ? 'right' : undefined),
                     textDecoration: st.strike ? 'line-through' : undefined,
                     border: st.border ? `1px solid ${BORDER_COLOR}` : '1px solid transparent',
-                    boxShadow: selected ? 'inset 0 0 0 2px #1f5fbf' : undefined,
+                    boxShadow: selected ? 'inset 0 0 0 2px var(--color-pri)' : undefined,
                     whiteSpace: c.wrap ? 'normal' : 'nowrap',
                   };
                   return (

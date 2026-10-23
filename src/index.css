@@ -1,21 +1,30 @@
 @import "tailwindcss";
 
-/* 공공 블루 디자인 토큰 (docs/mockups/generator-themes.html 시안 1) */
+/* 한국지역난방공사 슬로건 파스텔 토큰 (docs/mockups/brand-pastel.html 시안 3 '슬로건 물결')
+   브랜드 기준색: Green R55 G161 B55 / Red R237 G28 B41 (슬로건 가이드라인 4.01). 버튼은 흰 글씨가 읽히게 조금 진하게 */
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", sans-serif;
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 
-  --color-pri: #1f5fbf;
-  --color-pri-ink: #174a96;
-  --color-pri-bg: #e8f0fc;
-  --color-pri-line: #b9cff2;
+  --color-brand-green: #37a137;
+  --color-brand-red: #ed1c29;
 
-  --color-ink: #18202b;
-  --color-sub: #56616e;
-  --color-muted: #8a95a2;
-  --color-line: #e2e7ee;
-  --color-line-strong: #cbd3dd;
-  --color-panel: #f6f8fb;
-  --color-chip: #f1f4f8;
+  --color-pri: #37913f;
+  --color-pri-ink: #2a6f31;
+  --color-pri-bg: #e5f2e1;
+  --color-pri-line: #bfdcb7;
+
+  --color-acc: #e0605a;
+  --color-acc-ink: #b8403a;
+  --color-acc-bg: #fde9e7;
+
+  --color-page: #fbfcfa;
+  --color-ink: #1e2620;
+  --color-sub: #58625b;
+  --color-muted: #8c968f;
+  --color-line: #e5e9e3;
+  --color-line-strong: #cfd7cc;
+  --color-panel: #f6f8f5;
+  --color-chip: #f1f4ef;
 
   --color-req: #fff5d1;
   --color-req-line: #efd88a;
@@ -34,7 +43,7 @@
 }
 
 html, body, #root { height: 100%; }
-body { margin: 0; background: #fff; color: var(--color-ink); font-family: var(--font-sans); font-size: 13px; }
+body { margin: 0; background: var(--color-page); color: var(--color-ink); font-family: var(--font-sans); font-size: 13px; }
 
 /* 설정 패널에서 고친 칸을 미리보기에서 잠깐 노랗게 (PreviewGrid flash) */
 @keyframes cellflash {

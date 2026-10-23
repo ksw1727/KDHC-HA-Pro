@@ -37,7 +37,7 @@ function CollectDesigner({ table, onChange }: { table: Table; onChange: (t: Tabl
             {table.map((row, r) => (
               <tr key={r}>
                 {row.map((v, c) => (
-                  <td key={c} className={cx('border border-line p-0', cur?.r === r && cur?.c === c && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
+                  <td key={c} className={cx('border border-line p-0', cur?.r === r && cur?.c === c && 'shadow-[inset_0_0_0_2px_var(--color-pri)]')}>
                     <input aria-label={`${r + 1}행 ${c + 1}열`} value={v ?? ''} placeholder={r === 0 ? '제목' : ''}
                       onFocus={() => setCur({ r, c })}
                       onChange={(e) => set(r, c, e.target.value)}

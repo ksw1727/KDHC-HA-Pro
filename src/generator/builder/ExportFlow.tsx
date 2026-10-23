@@ -112,7 +112,7 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
       </div>
 
       <label className="flex items-center gap-2 text-[13.5px]">
-        <input type="checkbox" className="h-4 w-4 accent-[#1f5fbf]" checked={withJson} onChange={(e) => setWithJson(e.target.checked)} />
+        <input type="checkbox" className="h-4 w-4 accent-[var(--color-pri)]" checked={withJson} onChange={(e) => setWithJson(e.target.checked)} />
         양식 파일(.form.json)도 함께 저장하기
         <span className="text-xs text-muted">— 다음 차수에 다시 쓰거나, 숨김 정보가 사라진 파일을 살릴 때 필요해요</span>
       </label>

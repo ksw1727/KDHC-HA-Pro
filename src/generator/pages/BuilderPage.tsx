@@ -190,7 +190,7 @@ export function BuilderPage({ start, onHome, homeLabel = '← 처음 화면', co
           <span><i className="mr-1 inline-block h-2.5 w-2.5 border border-line-strong bg-req align-[-1px]" />필수 입력칸</span>
           <span>🔒 잠긴 칸</span>
           <span><i className="mr-1 inline-block h-2.5 w-2.5 border border-line-strong bg-auto align-[-1px]" />취합 때 자동으로 붙는 칸</span>
-          <span><i className="mr-1 inline-block h-2.5 w-2.5 align-[-1px] shadow-[inset_0_0_0_2px_#1f5fbf]" />선택한 항목</span>
+          <span><i className="mr-1 inline-block h-2.5 w-2.5 align-[-1px] shadow-[inset_0_0_0_2px_var(--color-pri)]" />선택한 항목</span>
         </div>
         {s.layout === 'collect' && mode === 'template' && (
           <div className="rounded-box border border-dashed border-pri-line bg-pri-bg px-3 py-2 text-center text-pri-ink">↑ 4행부터 아래는 {label}에서 자유롭게 작성해요 (칸·줄·셀 합치기·시트 추가 모두 가능)</div>

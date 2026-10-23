@@ -35,7 +35,7 @@ export function OrgTree({ value, onChange }: { value: string[]; onChange: (ids: 
           ) : <span className="w-4 shrink-0" />}
           {n.selectable ? (
             <label className="flex min-w-0 cursor-pointer items-center gap-1.5">
-              <input type="checkbox" className="h-3.5 w-3.5 shrink-0 accent-[#1f5fbf]" checked={selected.has(n.id)} onChange={() => toggle(n.id)} aria-label={n.id} />
+              <input type="checkbox" className="h-3.5 w-3.5 shrink-0 accent-[var(--color-pri)]" checked={selected.has(n.id)} onChange={() => toggle(n.id)} aria-label={n.id} />
               <span className={cx('truncate', selected.has(n.id) && 'font-semibold text-pri-ink')}>{n.name}</span>
             </label>
           ) : (

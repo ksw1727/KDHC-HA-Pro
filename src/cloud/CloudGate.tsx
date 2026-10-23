@@ -1,7 +1,12 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { cloudClient, cloudEnabled, configurationError, setActiveUser, verifyCloudAccount, type CloudSession } from './runtime';
 import { discardLocalChanges, flushForms, hydrateForms, stopFormSync, subscribeSync, syncStatus } from './forms';
 import { LoginScreen, type GateProblem } from './LoginScreen';
+
+/** 로그인한 사람 정보: 머리줄 오른쪽 위 프로필 메뉴가 쓴다 (로컬 실행이면 null) */
+export interface CloudSessionInfo { email: string; status: string; busy: boolean; signOut: () => void }
+const SessionContext = createContext<CloudSessionInfo | null>(null);
+export function useCloudSession(): CloudSessionInfo | null { return useContext(SessionContext); }
 
 export function CloudGate({ children }: { children: ReactNode }) {
   if (!cloudEnabled) return <>{children}</>;
@@ -73,12 +78,8 @@ function AuthenticatedGate({ children }: { children: ReactNode }) {
     finally { setBusy(false); }
   };
   const signOut = () => void run(async () => { setReady(null); setActiveUser(null); stopFormSync(); const { error } = await cloudClient().auth.signOut(); if (error) throw error; setSessionEmail(null); setRevision(v => v + 1); });
-  if (ready && !recovery) return <div className="flex h-full flex-col">
-    <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-1 text-sm">
-      <span>{email}</span><span role="status">{sync.pending ? `미동기화 ${sync.pending}건 · 이 기기에만 저장됨` : '클라우드 동기화 준비됨'}</span>
-      <button type="button" disabled={busy} onClick={signOut}>로그아웃</button>
-    </div>
-    {(sync.message || error) && <div role="alert" className="border-b border-line bg-amber-50 px-4 py-2 text-sm">
+  if (ready && !recovery) return <SessionContext.Provider value={{ email, busy, signOut, status: sync.pending ? `미동기화 ${sync.pending}건 · 이 기기에만 저장됨` : '클라우드 동기화 준비됨' }}><div className="flex h-full flex-col">
+    {(sync.message || error) && <div role="alert" className="border-b border-line bg-warn px-4 py-2 text-sm text-warn-ink">
       {error || sync.message}
       <button className="ml-3 underline" type="button" onClick={() => void flushForms()}>저장 재시도</button>
       {sync.pending > 0 && <button className="ml-3 underline" type="button" onClick={() => {
@@ -86,7 +87,7 @@ function AuthenticatedGate({ children }: { children: ReactNode }) {
       }}>로컬 수정 버리고 서버 불러오기</button>}
     </div>}
     <div key={ready + ':' + revision} className="min-h-0 flex-1">{children}</div>
-  </div>;
+  </div></SessionContext.Provider>;
   // 로그인 뒤 확인(이메일 인증·승인 목록)에서 막힌 이유를 화면 종류로 (runtime.verifyCloudAccount의 문구)
   const problem: GateProblem = !error ? null
     : /이메일 인증이 필요/.test(error) && sessionEmail !== null ? { kind: 'verify', message: error }

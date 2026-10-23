@@ -95,7 +95,7 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
                       (e.currentTarget.closest('tbody')?.rows[nr]?.cells[nc] as HTMLElement | undefined)?.focus();
                       if (e.shiftKey) click(nr, nc, true);
                     }}
-                    className={cx('h-7 min-w-24 cursor-pointer border border-line px-1.5 outline-none focus-visible:shadow-[inset_0_0_0_2px_#93b4ea]', cell.kind === 'input' && (cell.field.required ? 'bg-req' : 'bg-white'), cell.kind === 'calc' && 'bg-[#f3f7fd]', cell.kind === 'blank' && 'bg-[#fafbfc]', isSel(r, c) && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
+                    className={cx('h-7 min-w-24 cursor-pointer border border-line px-1.5 outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--color-pri-line)]', cell.kind === 'input' && (cell.field.required ? 'bg-req' : 'bg-white'), cell.kind === 'calc' && 'bg-[#f3f7fd]', cell.kind === 'blank' && 'bg-[#fafbfc]', isSel(r, c) && 'shadow-[inset_0_0_0_2px_#1f5fbf]')}>
                     {cell.kind === 'fixed' && String(cell.value)}
                     {cell.kind === 'input' && <span className="text-pri-ink">[{cell.field.label}]</span>}
                     {cell.kind === 'input' && orgs.length > 0 && (
@@ -103,7 +103,7 @@ export function GridEditor({ b, block }: { b: Builder; block: GridBlock }) {
                         {owners.get(cell.field.key) ? `● ${owners.get(cell.field.key)}${cell.field.owner ? '' : ' (자동)'}` : '● 작성처 없음'}
                       </span>
                     )}
-                    {cell.kind === 'calc' && <span className="font-mono text-[#174a96]">= {cell.field.formula || '계산식?'}</span>}
+                    {cell.kind === 'calc' && <span className="font-mono text-pri-ink">= {cell.field.formula || '계산식?'}</span>}
                   </td>
                 ))}
               </tr>
