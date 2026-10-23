@@ -1,4 +1,5 @@
 import type { StoredForm } from '../generator/storage/localForms';
+import { markRemoved } from '../generator/storage/removedForms';
 import { activeUser, cloudClient, cloudEnabled, requireUser, scopedStorageKey } from './runtime';
 
 interface Row { form_id: string; payload: StoredForm; updated_at: string; deleted_at: string | null }
@@ -22,7 +23,7 @@ function readMeta(): CacheMeta {
 function persist(meta: CacheMeta) { localStorage.setItem(scopedStorageKey(META), JSON.stringify(meta)); }
 function cacheRow(row: Row) {
   const key = scopedStorageKey(PREFIX + row.form_id);
-  if (row.deleted_at) localStorage.removeItem(key);
+  if (row.deleted_at) { localStorage.removeItem(key); markRemoved(row.form_id, true); }
   else localStorage.setItem(key, JSON.stringify(row.payload));
 }
 let timer: ReturnType<typeof setTimeout> | undefined;

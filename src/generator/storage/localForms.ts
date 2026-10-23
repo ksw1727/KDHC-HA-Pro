@@ -1,6 +1,7 @@
 import type { FormSchema } from '@contract/schema';
 import { scopedStorageKey } from '../../cloud/runtime';
 import { queueForm, reportStorageFailure } from '../../cloud/forms';
+import { markRemoved } from './removedForms';
 
 /** 브라우저에 저장하는 양식 한 건. 실패해도 화면은 계속 동작한다(편의 기능). */
 export interface StoredForm {
@@ -28,6 +29,7 @@ export function saveForm(entry: Omit<StoredForm, 'savedAt'>, now: Date): boolean
     s.setItem(scopedStorageKey(PREFIX + entry.schema.formId), JSON.stringify(value));
     s.setItem(scopedStorageKey(CURRENT), entry.schema.formId);
     queueForm(entry.schema.formId, value);
+    markRemoved(entry.schema.formId, false);
     // AI로 만들기 화면이 같은 양식 카드를 바로 바꿀 수 있게 (같은 탭이라 storage 이벤트가 오지 않음)
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('hanan-moa:form-saved', { detail: value.schema }));
     return true;
@@ -80,6 +82,7 @@ export function removeForm(formId: string): void {
   try {
     const previous = loadForm(formId);
     store()?.removeItem(scopedStorageKey(PREFIX + formId));
+    markRemoved(formId, true);
     queueForm(formId, null, previous ?? undefined);
   } catch {
     reportStorageFailure();
