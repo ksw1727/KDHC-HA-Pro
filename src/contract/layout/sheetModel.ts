@@ -52,5 +52,5 @@ export interface AggregateFill {
 }
 
 export type LayoutInput =
-  | { mode: 'template'; orgName?: string }                    // 빈 양식
+  | { mode: 'template'; orgName?: string; shared?: boolean }  // 빈 양식. shared = preset 양식의 공용 파일 (제출처명을 목록에서 고름)
   | { mode: 'aggregate'; info: string; data: AggregateFill }; // 같은 틀 시트

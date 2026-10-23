@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import type { FormSchema } from '@contract/schema';
-import { LAYOUT_LABELS, blockFields, orgLabel } from '@contract/schema';
+import { LAYOUT_LABELS, blockFields, gridOwners, orgLabel } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
 import { diffSummary, nextVersion } from '../state/versioning';
-import { exportForm, exportNames, type ExportResult } from '../export/exportZip';
+import { canShare, exportForm, exportNames, type ExportResult } from '../export/exportZip';
 import { downloadBlob, exportFormJson, safeFileName } from '../export/exportJson';
 import { noticeText } from '../export/noticeText';
+import { josa } from '@contract/josa';
 import { Button, Dialog, TextArea } from '../ui/ui';
 
 /** 내보내기 ② 확인 창 → 진행 → ③ 완료 화면 (02-generator.md 2.6) */
@@ -16,12 +17,14 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
   const target = useMemo<FormSchema>(() => ({ ...schema, formVersion: version }), [schema, version]);
   const changes = lastExported ? diffSummary(lastExported, schema) : [];
   const up = !!lastExported && version > lastExported.formVersion;
-  const names = exportNames(target);
   const label = orgLabel(schema);
   const orgs = schema.org.orgs ?? [];
-  const count = names.preset ? orgs.length : 1;
   const collect = schema.layout === 'collect';
-  const contents = useMemo(() => fileContents(target, label), [target, label]);
+  const [shared, setShared] = useState(false);
+  const share = shared && canShare(schema);
+  const names = exportNames(target, share);
+  const count = names.preset ? orgs.length : 1;
+  const contents = useMemo(() => fileContents(target, label, share), [target, label, share]);
 
   const [withJson, setWithJson] = useState(true);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -32,7 +35,7 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
     setError('');
     setProgress({ done: 0, total: count });
     try {
-      const r = await exportForm(target, new Date(), (done, total) => setProgress({ done, total }));
+      const r = await exportForm(target, new Date(), (done, total) => setProgress({ done, total }), share);
       downloadBlob(r.download.blob, r.download.name);
       if (withJson) exportFormJson(target);
       setResult(r);
@@ -45,7 +48,7 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
     }
   };
 
-  if (result) return <ExportDone schema={target} result={result} withJson={withJson} onClose={onClose} />;
+  if (result) return <ExportDone schema={target} result={result} withJson={withJson} shared={share} onClose={onClose} />;
 
   const sample = names.preset ? orgs.slice(0, 2).map((o) => names.fileOf(o)) : [names.fileOf()];
   return (
@@ -58,10 +61,27 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
       </>}>
       <dl className="m-0 grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5 text-[13.5px]">
         <dt className="text-muted">양식</dt><dd className="m-0"><b>{schema.title}</b> · {LAYOUT_LABELS[schema.layout]}</dd>
-        <dt className="text-muted">만들 파일</dt>
-        <dd className="m-0">{names.preset ? <><b>{label} {orgs.length}곳 × 1개 = 엑셀 {orgs.length}개</b>를 압축 파일 1개로</> : <b>엑셀 1개</b>}</dd>
+        {schema.org.mode !== 'preset' && <><dt className="text-muted">만들 파일</dt><dd className="m-0"><b>엑셀 1개</b></dd></>}
         {(schema.deadline || schema.contact) && <><dt className="text-muted">제출 기한</dt><dd className="m-0">{[schema.deadline, schema.contact && `문의 ${schema.contact}`].filter(Boolean).join(' · ')}</dd></>}
       </dl>
+
+      {schema.org.mode === 'preset' && (
+        <div>
+          <div className="mb-1 text-xs text-muted">받을 파일</div>
+          <div className="grid gap-2" role="radiogroup" aria-label="받을 파일">
+            <FileChoice on={!share} onPick={() => setShared(false)} title={<>{label}별 파일 {orgs.length}개 (압축 파일 1개)<span className="ml-1.5 rounded border border-pri-line bg-white px-1.5 text-[11px] font-semibold text-pri-ink">추천</span></>}
+              text={`파일마다 ${label}명이 미리 들어가 있고 잠겨 있어요. 취합할 때 누가 냈는지 틀릴 일이 없어요.`} />
+            <FileChoice on={share} disabled={!canShare(schema)} onPick={() => setShared(true)} title="공용 파일 1개"
+              text={`모두에게 같은 파일을 보내요. 작성자가 ${label}명 칸에서 자기 ${josa(label, '을', '를')} 골라요.`} />
+          </div>
+          {collect && <div className="mt-2 rounded-card border border-line bg-panel px-3 py-2 text-[13px] text-sub">시트 모으기형은 파일 속성으로만 {josa(label, '을', '를')} 알아내서 <b>{label}별 파일로만</b> 만들 수 있어요.</div>}
+          {share && schema.layout === 'fill-in' && gridOwners(schema).size > 0 && (
+            <div className="mt-2 rounded-card border border-[#f3cfa5] bg-warn px-3 py-2 text-[13px] text-warn-ink" role="alert">
+              ⚠ <b>빈칸채우기형은 공용 파일이면 다른 {label} 칸이 잠기지 않아요.</b> 다른 {label} 칸에 적은 값은 취합할 때 쓰지 않고 알림으로 알려 드려요. {label}별 파일을 권해요.
+            </div>
+          )}
+        </div>
+      )}
 
       {up ? (
         <div className="flex items-start gap-2.5 rounded-card border border-[#f3cfa5] bg-warn px-3 py-2.5 text-[13px] text-warn-ink">
@@ -101,8 +121,8 @@ export function ExportFlow({ schema, lastExported, onClose, onExported }: {
   );
 }
 
-function ExportDone({ schema, result, withJson, onClose }: { schema: FormSchema; result: ExportResult; withJson: boolean; onClose: () => void }) {
-  const [notice, setNotice] = useState(() => noticeText(schema));
+function ExportDone({ schema, result, withJson, shared, onClose }: { schema: FormSchema; result: ExportResult; withJson: boolean; shared: boolean; onClose: () => void }) {
+  const [notice, setNotice] = useState(() => noticeText(schema, shared));
   const [copied, setCopied] = useState(false);
   const label = orgLabel(schema);
   const size = result.download.blob.size;
@@ -140,7 +160,7 @@ function ExportDone({ schema, result, withJson, onClose }: { schema: FormSchema;
         </div>
         <div className="rounded-card border border-line bg-panel p-4">
           <h4 className="m-0 mb-2 text-[15px]">이제 이렇게 하세요</h4>
-          <Step n={1} title={`${label}에 파일 보내기`} text={schema.org.mode === 'preset' ? `압축을 풀어 ${label}마다 자기 이름의 파일을 보내 주세요. ${label}명이 미리 들어 있어요.` : '파일을 메신저·메일로 보내 주세요.'}>
+          <Step n={1} title={`${label}에 파일 보내기`} text={shared ? `모두에게 같은 파일을 보내 주세요. ${label}명은 작성자가 목록에서 골라요.` : schema.org.mode === 'preset' ? `압축을 풀어 ${label}마다 자기 이름의 파일을 보내 주세요. ${label}명이 미리 들어 있어요.` : '파일을 메신저·메일로 보내 주세요.'}>
             <TextArea className="block min-h-24 w-full text-[12.5px]" aria-label="안내문" value={notice} onChange={(e) => setNotice(e.target.value)} />
             <div className="mt-1 flex items-center justify-end gap-2">
               {copied && <span className="text-xs text-auto-ink" role="status">복사했어요</span>}
@@ -152,6 +172,16 @@ function ExportDone({ schema, result, withJson, onClose }: { schema: FormSchema;
         </div>
       </div>
     </Dialog>
+  );
+}
+
+function FileChoice({ on, disabled, onPick, title, text }: { on: boolean; disabled?: boolean; onPick: () => void; title: React.ReactNode; text: string }) {
+  return (
+    <button type="button" role="radio" aria-checked={on} disabled={disabled} onClick={onPick}
+      className={'flex gap-2.5 rounded-card px-3 py-2.5 text-left ' + (on ? 'border-[1.5px] border-pri bg-pri-bg' : 'border border-line-strong bg-white') + (disabled ? ' cursor-not-allowed opacity-45' : '')}>
+      <span className={'mt-[3px] h-4 w-4 shrink-0 rounded-full bg-white ' + (on ? 'border-[5px] border-pri' : 'border-[1.5px] border-line-strong')} />
+      <span><b className="block">{title}</b><span className="block text-[12.5px] text-sub">{text}</span></span>
+    </button>
   );
 }
 
@@ -175,11 +205,11 @@ function Step({ n, title, text, children, last }: { n: number; title: string; te
 }
 
 /** 확인 창의 "파일마다 들어가는 것": 실제로 만들 시트 모양에서 뽑는다 (구조·제출처 방식에 따라 다름) */
-function fileContents(s: FormSchema, label: string): string[] {
-  const m = layoutSheet(s, { mode: 'template', orgName: s.org.orgs?.[0] }, { today: new Date() });
+function fileContents(s: FormSchema, label: string, shared: boolean): string[] {
+  const m = layoutSheet(s, { mode: 'template', orgName: s.org.orgs?.[0], shared }, { today: new Date() });
   const out: string[] = [];
   if (m.validations.length) out.push('입력 규칙 (숫자·날짜·선택 목록)');
-  out.push(s.org.mode === 'preset' ? `제목 줄·${label}명 잠금` : s.org.mode === 'input' ? `제목 줄 잠금 · ${label}명은 작성자가 입력` : '제목 줄 잠금');
+  out.push(shared ? `제목 줄 잠금 · ${label}명은 목록에서 고르기` : s.org.mode === 'preset' ? `제목 줄·${label}명 잠금` : s.org.mode === 'input' ? `제목 줄 잠금 · ${label}명은 작성자가 입력` : '제목 줄 잠금');
   if (s.blocks.some((b) => blockFields(b).some((f) => f.help?.trim()))) out.push('작성 안내 메시지');
   out.push('인쇄 영역');
   out.push(`숨김 시트 (양식${s.org.mode === 'none' ? '' : `·${label}`} 정보)`);

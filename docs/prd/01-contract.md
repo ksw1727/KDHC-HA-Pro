@@ -225,7 +225,7 @@ export interface FileMeta {
   checksum: string;             // 4.4절
 
   // kind = 'submission'일 때
-  orgName?: string;             // preset 모드에서 미리 정해진 지사명. input·none 모드는 없음
+  orgName?: string;             // preset 모드에서 미리 정해진 지사명. input·none 모드와 preset 공용 파일은 없음
   sheetName?: string;           // 입력 시트 이름 (= 양식 제목, 31자 제한·금지문자 치환). collect는 보고서 시트 이름
   cellMap?: CellMap;            // collect는 없음
 
@@ -412,7 +412,7 @@ export function requiredAggregations(schema): AggregationId[];   // free는 모�
 export function layoutSheet(schema: FormSchema, input: LayoutInput, opts: { today: Date }): SheetModel;   // today: 상대 날짜 입력 규칙용
 
 type LayoutInput =
-  | { mode: 'template'; orgName?: string }                    // 빈 양식
+  | { mode: 'template'; orgName?: string; shared?: boolean }  // 빈 양식. shared = preset 공용 파일: 지사명 칸은 목록 드롭다운 필수 입력, 작성처 칸 잠금 없음
   | { mode: 'aggregate'; info: string; data: AggregateFill }; // 같은 틀 시트 (취합 파트가 data를 채워 호출)
 
 interface SheetModel {

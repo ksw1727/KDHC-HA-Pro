@@ -129,6 +129,27 @@ describe('내보내기 묶음 (exportForm)', () => {
     const wb = await open(r.files[1].bytes);
     expect(wb.worksheets[0].getCell('B4').value).toBe('부산');
   });
+  test('preset 공용 파일: 하나만, 지사명은 목록에서 고르는 필수 칸, 메타·속성에 지사 없음', async () => {
+    const s: FormSchema = { ...clone(SAMPLE.list), title: '조사', formVersion: 2 };
+    const r = await exportForm(s, now, undefined, true);
+    expect(r.download.name).toBe('조사_v2.xlsx');
+    expect(r.files).toHaveLength(1);
+    const wb = await open(r.files[0].bytes);
+    const b4 = wb.worksheets[0].getCell('B4');
+    expect(b4.value).toBeNull();
+    expect(b4.protection?.locked).toBe(false);
+    expect(b4.dataValidation).toMatchObject({ type: 'list', formulae: ['"서울,부산,대구"'] });
+    const m = await readMeta(wb);
+    if (m.status !== 'ok') throw new Error();
+    expect(m.meta.orgName).toBeUndefined();
+    expect(m.meta.schema.org.mode).toBe('preset');
+    expect((await readCustomProps(r.files[0].bytes))['kdhc.org']).toBeUndefined();
+  });
+  test('시트 모으기형은 공용 파일을 골라도 지사별 zip', async () => {
+    const r = await exportForm({ ...clone(SAMPLE.collect), org: { mode: 'preset', orgs: ['서울', '부산'] } }, now, undefined, true);
+    expect(r.download.name.endsWith('.zip')).toBe(true);
+    expect(r.files).toHaveLength(2);
+  });
   test('식별 안 함: 파일 하나', async () => {
     const r = await exportForm(SAMPLE['fill-in'], now);
     expect(r.download.name).toBe(`${exportNames(SAMPLE['fill-in']).fileOf()}`);

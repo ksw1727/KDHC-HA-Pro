@@ -14,6 +14,7 @@ export const NOW = new Date('2026-10-13T05:00:00Z');
 
 export interface MakeOptions {
   orgName?: string;
+  shared?: boolean;              // 공용 파일 1개로 받은 것 (제출처명은 작성자가 B4에서 고름, 메타·속성에 없음)
   fill?: (ws: ExcelJS.Worksheet, model: SheetModel) => void;   // 작성자가 한 일
   workbook?: (wb: ExcelJS.Workbook) => void;                   // 시트 추가·이름 바꾸기 등
   dropMeta?: boolean;            // _meta 시트 지우기
@@ -24,7 +25,7 @@ export interface MakeOptions {
 }
 
 export async function makeFile(schema: FormSchema, name: string, o: MakeOptions = {}): Promise<LoadedFile> {
-  const model = layoutSheet(schema, { mode: 'template', orgName: o.orgName }, { today: NOW });
+  const model = layoutSheet(schema, { mode: 'template', orgName: o.orgName, shared: o.shared }, { today: NOW });
   const wb = new ExcelJS.Workbook();
   wb.created = NOW;
   wb.modified = o.savedAt ?? NOW;
