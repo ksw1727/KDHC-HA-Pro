@@ -3,7 +3,7 @@ import { LAYOUT_LABELS, type Layout } from '@contract/schema';
 import { listForms, removeForm } from '@gen/storage/localForms';
 import { StructureStory } from '@gen/builder/StructureStory';
 import { Button, Chip, Dialog, cx } from '@gen/ui/ui';
-import { listLocalAggregations, loadAggregations, type AggregationRecord } from './history';
+import { listLocalAggregations, loadAggregations, removeAggregation, type AggregationRecord } from './history';
 import { byDeadline, counts, DAY, dayDiff, midnight, weekBars, workItems, type WorkItem } from './plan';
 
 /** 내 업무공간: 취합 일정(만든 날 → 제출 기한), 취합 기다리는 양식, 내가 만든 양식, 취합 이력 (모형 docs/mockups/workspace-landing.html) */
@@ -107,7 +107,7 @@ export function WorkspacePage() {
             </button>
           ))}
         </div>
-        {tab === 'forms' ? <Forms items={items} onRemoved={() => setRev((n) => n + 1)} /> : <History aggs={aggs} items={items} />}
+        {tab === 'forms' ? <Forms items={items} onRemoved={() => setRev((n) => n + 1)} /> : <History aggs={aggs} items={items} onRemoved={setAggs} />}
       </section>
     </div>
   );
@@ -296,8 +296,18 @@ function Forms({ items, onRemoved }: { items: WorkItem[]; onRemoved: () => void 
   );
 }
 
-function History({ aggs, items }: { aggs: AggregationRecord[]; items: WorkItem[] }) {
+function History({ aggs, items, onRemoved }: { aggs: AggregationRecord[]; items: WorkItem[]; onRemoved: (list: AggregationRecord[]) => void }) {
   const [only, setOnly] = useState<'all' | 'full' | 'part'>('all');
+  const [del, setDel] = useState<AggregationRecord | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const remove = async (a: AggregationRecord) => {
+    setBusy(true); setErr('');
+    const r = await removeAggregation(a.id);
+    setBusy(false);
+    if (r.error) { setErr(r.error); return; }
+    onRemoved(r.list); setDel(null);
+  };
   const full = (a: AggregationRecord) => a.total === null || a.missing.length === 0;
   const shown = aggs.filter((a) => only === 'all' || (only === 'full') === full(a));
   return (
@@ -337,11 +347,20 @@ function History({ aggs, items }: { aggs: AggregationRecord[]; items: WorkItem[]
               <div className="mt-auto flex flex-wrap gap-1.5 px-3.5 pb-3 pt-2.5">
                 <Button size="sm" onClick={() => go('aggregator', a.formId)}>받은 파일로 다시 취합</Button>
                 {item && <Button size="sm" variant="ghost" className="text-pri" onClick={() => openForm(item)}>양식 열기</Button>}
+                <Button size="sm" variant="ghost" className="ml-auto" aria-label={`${a.title || '제목 없는 양식'} ${md(new Date(a.doneAt))} 취합 기록 삭제`} onClick={() => { setErr(''); setDel(a); }}>삭제</Button>
               </div>
             </article>
           );
         })}
       </div>
+      {del && (
+        <Dialog title="취합 기록을 지울까요?" onClose={() => !busy && setDel(null)}
+          footer={<>{err && <span className="text-xs text-err-ink" role="alert">{err}</span>}<span className="flex-1" /><Button disabled={busy} onClick={() => setDel(null)}>취소</Button>
+            <Button variant="danger" disabled={busy} onClick={() => void remove(del)}>{busy ? '지우는 중…' : '삭제'}</Button></>}>
+          <p className="m-0"><b>{del.title || '제목 없는 양식'}</b> · {md(new Date(del.doneAt))} 취합 기록을 취합 이력과 달력에서 지워요.</p>
+          <p className="m-0 text-[13px] text-sub">받은 회신 파일과 그때 내려받은 결과 엑셀은 그대로예요. 지운 기록은 되살릴 수 없어요.</p>
+        </Dialog>
+      )}
     </>
   );
 }
