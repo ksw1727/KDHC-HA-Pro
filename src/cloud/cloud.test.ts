@@ -162,3 +162,19 @@ test('missing JWT never sends an opaque session token to the server', async () =
   native.token.mockResolvedValue({ data: null, error: { message: 'not available' } });
   const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher); await expect(r.cloudFetch('/api/test')).rejects.toThrow(/인증 토큰/); expect(fetcher).not.toHaveBeenCalled();
 });
+test('취합 기록 삭제: 서버 행(본인 것)을 먼저 지우고, 실패하면 이 기기 기록도 남긴다', async () => {
+  const r = await setup(); const h = await import('../workspace/history');
+  localStorage.setItem(r.scopedStorageKey('hanan-moa:aggregations'), JSON.stringify([
+    { id: 'a1', doneAt: '2026-10-23T01:00:00Z', synced: true, formId: 'f', formVersion: 1, title: 'x', layout: 'list', unit: '지사', total: 1, got: 1, missing: [], rows: 1, checked: 0, verifyOk: true },
+  ]));
+  const fail = { ...query({ error: { message: 'denied' } }), delete: vi.fn() }; fail.delete.mockReturnValue(fail);
+  mock.client.from.mockReturnValueOnce(fail);
+  const bad = await h.removeAggregation('a1');
+  expect(bad.error).toMatch(/지우지 못했어요/); expect(bad.list).toHaveLength(1);
+  const ok = { ...query({ error: null }), delete: vi.fn() }; ok.delete.mockReturnValue(ok);
+  mock.client.from.mockReturnValueOnce(ok);
+  const good = await h.removeAggregation('a1');
+  expect(mock.client.from).toHaveBeenLastCalledWith('moa_aggregations');
+  expect(ok.eq.mock.calls).toEqual([['id', 'a1'], ['user_id', 'user-a']]);
+  expect(good.error).toBeUndefined(); expect(good.list).toEqual([]);
+});

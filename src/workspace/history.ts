@@ -63,6 +63,25 @@ async function pushPending(): Promise<void> {
   }
 }
 
+/**
+ * 취합 기록 1건 지우기 (내 업무공간 취합 이력의 [삭제]). 받은 회신 파일·내려받은 결과 파일과는 상관없다.
+ * 온라인 모드는 서버 행을 먼저 지우고, 성공해야 이 기기 목록에서도 뺀다 (실패하면 다음에 불러올 때 다시 보이므로).
+ */
+export async function removeAggregation(id: string): Promise<{ list: AggregationRecord[]; error?: string }> {
+  if (cloudEnabled) {
+    const owner = requireUser();
+    try {
+      const { error } = await cloudClient().from('moa_aggregations').delete().eq('id', id).eq('user_id', owner);
+      if (error) throw new Error(error.message);
+      if (activeUser() !== owner) throw new Error('사용자가 변경되었습니다.');
+    } catch (e) {
+      return { list: listLocalAggregations(), error: `취합 기록을 지우지 못했어요 (${(e as Error).message})` };
+    }
+  }
+  writeLocal(readLocal().filter((r) => r.id !== id));
+  return { list: listLocalAggregations() };
+}
+
 /** 업무공간을 열 때: 못 올린 기록을 올리고, 서버 기록으로 이 기기 목록을 맞춘다 (다른 PC에서 한 취합도 보이게) */
 export async function loadAggregations(): Promise<{ list: AggregationRecord[]; error?: string }> {
   if (!cloudEnabled) return { list: listLocalAggregations() };
