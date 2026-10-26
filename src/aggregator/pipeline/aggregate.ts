@@ -97,7 +97,8 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
     }
   }
 
-  // 숫자 표마다 칸끼리 합 (자유 제작형은 표가 여러 개라 블록 id별로)
+  // 숫자 표마다 칸끼리 합 (자유 제작형은 표가 여러 개라 블록 id별로) + 그 아래에 쌓을 제출처별 줄
+  const who = useOrg ? orgLabel(schema) : '출처 파일';
   for (const m of schema.blocks) {
     if (m.kind !== 'matrix') continue;
     (data.matrixSumsBy ??= {})[m.id] = m.rowLabels.map((_, r) => m.colLabels.map((__, c) => {
@@ -109,13 +110,35 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
       if (skipped && !clean) matrixNotes[`${m.id}:${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
       return any ? tidy(sum) : null;
     }));
+    // 합계 위 칸에는 한 숫자만 남으므로, 제출처가 적어 낸 값을 한 줄씩 그대로 쌓는다
+    const many = m.rowLabels.length > 1;
+    (data.stackedBy ??= {})[m.id] = {
+      title: `${who}별 적어 낸 값${m.title?.trim() ? ` — ${m.title.trim()}` : ''}`,
+      columns: [{ header: who }, ...(many ? [{ header: '항목' }] : []), ...m.colLabels.map((c) => ({ header: c, field: m.cell }))],
+      rows: res.included.flatMap((s) => m.rowLabels.map((rl, r) => [
+        useOrg ? s.label : s.sourceFile, ...(many ? [rl] : []),
+        ...m.colLabels.map((__, c) => s.matrices?.[m.id]?.[r]?.[c] ?? null),
+      ])),
+    };
   }
 
   const grid = schema.blocks.find((b) => b.kind === 'grid');
   if (grid?.kind === 'grid') {
-    data.grid = clean ? Object.fromEntries(Object.entries(res.gridOverlay).map(([k, v]) => [k, { value: v.value, note: '' }])) : { ...res.gridOverlay };
+    // 결과 파일도 메모를 남긴다: 이 칸을 적어 낸 곳이 어디인지 알 수 있어야 한다
+    data.grid = { ...res.gridOverlay };
     // 검토 파일: 비어 있는 필수 칸에 이유를 단다
     if (!clean) for (const i of res.crossIssues) if (i.code === 'REQUIRED_EMPTY') data.grid[i.id.replace(/^grid-required:/, '')] = { value: null, note: `[자동] ${i.message}` };
+    // 같은 칸을 두 곳 이상이 채운 적이 있으면 한 곳 값만 남으므로, 칸별로 낸 값을 제출처별 줄로 쌓는다
+    const inputs = grid.rows.flat().flatMap((c) => (c.kind === 'input' ? [c.field] : []));
+    const filled = (f: Field) => res.included.filter((s) => s.grid?.[f.key] !== undefined && s.grid[f.key] !== null);
+    if (inputs.some((f) => filled(f).length > 1)) {
+      (data.stackedBy ??= {})[grid.id] = {
+        title: `${who}별 채운 값${grid.title?.trim() ? ` — ${grid.title.trim()}` : ''}`,
+        columns: [{ header: who }, ...inputs.map((f) => ({ header: f.label, field: f }))],
+        rows: res.included.map((s) => [useOrg ? s.label : s.sourceFile, ...inputs.map((f) => s.grid?.[f.key] ?? null)]),
+      };
+    }
+
     if (grid.spareRows > 0) {
       data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...(keepSource ? ['출처 파일'] : []), ...(clean ? [] : ['원본 줄'])];
       data.gridSpare = res.included.flatMap((s) => (s.gridSpareRows ?? []).map((r) => {

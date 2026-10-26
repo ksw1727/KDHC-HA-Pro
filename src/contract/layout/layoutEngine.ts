@@ -140,6 +140,10 @@ class Layouter {
   }
 
   private computeLastCol(): number {
+    return Math.max(this.blocksLastCol(), ...Object.values(this.agg?.stackedBy ?? {}).map((s) => s.columns.length));
+  }
+
+  private blocksLastCol(): number {
     if (this.schema.layout === 'free') {
       // 판 열 수 + (취합본이면) 입력 줄 영역 오른쪽 자동 칸
       const list = freeRegions(this.schema).find((r) => r.kind === 'list');
@@ -173,6 +177,7 @@ class Layouter {
     }
 
     for (const job of this.jobs) job();
+    this.placeStacked(this.lastInputRow + 2);
 
     const printArea = range(1, 1, last, Math.max(this.lastInputRow, 2));
     this.cellMap.printArea = printArea;
@@ -187,6 +192,28 @@ class Layouter {
       freeze: this.freeze,
       cellMap: this.cellMap,
     };
+  }
+
+  /**
+   * 취합 결과 맨 아래: 합계·대표값 하나로 뭉쳐진 자리(숫자 표, 여러 곳이 겹친 빈칸채우기)의 원래 내용을
+   * 제출처별로 한 줄씩 그대로 쌓는다. 합계는 위에 그대로 두고, 그 아래에 내용이 남는다.
+   */
+  private placeStacked(row: number) {
+    for (const s of Object.values(this.agg?.stackedBy ?? {})) {
+      this.put({ address: addr(1, row), value: s.title, role: 'label' });
+      this.merge(1, row, this.lastCol);
+      row += 1;
+      s.columns.forEach((c, i) => this.put({ address: addr(1 + i, row), value: c.header, role: 'auto-header' }));
+      row += 1;
+      for (const r of s.rows) {
+        s.columns.forEach((c, i) => this.put({
+          address: addr(1 + i, row), value: asCell(r[i]), role: 'auto-value',
+          numFmt: c.field && c.field.type !== 'calc' ? FIELD_TYPES[c.field.type].excelNumFmt(c.field) : undefined,
+        }));
+        row += 1;
+      }
+      row += 1;   // 블록 사이 빈 행
+    }
   }
 
   /** 1행 제목, 2행 정보칸, 4행 제출처 줄. 블록을 놓기 시작할 행을 돌려준다 */
@@ -205,10 +232,12 @@ class Layouter {
       const shared = this.input.mode === 'template' && !!this.input.shared;
       this.put({ address: 'A4', value: `${orgLabel(schema)}명`, role: 'label', required: schema.org.mode === 'input' || shared });
       if (this.input.mode === 'aggregate') {
-        // 줄이 없는 숫자 표는 모든 제출처를 더한 값이라, 제출처별 값은 펼치기 시트에 있다고 알린다
+        // 줄이 없는 양식(숫자 표·빈칸채우기)은 위 칸이 합계·대표값이라, 제출처별 내용이 어디 있는지 알린다
         const rows = schema.blocks.some((b) => b.kind === 'list' || (b.kind === 'grid' && b.spareRows > 0));
-        const sums = !rows && schema.blocks.some((b) => b.kind === 'matrix');
-        this.put({ address: 'B4', value: sums ? `(모든 ${orgLabel(schema)} 합계 · ${orgLabel(schema)}별 시트 참고)` : '(줄별 자동 칸 참고)', role: 'input', mark: 'muted' });
+        const stacked = Object.keys(this.agg?.stackedBy ?? {}).length > 0;
+        const lbl = orgLabel(schema);
+        const above = schema.blocks.some((b) => b.kind === 'matrix') ? '합계' : '한 곳 값';
+        this.put({ address: 'B4', value: rows ? '(줄별 자동 칸 참고)' : stacked ? `(위는 ${above} · 아래 ${lbl}별 줄 참고)` : '(적어 낸 곳은 칸 메모 참고)', role: 'input', mark: 'muted' });
       } else if (schema.org.mode === 'preset' && !shared) {
         this.put({ address: 'B4', value: this.input.orgName ?? schema.org.orgs?.[0], role: 'locked-value' });
       } else {

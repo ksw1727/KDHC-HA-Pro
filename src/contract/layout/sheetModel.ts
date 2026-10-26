@@ -1,5 +1,6 @@
 import type { DataValidation } from 'exceljs';
 import type { CellMap, CellValue } from '../meta';
+import type { Field } from '../schema';
 
 export type Role =
   | 'title' | 'guide' | 'label' | 'header' | 'input' | 'locked-value' | 'row-number'
@@ -49,6 +50,17 @@ export interface AggregateFill {
   matrixSumsBy?: Record<string, CellValue[][]>;   // 자유 제작형처럼 숫자 표가 여러 개일 때: 블록 id → 칸별 합 (없으면 matrixSums)
   grid?: Record<string, { value: CellValue; note?: string }>;   // fill-in 입력칸 겹친 값
   gridSpare?: { values: CellValue[]; auto: CellValue[] }[];       // fill-in 여유 줄에 추가된 행
+  stackedBy?: Record<string, StackedRows>;        // 블록 id → 제출처별로 그대로 쌓은 줄 (시트 맨 아래에 붙는다)
+}
+
+/**
+ * 합계·대표값 하나만 남는 자리(숫자 표, 여러 곳이 같은 칸을 채운 빈칸채우기)의 원래 내용.
+ * 같은 틀 시트 맨 아래에 '제출처별 …' 블록으로 그대로 쌓아, 결과 파일만 봐도 누가 무엇을 냈는지 남는다.
+ */
+export interface StackedRows {
+  title: string;                                  // 블록 제목, 예 '지사별 적어 낸 값 — 분기별 점검 건수'
+  columns: { header: string; field?: Field }[];   // 첫 열은 제출처(식별 안 하면 출처 파일). field = 그 열의 숫자·날짜 서식
+  rows: CellValue[][];
 }
 
 export type LayoutInput =

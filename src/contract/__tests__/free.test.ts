@@ -58,7 +58,8 @@ describe('자유 제작형 (free)', () => {
     expect(requiredAggregations(s)).toEqual(['same-frame', 'spread']);
     const m = layoutSheet(s, { mode: 'aggregate', info: '', data: { autoColumns: [] } }, { today });
     expect(cell(m, 'B6')?.value).toBe('(지사별 시트 참고)');
-    expect(requiredAggregations(SAMPLE.free)).toEqual(['same-frame']);
+    // 숫자 표가 있으면 줄 영역이 있어도 펼치기는 필수 (표 칸에는 합계만 남는다)
+    expect(requiredAggregations(SAMPLE.free)).toEqual(['same-frame', 'spread']);
   });
 });
 
