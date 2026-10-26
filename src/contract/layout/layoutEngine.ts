@@ -92,14 +92,28 @@ class Layouter {
     return this.parsed.get(src)!;
   }
 
-  /** 계산 칸에 엑셀 수식 넣기. 식이 잘못됐으면 "(계산식 확인)" */
+  /**
+   * 계산 칸에 엑셀 수식 넣기. 식이 잘못됐으면 "(계산식 확인)"
+   * 식이 가리키는 입력 칸이 하나도 안 채워졌으면 0이 아니라 빈칸이 되게 감싼다
+   * (아직 안 적은 줄의 비율이 0%로 보여 "0명" 처럼 읽히는 것을 막는다)
+   */
   private setFormula(address: string, f: Field, resolve: RefResolver) {
     const cell = this.cells.get(address);
     if (!cell) return;
     const n = this.node(f);
+    const used: string[] = [];
+    const watch: RefResolver = (name, agg) => {
+      const a = resolve(name, agg);
+      if (a) used.push(a);
+      return a;
+    };
     try {
       if (!n) throw new Error();
-      cell.formula = toExcel(n, resolve);
+      cell.formula = toExcel(n, watch);
+      // 칸 하나짜리 참조(범위 제외) 중 입력 칸만 본다. 다른 계산 칸은 그쪽이 비면 저절로 빈칸이 된다
+      const roleOf = (a: string) => this.cells.get(a.replace(/\$/g, ''))?.role;
+      const ins = [...new Set(used.filter((a) => !a.includes(':') && (roleOf(a) === 'input' || roleOf(a) === 'other-input')))];
+      if (ins.length) cell.formula = `IF(COUNTA(${ins.join(',')})=0,"",${cell.formula})`;
       cell.note = `계산: ${printFormula(n)}`;
     } catch {
       delete cell.formula;

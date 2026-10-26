@@ -97,7 +97,7 @@ describe('엑셀 파일 (writeWorkbook)', () => {
     m.calcCols = [f('r', '여 비율', { type: 'calc', formula: '[여] ÷ [계] × 100', decimals: 1, unit: '%' })];
     const ws = (await open(await writeWorkbook(s, { now }))).worksheets[0];
     expect(ws.getCell('D7').formula).toBe('SUM(B7:C7)');
-    expect(ws.getCell('E7').formula).toBe('IFERROR(C7/D7*100,"")');
+    expect(ws.getCell('E7').formula).toBe('IF(COUNTA(C7)=0,"",IFERROR(C7/D7*100,""))');
     expect(ws.getCell('E7').numFmt).toBe('#,##0.0"%"');
     expect(ws.getCell('E7').protection?.locked).not.toBe(false);
     expect(ws.getCell('E7').note).toBeTruthy();

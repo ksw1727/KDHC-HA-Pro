@@ -273,8 +273,8 @@ describe('계산 칸', () => {
     h.fields.push(f('tot', '총 금액', { type: 'calc', formula: '합계([금액])' }));
     const m = tpl(s);
     // 위쪽 정보 4줄(6~9행) → 목록 머리글 11행, 첫 줄 12행. 칸: B 이름, C 교육비, D 수량, E 금액
-    expect(at(m, 'E12')).toMatchObject({ role: 'calc', formula: 'IFERROR(D12*$B$8,"")', note: '계산: [수량] × [단가]' });
-    expect(at(m, 'E13')?.formula).toBe('IFERROR(D13*$B$8,"")');
+    expect(at(m, 'E12')).toMatchObject({ role: 'calc', formula: 'IF(COUNTA(D12,$B$8)=0,"",IFERROR(D12*$B$8,""))', note: '계산: [수량] × [단가]' });
+    expect(at(m, 'E13')?.formula).toBe('IF(COUNTA(D13,$B$8)=0,"",IFERROR(D13*$B$8,""))');
     expect(at(m, 'B9')?.formula).toBe('IFERROR(SUM(E12:E111),"")');
     expect(m.validations.find((v) => v.address.startsWith('E'))).toBeUndefined();
   });
@@ -296,10 +296,11 @@ describe('계산 칸', () => {
     const m = tpl(s);
     // 6행 머리글: B 남, C 여, D 계, E 여 비율 / 7·8행 학년, 9행 합계, 10행 학년 차이
     expect(at(m, 'E6')).toMatchObject({ value: '여 비율', fieldKey: 'ratio' });
-    expect(at(m, 'E7')?.formula).toBe('IFERROR(C7/D7*100,"")');
+    // 안 적은 줄은 0%가 아니라 빈칸이 되게 입력 칸(C7)을 먼저 본다. 계(D7)·합계 줄(9행)은 수식 칸이라 감싸지 않는다
+    expect(at(m, 'E7')?.formula).toBe('IF(COUNTA(C7)=0,"",IFERROR(C7/D7*100,""))');
     expect(at(m, 'E9')?.formula).toBe('IFERROR(C9/D9*100,"")');
     expect(at(m, 'A10')?.value).toBe('학년 차이');
-    expect(at(m, 'B10')?.formula).toBe('IFERROR(B8-B7,"")');
+    expect(at(m, 'B10')?.formula).toBe('IF(COUNTA(B8,B7)=0,"",IFERROR(B8-B7,""))');
     expect(at(m, 'E10')?.formula).toBe('IFERROR(C10/D10*100,"")');
     const a = layoutSheet(s, { mode: 'aggregate', info: '', data: { autoColumns: [], matrixSums: [[45, 41], [38, 40]] } }, { today });
     expect(at(a, 'E9')?.value).toBeCloseTo((81 / 164) * 100, 5); // 합계 행 비율은 다시 계산
@@ -315,7 +316,7 @@ describe('계산 칸', () => {
     g.rows[0].push({ kind: 'calc', field: f('c1', '교육 · 잔액', { type: 'calc', formula: '[교육 · 예산] - [교육 · 서울]' }) });
     g.rows[1].push({ kind: 'blank' });
     const m = tpl(s);
-    expect(at(m, 'D5')).toMatchObject({ role: 'calc', formula: 'IFERROR(B5-C5,"")' });
+    expect(at(m, 'D5')).toMatchObject({ role: 'calc', formula: 'IF(COUNTA(C5)=0,"",IFERROR(B5-C5,""))' });
     const a = layoutSheet(s, { mode: 'aggregate', info: '', data: { autoColumns: [], grid: { g1: { value: 300 } } } }, { today });
     expect(at(a, 'D5')?.value).toBe(600);
   });
