@@ -70,7 +70,7 @@ export const SAMPLE: Record<FormSchema['layout'], FormSchema> = {
       merges: [],
       places: { insp: 'B1', day: 'D1', b2: 'A3', b3: 'A6' },
     },
-    aggregations: ['same-frame', 'submission-status'],
+    aggregations: ['same-frame', 'spread', 'submission-status'],
     org: { mode: 'preset', orgs: ['서울', '부산'] },
   },
 };

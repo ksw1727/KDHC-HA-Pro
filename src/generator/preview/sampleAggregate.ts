@@ -1,5 +1,5 @@
 import type { Field, FormSchema } from '@contract/schema';
-import { orgLabel } from '@contract/schema';
+import { gridOwners, orgLabel } from '@contract/schema';
 import type { AggregateFill } from '@contract/layout';
 import type { CellValue } from '@contract/meta';
 import { formatSample } from './formatSample';
@@ -48,11 +48,21 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
       auto: [...(useOrg ? [orgs[o]] : []), ...header.map((f) => headers[o][f.key] ?? null), ...(useOrg ? [] : [files[o]])],
     }));
   }
+  const who = useOrg ? orgLabel(schema) : '출처 파일';
+  const byOrg = (base: number, o: number) => Math.round(((base / orgs.length) * (1 + (o - 1) * 0.2)) * 10) / 10;
   for (const matrix of schema.blocks) {
     if (matrix.kind !== 'matrix') continue;
     const sums = matrix.rowLabels.map((_, r) => matrix.colLabels.map((__, c) => 30 + ((r * 7 + c * 5) % 17)));
     data.matrixSums ??= sums;
     (data.matrixSumsBy ??= {})[matrix.id] = sums;
+    // 결과 파일과 같게: 표 자리에 제출처별 줄을 쌓고 맨 아래에 '계' 줄
+    const many = matrix.rowLabels.length > 1;
+    (data.matrixRowsBy ??= {})[matrix.id] = {
+      who,
+      labels: matrix.rowLabels.flatMap(() => orgs.map((_, o) => (useOrg ? orgs[o] : files[o]))),
+      ...(many ? { group: matrix.rowLabels.flatMap((_, r) => orgs.map(() => r)) } : {}),
+      values: matrix.rowLabels.flatMap((_, r) => orgs.map((__, o) => matrix.colLabels.map((___, c) => byOrg(sums[r][c], o)))),
+    };
   }
   const grid = schema.blocks.find((b) => b.kind === 'grid');
   if (grid?.kind === 'grid') {
@@ -60,6 +70,16 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
     grid.rows.flat().forEach((c, i) => {
       if (c.kind === 'input') data.grid![c.field.key] = { value: sampleValue(c.field, i), note: '' };
     });
+    // 여러 곳이 같은 칸을 채우면 결과에는 한 곳 값만 남으므로, 미리보기도 제출처별 줄을 같이 보여 준다
+    const inputs = grid.rows.flat().flatMap((c) => (c.kind === 'input' ? [c.field] : []));
+    if (inputs.length && !gridOwners(schema).size) {
+      (data.stackedBy ??= {})[grid.id] = {
+        title: `${who}별 채운 값${grid.title?.trim() ? ` — ${grid.title.trim()}` : ''}`,
+        columns: [{ header: who }, ...inputs.map((f) => ({ header: f.label, field: f }))],
+        rows: orgs.map((_, o) => [useOrg ? orgs[o] : files[o], ...inputs.map((f, i) => sampleValue(f, i + o))]),
+      };
+    }
+
     if (grid.spareRows > 0) {
       data.autoColumns = [useOrg ? orgLabel(schema) : '출처 파일'];
       data.gridSpare = [0, 1].map((o) => ({

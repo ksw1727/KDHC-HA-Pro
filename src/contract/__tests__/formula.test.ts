@@ -95,8 +95,8 @@ describe('계산', () => {
   });
 });
 
-import { computeHeader, computeListRow, computeSpareRow, formulaErrors } from '../formula';
-import { validateSchema, type FormSchema, type ListBlock } from '../schema';
+import { computeGrid, computeHeader, computeListRow, computeMatrix, computeSpareRow, formulaErrors } from '../formula';
+import { validateSchema, type FormSchema, type GridBlock, type ListBlock, type MatrixBlock } from '../schema';
 import { SAMPLE, f } from './fixtures';
 
 describe('계산 칸 값 (compute)', () => {
@@ -123,6 +123,57 @@ describe('계산 칸 값 (compute)', () => {
   test('여유 줄 계산 칸', () => {
     const g = { kind: 'grid' as const, id: 'b1', colLabels: ['a', 'b'], rows: [], spareRows: 1, spareColumns: [f('a', 'a', { type: 'number' }), f('b', 'b', { type: 'calc', formula: '[a] × 2' })] };
     expect(computeSpareRow(g, [4, null])).toEqual([4, 8]);
+    // 입력 칸이 비어 있으면 0이 아니라 빈칸
+    expect(computeSpareRow(g, [null, null])).toEqual([null, null]);
+  });
+});
+
+/**
+ * 안 적어 낸 줄의 계산 칸은 0이 아니라 빈칸. 미제출인데 비율이 0%로 보이면
+ * "0명이 했다"로 잘못 읽힌다. 고정값만 가리키는 계산 칸은 그대로 계산한다.
+ */
+describe('안 낸 줄의 계산 칸은 빈칸', () => {
+  // 한 줄 = 한 제출처(지사일 수도, 부서·담당자일 수도 있다). 1열은 고정 이름, 2열은 고정 숫자, 3열이 각자 채울 칸
+  const grid = (): GridBlock => ({
+    kind: 'grid', id: 'g1', colLabels: ['곳', '현원', '참여 인원', '참여율'], spareRows: 0,
+    rows: [
+      [{ kind: 'fixed', value: '가' }, { kind: 'fixed', value: 312 },
+       { kind: 'input', field: f('a', '가 참여', { type: 'number' }) },
+       { kind: 'calc', field: f('ar', '가 참여율', { type: 'calc', formula: '[가 참여] ÷ [가 · 현원] × 100' }) }],
+      [{ kind: 'fixed', value: '나' }, { kind: 'fixed', value: 198 },
+       { kind: 'input', field: f('b', '나 참여', { type: 'number' }) },
+       { kind: 'calc', field: f('br', '나 참여율', { type: 'calc', formula: '[나 참여] ÷ [나 · 현원] × 100' }) }],
+    ],
+  });
+  test('빈칸채우기: 낸 줄만 계산되고 안 낸 줄은 빈칸', () => {
+    const out = computeGrid(grid(), { a: 48, b: null });
+    expect(out.ar).toBeCloseTo((48 / 312) * 100, 5);
+    expect(out.br).toBeNull();
+  });
+  test('빈칸채우기: 고정값만 쓰는 계산 칸은 그대로 계산', () => {
+    const g = grid();
+    g.rows[1][3] = { kind: 'calc', field: f('br', '나 몫', { type: 'calc', formula: '[나 · 현원] ÷ 2' }) };
+    expect(computeGrid(g, { a: null, b: null }).br).toBe(99);
+  });
+  test('목록: 입력 칸이 다 비면 빈칸, 하나라도 있으면 계산', () => {
+    const l: ListBlock = { kind: 'list', id: 'b1', maxRows: 5, columns: [
+      f('q', '수량', { type: 'number' }), f('p', '단가', { type: 'number' }),
+      f('amt', '금액', { type: 'calc', formula: '[수량] × [단가]' }),
+    ] };
+    expect(computeListRow(l, { q: null, p: null }).amt).toBeNull();
+    expect(computeListRow(l, { q: 2, p: null }).amt).toBe(0);
+  });
+  test('숫자 표: 안 적은 줄의 계산 열은 빈칸, 합계 줄은 계산', () => {
+    const m: MatrixBlock = {
+      kind: 'matrix', id: 'm1', rowLabels: ['1분기', '2분기'], colLabels: ['남', '여'],
+      cell: f('c', '값', { type: 'number' }), totalRow: true, totalCol: false,
+      calcCols: [f('r', '여 비율', { type: 'calc', formula: '[여] ÷ ([남] + [여]) × 100' })],
+    };
+    const { rowNames, values } = computeMatrix(m, [[45, 41], [null, null]]);
+    expect(rowNames).toEqual(['1분기', '2분기', '합계']);
+    expect(values[0][2]).toBeCloseTo((41 / 86) * 100, 5);
+    expect(values[1][2]).toBeNull();
+    expect(values[2][2]).toBeCloseTo((41 / 86) * 100, 5);
   });
 });
 

@@ -1,5 +1,5 @@
 import type { Field, FormSchema, GridBlock, ListBlock, MatrixBlock } from '../schema';
-import { evaluate, parseFormula, type Node, type Value } from './formula';
+import { evaluate, formulaRefs, parseFormula, type Node, type Value } from './formula';
 import { gridFixedName, TOTAL_COL_NAME, TOTAL_ROW_NAME } from './context';
 
 /**
@@ -16,8 +16,36 @@ function nodeOf(formula: string | undefined): Node | null {
   return parsed.get(src)!;
 }
 
-/** 이름 → 값 함수로 계산 칸 여러 개를 서로 참조까지 풀어서 계산 */
-function solve(calcs: Field[], base: (name: string, agg: boolean) => Value | Value[] | undefined): Map<string, Value> {
+/**
+ * 계산 칸이 가리키는 입력 칸의 상태.
+ * 'empty' = 아무도 적어 내지 않은 입력 칸, 'filled' = 값이 있는 입력 칸, 'other' = 고정값·바깥 값
+ */
+export type RefState = 'empty' | 'filled' | 'other';
+
+const isBlank = (v: Value | Value[] | undefined) => v === null || v === undefined || v === '';
+
+/** 계산식이 가리키는 이름 (계산 칸을 거쳐 이어지는 것까지 펼친다) */
+function deepRefs(name: string, byName: Map<string, Field>): Set<string> {
+  const out = new Set<string>();
+  const seen = new Set<string>();
+  const walk = (nm: string) => {
+    if (seen.has(nm)) return;
+    seen.add(nm);
+    const f = byName.get(nm);
+    if (!f) { out.add(nm); return; }
+    const n = nodeOf(f.formula);
+    if (n) formulaRefs(n).forEach(walk);
+  };
+  walk(name);
+  return out;
+}
+
+/**
+ * 이름 → 값 함수로 계산 칸 여러 개를 서로 참조까지 풀어서 계산
+ * state를 주면 "가리키는 입력 칸이 하나도 안 채워진" 계산 칸은 0이 아니라 빈칸으로 둔다.
+ * (안 낸 줄의 비율이 0%로 보여 "0명이 참여" 처럼 읽히는 것을 막는다)
+ */
+function solve(calcs: Field[], base: (name: string, agg: boolean) => Value | Value[] | undefined, state?: (name: string) => RefState): Map<string, Value> {
   const byName = new Map(calcs.map((f) => [f.label.trim(), f]));
   const done = new Map<string, Value>();
   const busy = new Set<string>();
@@ -37,6 +65,19 @@ function solve(calcs: Field[], base: (name: string, agg: boolean) => Value | Val
     return v;
   };
   for (const f of calcs) valueOf(f.label.trim(), false);
+  if (state) {
+    for (const f of calcs) {
+      const name = f.label.trim();
+      let empty = 0;
+      let filled = 0;
+      for (const ref of deepRefs(name, byName)) {
+        const k = state(ref);
+        if (k === 'empty') empty += 1;
+        else if (k === 'filled') filled += 1;
+      }
+      if (empty > 0 && filled === 0) done.set(name, null);
+    }
+  }
   return done;
 }
 
@@ -45,7 +86,12 @@ export function computeListRow(block: ListBlock, values: Record<string, Value>, 
   const calcs = block.columns.filter((c) => c.type === 'calc');
   if (!calcs.length) return values;
   const byLabel = new Map(block.columns.map((c) => [c.label.trim(), c.key]));
-  const r = solve(calcs, (name) => (byLabel.has(name) ? values[byLabel.get(name)!] ?? null : name in header ? header[name] : undefined));
+  const inputs = new Set(block.columns.filter((c) => c.type !== 'calc').map((c) => c.label.trim()));
+  const r = solve(
+    calcs,
+    (name) => (byLabel.has(name) ? values[byLabel.get(name)!] ?? null : name in header ? header[name] : undefined),
+    (name) => (inputs.has(name) ? (isBlank(values[byLabel.get(name)!]) ? 'empty' : 'filled') : 'other'),
+  );
   const out = { ...values };
   for (const c of calcs) out[c.key] = r.get(c.label.trim()) ?? null;
   return out;
@@ -108,6 +154,9 @@ export function computeMatrix(block: MatrixBlock, input: Value[][]): MatrixFull 
     const res = solve(calcRows, (name) => {
       const i = baseNames.indexOf(name);
       return i >= 0 ? base[i][c] : undefined;
+    }, c >= nC ? undefined : (name) => {
+      const i = block.rowLabels.indexOf(name) >= 0 ? baseNames.indexOf(name) : -1;
+      return i < 0 || i >= nR ? 'other' : isBlank(input[i]?.[c]) ? 'empty' : 'filled';
     });
     calcRows.forEach((f, k) => {
       if (!base[baseNames.length + k]) base[baseNames.length + k] = [];
@@ -116,10 +165,13 @@ export function computeMatrix(block: MatrixBlock, input: Value[][]): MatrixFull 
   }
   // 3) 계산 열 (모든 행에 대해)
   const leftNames = colNames.slice(0, width0);
-  const values = base.map((row) => {
+  const values = base.map((row, r) => {
     const res = solve(calcCols, (name) => {
       const i = leftNames.indexOf(name);
       return i >= 0 ? row[i] ?? null : undefined;
+    }, r >= nR ? undefined : (name) => {
+      const i = leftNames.indexOf(name);
+      return i < 0 || i >= nC ? 'other' : isBlank(input[r]?.[i]) ? 'empty' : 'filled';
     });
     return [...row.slice(0, width0), ...calcCols.map((f) => res.get(f.label.trim()) ?? null)];
   });
@@ -131,11 +183,18 @@ export function computeGrid(block: GridBlock, inputs: Record<string, Value>): Re
   const calcs = block.rows.flat().flatMap((c) => (c.kind === 'calc' ? [c.field] : []));
   if (!calcs.length) return {};
   const named = new Map<string, Value>();
+  const inputNames = new Set<string>();
   block.rows.forEach((row, r) => row.forEach((cell, c) => {
-    if (cell.kind === 'input') named.set(cell.field.label.trim(), inputs[cell.field.key] ?? null);
-    else if (cell.kind === 'fixed' && typeof cell.value === 'number') named.set(gridFixedName(block, r, c), cell.value);
+    if (cell.kind === 'input') {
+      named.set(cell.field.label.trim(), inputs[cell.field.key] ?? null);
+      inputNames.add(cell.field.label.trim());
+    } else if (cell.kind === 'fixed' && typeof cell.value === 'number') named.set(gridFixedName(block, r, c), cell.value);
   }));
-  const res = solve(calcs, (name) => (named.has(name) ? named.get(name)! : undefined));
+  const res = solve(
+    calcs,
+    (name) => (named.has(name) ? named.get(name)! : undefined),
+    (name) => (inputNames.has(name) ? (isBlank(named.get(name)) ? 'empty' : 'filled') : 'other'),
+  );
   return Object.fromEntries(calcs.map((f) => [f.key, res.get(f.label.trim()) ?? null]));
 }
 
@@ -147,6 +206,9 @@ export function computeSpareRow(block: GridBlock, values: Value[]): Value[] {
   const res = solve(calcs, (name) => {
     const i = cols.findIndex((f) => f.label.trim() === name);
     return i >= 0 ? values[i] ?? null : undefined;
+  }, (name) => {
+    const i = cols.findIndex((f) => f.label.trim() === name);
+    return i < 0 || cols[i].type === 'calc' ? 'other' : isBlank(values[i]) ? 'empty' : 'filled';
   });
   return cols.map((f, i) => (f.type === 'calc' ? res.get(f.label.trim()) ?? null : values[i] ?? null));
 }

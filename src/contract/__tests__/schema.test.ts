@@ -138,6 +138,20 @@ describe('gridOwners (빈칸채우기 작성처)', () => {
     expect(gridOwners(grid(preset, '청주지사')).has('b')).toBe(false);
     expect(gridOwners(grid({ mode: 'none' })).size).toBe(0);
   });
+  it('줄 앞 글자 칸이 제출처가 아니면 건너뛰고 다음 글자 칸을 본다', () => {
+    // 1열은 권역(제출처 아님), 2열이 부서 이름. 제출처 목록에 있는 이름만 작성처가 된다
+    const s: Pick<FormSchema, 'org' | 'blocks'> = {
+      org: { mode: 'preset', orgs: ['안전관리부', '설비운영부'], label: '부서' },
+      blocks: [{
+        kind: 'grid', id: 'b1', colLabels: ['권역', '부서', '현원', '참여 인원'], spareRows: 0,
+        rows: [
+          [{ kind: 'fixed', value: '수도권' }, { kind: 'fixed', value: '안전관리부' }, { kind: 'fixed', value: 312 }, { kind: 'input', field: { key: 'p1', label: 'p1', type: 'number', required: false } }],
+          [{ kind: 'fixed', value: '영남권' }, { kind: 'fixed', value: '설비운영부' }, { kind: 'fixed', value: 266 }, { kind: 'input', field: { key: 'p2', label: 'p2', type: 'number', required: false } }],
+        ],
+      }],
+    };
+    expect([...gridOwners(s)]).toEqual([['p1', '안전관리부'], ['p2', '설비운영부']]);
+  });
 });
 
 describe('빈칸채우기 작성처는 지사가 아니어도 된다', () => {

@@ -8,7 +8,7 @@ import { computeGrid, computeListRow, computeMatrix, computeSpareRow } from '../
 import { gridNames, TOTAL_COL_NAME, TOTAL_ROW_NAME } from '../formula/context';
 import { addr, colLetter, parseAddr, range } from './address';
 import { freeRegions, freeSize, freeTop } from '../free';
-import type { AggregateFill, LayoutInput, ModelCell, SheetModel } from './sheetModel';
+import type { AggregateFill, LayoutInput, MatrixRows, ModelCell, SheetModel } from './sheetModel';
 
 /**
  * 같은 틀 레이아웃 엔진 (01-contract.md 7절). 순수 함수.
@@ -92,14 +92,28 @@ class Layouter {
     return this.parsed.get(src)!;
   }
 
-  /** 계산 칸에 엑셀 수식 넣기. 식이 잘못됐으면 "(계산식 확인)" */
+  /**
+   * 계산 칸에 엑셀 수식 넣기. 식이 잘못됐으면 "(계산식 확인)"
+   * 식이 가리키는 입력 칸이 하나도 안 채워졌으면 0이 아니라 빈칸이 되게 감싼다
+   * (아직 안 적은 줄의 비율이 0%로 보여 "0명" 처럼 읽히는 것을 막는다)
+   */
   private setFormula(address: string, f: Field, resolve: RefResolver) {
     const cell = this.cells.get(address);
     if (!cell) return;
     const n = this.node(f);
+    const used: string[] = [];
+    const watch: RefResolver = (name, agg) => {
+      const a = resolve(name, agg);
+      if (a) used.push(a);
+      return a;
+    };
     try {
       if (!n) throw new Error();
-      cell.formula = toExcel(n, resolve);
+      cell.formula = toExcel(n, watch);
+      // 칸 하나짜리 참조(범위 제외) 중 입력 칸만 본다. 다른 계산 칸은 그쪽이 비면 저절로 빈칸이 된다
+      const roleOf = (a: string) => this.cells.get(a.replace(/\$/g, ''))?.role;
+      const ins = [...new Set(used.filter((a) => !a.includes(':') && (roleOf(a) === 'input' || roleOf(a) === 'other-input')))];
+      if (ins.length) cell.formula = `IF(COUNTA(${ins.join(',')})=0,"",${cell.formula})`;
       cell.note = `계산: ${printFormula(n)}`;
     } catch {
       delete cell.formula;
@@ -134,12 +148,19 @@ class Layouter {
     switch (b.kind) {
       case 'fields': return 2;
       case 'list': return 1 + b.columns.length + this.autoCount;
-      case 'matrix': return 1 + b.colLabels.length + (b.totalCol ? 1 : 0) + (b.calcCols?.length ?? 0);
+      case 'matrix': {
+        const mr = this.agg?.matrixRowsBy?.[b.id];
+        return (mr ? 1 + (mr.group ? 1 : 0) : 0) + 1 + b.colLabels.length + (b.totalCol ? 1 : 0) + (b.calcCols?.length ?? 0);
+      }
       case 'grid': return b.colLabels.length + (this.agg && b.spareRows > 0 ? this.autoCount : 0);
     }
   }
 
   private computeLastCol(): number {
+    return Math.max(this.blocksLastCol(), ...Object.values(this.agg?.stackedBy ?? {}).map((s) => s.columns.length));
+  }
+
+  private blocksLastCol(): number {
     if (this.schema.layout === 'free') {
       // 판 열 수 + (취합본이면) 입력 줄 영역 오른쪽 자동 칸
       const list = freeRegions(this.schema).find((r) => r.kind === 'list');
@@ -173,6 +194,7 @@ class Layouter {
     }
 
     for (const job of this.jobs) job();
+    this.placeStacked(this.lastInputRow + 2);
 
     const printArea = range(1, 1, last, Math.max(this.lastInputRow, 2));
     this.cellMap.printArea = printArea;
@@ -187,6 +209,28 @@ class Layouter {
       freeze: this.freeze,
       cellMap: this.cellMap,
     };
+  }
+
+  /**
+   * 취합 결과 맨 아래: 합계·대표값 하나로 뭉쳐진 자리(숫자 표, 여러 곳이 겹친 빈칸채우기)의 원래 내용을
+   * 제출처별로 한 줄씩 그대로 쌓는다. 합계는 위에 그대로 두고, 그 아래에 내용이 남는다.
+   */
+  private placeStacked(row: number) {
+    for (const s of Object.values(this.agg?.stackedBy ?? {})) {
+      this.put({ address: addr(1, row), value: s.title, role: 'label' });
+      this.merge(1, row, this.lastCol);
+      row += 1;
+      s.columns.forEach((c, i) => this.put({ address: addr(1 + i, row), value: c.header, role: 'auto-header' }));
+      row += 1;
+      for (const r of s.rows) {
+        s.columns.forEach((c, i) => this.put({
+          address: addr(1 + i, row), value: asCell(r[i]), role: 'auto-value',
+          numFmt: c.field && c.field.type !== 'calc' ? FIELD_TYPES[c.field.type].excelNumFmt(c.field) : undefined,
+        }));
+        row += 1;
+      }
+      row += 1;   // 블록 사이 빈 행
+    }
   }
 
   /** 1행 제목, 2행 정보칸, 4행 제출처 줄. 블록을 놓기 시작할 행을 돌려준다 */
@@ -205,10 +249,16 @@ class Layouter {
       const shared = this.input.mode === 'template' && !!this.input.shared;
       this.put({ address: 'A4', value: `${orgLabel(schema)}명`, role: 'label', required: schema.org.mode === 'input' || shared });
       if (this.input.mode === 'aggregate') {
-        // 줄이 없는 숫자 표는 모든 제출처를 더한 값이라, 제출처별 값은 펼치기 시트에 있다고 알린다
+        // 줄이 없는 양식(숫자 표·빈칸채우기)은 위 칸이 합계·대표값이라, 제출처별 내용이 어디 있는지 알린다
         const rows = schema.blocks.some((b) => b.kind === 'list' || (b.kind === 'grid' && b.spareRows > 0));
-        const sums = !rows && schema.blocks.some((b) => b.kind === 'matrix');
-        this.put({ address: 'B4', value: sums ? `(모든 ${orgLabel(schema)} 합계 · ${orgLabel(schema)}별 시트 참고)` : '(줄별 자동 칸 참고)', role: 'input', mark: 'muted' });
+        const lbl = orgLabel(schema);
+        const inTable = Object.keys(this.agg?.matrixRowsBy ?? {}).length > 0;
+        const stacked = Object.keys(this.agg?.stackedBy ?? {}).length > 0;
+        const value = rows ? '(줄별 자동 칸 참고)'
+          : inTable ? `(표에 ${lbl}별 줄과 계)`
+          : stacked ? `(위는 한 곳 값 · 아래 ${lbl}별 줄 참고)`
+          : '(적어 낸 곳은 칸 메모 참고)';
+        this.put({ address: 'B4', value, role: 'input', mark: 'muted' });
       } else if (schema.org.mode === 'preset' && !shared) {
         this.put({ address: 'B4', value: this.input.orgName ?? schema.org.orgs?.[0], role: 'locked-value' });
       } else {
@@ -239,8 +289,18 @@ class Layouter {
   private placeFree(top: number) {
     const { schema } = this;
     const free = schema.free!;
-    const at = (a: string) => { const p = parseAddr(a); return { row: top + p.row - 1, col: p.col }; };
     const regions = freeRegions(schema);
+    // 취합본의 숫자 표는 제출처 줄만큼 길어진다 → 판에서 그 아래에 있는 내용을 그만큼 내린다
+    const grow: [number, number][] = [];
+    for (const b of schema.blocks) {
+      const mr = b.kind === 'matrix' ? this.agg?.matrixRowsBy?.[b.id] : undefined;
+      const reg = mr ? regions.find((r) => r.blockId === b.id) : undefined;
+      if (!mr || !reg || b.kind !== 'matrix') continue;
+      const extra = this.aggMatrixHeight(b, mr) - (reg.r2 - reg.r1 + 1);
+      if (extra > 0) grow.push([reg.r2, extra]);
+    }
+    const shift = (row: number) => grow.reduce((n, [r, extra]) => (row > r ? n + extra : n), 0);
+    const at = (a: string) => { const p = parseAddr(a); return { row: top + p.row - 1 + shift(p.row), col: p.col }; };
     const hasList = regions.some((r) => r.kind === 'list');
     for (const [a, v] of Object.entries(free.texts)) {
       const p = at(a);
@@ -284,8 +344,8 @@ class Layouter {
         this.placeMatrix(b, p.row, p.col);
       }
     }
-    // 인쇄영역이 판 끝까지 오도록
-    this.lastInputRow = Math.max(this.lastInputRow, top + freeSize(schema).rows - 1);
+    // 인쇄영역이 판 끝까지 오도록 (길어진 숫자 표만큼 더해서)
+    this.lastInputRow = Math.max(this.lastInputRow, top + freeSize(schema).rows - 1 + grow.reduce((n, [, e]) => n + e, 0));
   }
 
   /** 블록을 row부터 배치하고 다음 빈 행 번호를 돌려준다. */
@@ -387,8 +447,88 @@ class Layouter {
     return r;
   }
 
+  /** 취합본 숫자 표가 쓰는 행 수: 머리글 + 제출처 줄 + 계 줄(들) + 합계 줄 + 계산 행 */
+  private aggMatrixHeight(b: MatrixBlock, mr: MatrixRows): number {
+    const many = !!mr.group;
+    return 1 + mr.labels.length + (many ? b.rowLabels.length : 1) + (many && b.totalRow ? 1 : 0) + (b.calcRows?.length ?? 0);
+  }
+
+  /**
+   * 취합 결과의 숫자 표: 칸마다 합계 하나를 넣는 대신 제출처가 적어 낸 줄을 그대로 쌓고,
+   * 맨 아래 '계' 줄에 열마다 합을 넣는다(그 값이 예전 합계 칸 값과 같다).
+   * 행 제목이 여럿이면 `항목` 열로 묶고 묶음마다 계 줄, 그 뒤에 합계 줄·계산 행이 온다.
+   */
+  private placeAggMatrix(b: MatrixBlock, mr: MatrixRows, row: number, c0: number): number {
+    const map: MatrixBlockMap = { kind: 'matrix', rowLabelCells: [], colLabelCells: [], cells: [], totalCells: [] };
+    const nC = b.colLabels.length;
+    const many = !!mr.group;
+    const full = computeMatrix(b, this.agg?.matrixSumsBy?.[b.id] ?? []);   // 예전 표 (계 열·합계 행·계산 행 포함)
+    const names = full.colNames;                                          // 열 제목 + 계 + 계산 열
+    const firstCol = c0 + 1 + (many ? 1 : 0);
+    const fmt = FIELD_TYPES.number.excelNumFmt(b.cell);
+    const colField = (i: number) => (i < nC || (b.totalCol && i === nC) ? b.cell : (b.calcCols ?? [])[i - nC - (b.totalCol ? 1 : 0)]);
+
+    // 머리글 행
+    this.put({ address: addr(c0, row), value: mr.who, role: 'header' });
+    if (many) this.put({ address: addr(c0 + 1, row), value: '항목', role: 'header' });
+    names.forEach((name, i) => {
+      const a = addr(firstCol + i, row);
+      this.put({ address: a, value: name, role: 'header', fieldKey: i < nC ? b.cell.key : colField(i)?.key });
+      if (i < nC) map.colLabelCells.push(a);
+    });
+    row += 1;
+
+    // 제출처 줄 (줄마다 계 열·계산 열을 그 줄 값으로 다시 계산)
+    const one: MatrixBlock = { ...b, rowLabels: [''], totalRow: false, calcRows: undefined };
+    const totalRow = (label: string, vals: CellValue[], r?: number) => {
+      this.put({ address: addr(c0, row), value: label, role: 'header' });
+      if (many) this.put({ address: addr(c0 + 1, row), value: r === undefined ? undefined : b.rowLabels[r], role: 'header' });
+      const line: string[] = [];
+      vals.forEach((v, i) => {
+        const a = addr(firstCol + i, row);
+        const cf = colField(i);
+        this.put({ address: a, value: asCell(v), role: cf?.type === 'calc' ? 'calc' : 'fixed', numFmt: cf?.type === 'calc' ? FIELD_TYPES.calc.excelNumFmt(cf) : fmt });
+        if (i < nC) line.push(a);
+      });
+      if (r !== undefined) map.totalCells![r] = line;
+      row += 1;
+    };
+
+    mr.labels.forEach((label, i) => {
+      // 묶음이 바뀌면 앞 묶음의 계 줄을 먼저 넣는다
+      const prev = mr.group?.[i - 1];
+      if (many && i > 0 && prev !== mr.group![i]) totalRow(`계 · ${b.rowLabels[prev!]}`, full.values[prev!], prev);
+      const la = addr(c0, row);
+      this.put({ address: la, value: label, role: 'header' });
+      map.rowLabelCells.push(la);
+      if (many) this.put({ address: addr(c0 + 1, row), value: b.rowLabels[mr.group![i]], role: 'input' });
+      const vals = computeMatrix(one, [mr.values[i]]).values[0] ?? [];
+      const line: string[] = [];
+      vals.forEach((v, k) => {
+        const a = addr(firstCol + k, row);
+        const cf = colField(k);
+        this.put({ address: a, value: asCell(v), role: cf?.type === 'calc' ? 'calc' : 'input', numFmt: cf?.type === 'calc' ? FIELD_TYPES.calc.excelNumFmt(cf) : fmt, fieldKey: cf?.key });
+        if (k < nC) line.push(a);
+      });
+      map.cells.push(line);
+      row += 1;
+    });
+
+    // 마지막 묶음(또는 하나뿐인 표)의 계 줄
+    const last = many ? mr.group![mr.labels.length - 1] : 0;
+    if (mr.labels.length) totalRow(many ? `계 · ${b.rowLabels[last]}` : '계', full.values[last] ?? [], last);
+    // 행 제목이 여럿일 때만 전체 합계 줄 (하나면 위 '계'와 같은 값이라 넣지 않는다)
+    if (many && b.totalRow) totalRow(TOTAL_ROW_NAME, full.values[b.rowLabels.length] ?? []);
+    (b.calcRows ?? []).forEach((f, k) => totalRow(f.label, full.values[b.rowLabels.length + (b.totalRow ? 1 : 0) + k] ?? []));
+
+    this.cellMap.blocks[b.id] = map;
+    return row;
+  }
+
   /** c0 = 왼쪽 위 빈칸(행 제목 열) */
   private placeMatrix(b: MatrixBlock, row: number, c0: number): number {
+    const mr = this.agg?.matrixRowsBy?.[b.id];
+    if (mr) return this.placeAggMatrix(b, mr, row, c0);
     const map: MatrixBlockMap = { kind: 'matrix', rowLabelCells: [], colLabelCells: [], cells: [] };
     const f = b.cell;
     const fmt = FIELD_TYPES.number.excelNumFmt(f);

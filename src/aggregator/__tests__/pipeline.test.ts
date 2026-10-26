@@ -357,8 +357,13 @@ describe('자유 제작형', () => {
     expect(res.included[1].matrices?.b2).toEqual([[3, 4]]);
     expect(out.verify.lines.filter((l) => !l.ok)).toEqual([]);
     const frame = wb.worksheets[0];
-    expect(frame.getCell('B9').value).toBe(4);   // 숫자 표 칸 합 1+3
-    expect(frame.getCell('C9').value).toBe(6);
+    // 숫자 표 자리: 머리글(8행) 아래에 제출처 줄, 맨 아래 '계' 줄 (예전 합계 칸 값)
+    expect([8, 9, 10, 11].map((r) => ['A', 'B', 'C', 'D'].map((c) => frame.getCell(`${c}${r}`).value))).toEqual([
+      [orgLabelOf(s), '소화기', '비상등', '계'],
+      ['서울', 1, 2, 3],
+      ['부산', 3, 4, 7],
+      ['계', 4, 6, 10],
+    ]);
     const spread = wb.getWorksheet('지사별');
     if (spread) expect((spread.getRow(1).values as unknown[]).slice(1, 3)).toEqual([orgLabelOf(s), '점검자']);
 

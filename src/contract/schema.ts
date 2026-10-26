@@ -147,7 +147,10 @@ export const sameOrg = (a: string, b: string) => a.replace(/\s+/g, '') === b.rep
 
 /**
  * 빈칸채우기 입력 칸마다 작성처: 입력 칸 key → 제출처 이름. org.mode = 'preset'일 때만.
- * 직접 지정(field.owner) > 열 머리글 > 행 첫 칸 순서로, 제출처 목록의 이름과 같으면 그 제출처. 아무것도 아니면 빠진다.
+ * 직접 지정(field.owner) > 열 머리글 > 그 줄 왼쪽의 글자 칸 순서로, 제출처 목록의 이름과 같으면 그 제출처.
+ * 왼쪽 글자 칸은 첫 칸만이 아니라 입력 칸 앞의 칸을 차례로 본다: 줄에 미리 적힌 값은
+ * 제출처(지사·부서·담당자)일 수도 있고 권역·설비·품목 같은 다른 조건일 수도 있어서,
+ * 그 중 제출처 목록에 있는 이름만 작성처로 본다. 아무것도 아니면 빠진다(그 칸은 누구나 채울 수 있다).
  */
 export function gridOwners(schema: Pick<FormSchema, 'org' | 'blocks'>): Map<string, string> {
   const out = new Map<string, string>();
@@ -156,10 +159,17 @@ export function gridOwners(schema: Pick<FormSchema, 'org' | 'blocks'>): Map<stri
   const find = (s: unknown) => (typeof s === 'string' && s.trim() ? orgs.find((o) => sameOrg(o, s)) : undefined);
   for (const b of schema.blocks) {
     if (b.kind !== 'grid') continue;
-    b.rows.forEach((row, r) => row.forEach((cell, c) => {
+    b.rows.forEach((row) => row.forEach((cell, c) => {
       if (cell.kind !== 'input') return;
-      const first = b.rows[r][0];
-      const owner = find(cell.field.owner) ?? (cell.field.owner ? undefined : find(b.colLabels[c]) ?? (first?.kind === 'fixed' ? find(first.value) : undefined));
+      const left = () => {
+        for (let i = 0; i < c; i++) {
+          const prev = row[i];
+          const o = prev?.kind === 'fixed' ? find(prev.value) : undefined;
+          if (o) return o;
+        }
+        return undefined;
+      };
+      const owner = find(cell.field.owner) ?? (cell.field.owner ? undefined : find(b.colLabels[c]) ?? left());
       if (owner) out.set(cell.field.key, owner);
     }));
   }

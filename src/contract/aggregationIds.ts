@@ -34,13 +34,14 @@ export const AGGREGATION_REQUIRED: Record<Layout, AggregationId[]> = {
 
 /**
  * 이 양식의 필수 취합 방식. 자유 제작형은 모양에 따라 정한다:
- * 입력 줄 영역이 없는데 입력 칸이나 숫자 표가 있으면 지사별 펼치기도 필수(입력 칸 값은 지사별 시트에 한 줄씩 모인다).
+ * 숫자 표가 있으면(같은 틀 시트의 표 칸에는 합계만 남는다) 지사별 펼치기가 필수다.
+ * 입력 줄 영역이 없는데 입력 칸이 있을 때도 필수(입력 칸 값은 지사별 시트에 한 줄씩 모인다).
  */
 export function requiredAggregations(schema: Pick<FormSchema, 'layout' | 'blocks'>): AggregationId[] {
   const base = AGGREGATION_REQUIRED[schema.layout];
   if (schema.layout !== 'free') return base;
   const has = (k: string) => schema.blocks.some((b) => b.kind === k);
-  return !has('list') && (has('fields') || has('matrix')) ? [...base, 'spread'] : base;
+  return has('matrix') || (!has('list') && has('fields')) ? [...base, 'spread'] : base;
 }
 
 /** 이 양식에서 고를 수 있는 취합 방식. 제출 현황표는 지사를 식별할 때(preset·input)만. */
