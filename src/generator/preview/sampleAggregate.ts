@@ -55,15 +55,13 @@ export function sampleAggregate(schema: FormSchema): { info: string; data: Aggre
     const sums = matrix.rowLabels.map((_, r) => matrix.colLabels.map((__, c) => 30 + ((r * 7 + c * 5) % 17)));
     data.matrixSums ??= sums;
     (data.matrixSumsBy ??= {})[matrix.id] = sums;
-    // 결과 파일과 같게: 합계 아래에 제출처별 값을 한 줄씩 쌓는다
+    // 결과 파일과 같게: 표 자리에 제출처별 줄을 쌓고 맨 아래에 '계' 줄
     const many = matrix.rowLabels.length > 1;
-    (data.stackedBy ??= {})[matrix.id] = {
-      title: `${who}별 적어 낸 값${matrix.title?.trim() ? ` — ${matrix.title.trim()}` : ''}`,
-      columns: [{ header: who }, ...(many ? [{ header: '항목' }] : []), ...matrix.colLabels.map((c) => ({ header: c, field: matrix.cell }))],
-      rows: orgs.flatMap((_, o) => matrix.rowLabels.map((rl, r) => [
-        useOrg ? orgs[o] : files[o], ...(many ? [rl] : []),
-        ...matrix.colLabels.map((__, c) => byOrg(sums[r][c], o)),
-      ])),
+    (data.matrixRowsBy ??= {})[matrix.id] = {
+      who,
+      labels: matrix.rowLabels.flatMap(() => orgs.map((_, o) => (useOrg ? orgs[o] : files[o]))),
+      ...(many ? { group: matrix.rowLabels.flatMap((_, r) => orgs.map(() => r)) } : {}),
+      values: matrix.rowLabels.flatMap((_, r) => orgs.map((__, o) => matrix.colLabels.map((___, c) => byOrg(sums[r][c], o)))),
     };
   }
   const grid = schema.blocks.find((b) => b.kind === 'grid');

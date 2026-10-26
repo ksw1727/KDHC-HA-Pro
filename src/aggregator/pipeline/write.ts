@@ -232,10 +232,14 @@ function copyAuthorNotes(ws: ExcelJS.Worksheet, schema: FormSchema, res: Resolve
       });
     }
     if (b.kind === 'matrix' && m?.kind === 'matrix') {
-      m.cells.forEach((row, r) => row.forEach((a, c) => { const t = frame.matrixNotes[`${b.id}:${r}:${c}`]; if (t) add(a, t); }));
+      // [자동] 메모는 그 항목의 '계' 줄에 (합에서 뺀 값이 몇 개인지), 작성자 메모는 그 제출처 줄에
+      (m.totalCells ?? []).forEach((row, r) => row.forEach((a, c) => { const t = frame.matrixNotes[`${b.id}:${r}:${c}`]; if (t) add(a, t); }));
+      const refs = frame.matrixRefs[b.id] ?? [];
       for (const s of res.included) for (const n of s.read.authorNotes) {
         const at = s.read.matrices?.[b.id]?.flatMap((row, r) => row.map((cell, c) => ({ cell, r, c }))).find((x) => x.cell?.address === n.address);
-        if (at) add(m.cells[at.r][at.c], `${s.label}: ${n.text}`);
+        if (!at) continue;
+        const i = refs.findIndex((x) => x.fileId === s.fileId && x.r === at.r);
+        if (i >= 0 && m.cells[i]?.[at.c]) add(m.cells[i][at.c], `${s.label}: ${n.text}`);
       }
     }
     if (b.kind === 'grid' && m?.kind === 'grid') {

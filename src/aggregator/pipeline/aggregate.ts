@@ -1,4 +1,4 @@
-import { layoutSheet, type AggregateFill, type SheetModel } from '@contract/layout';
+import { layoutSheet, type AggregateFill, type MatrixRows, type SheetModel } from '@contract/layout';
 import type { CellValue } from '@contract/meta';
 import { computeHeader, computeListRow } from '@contract/formula';
 import { orgLabel, type Field, type FormSchema, type ListBlock } from '@contract/schema';
@@ -26,7 +26,14 @@ export interface FrameRowRef { fileId: string; sourceRow: number }
 /** 소수 더하기 찌꺼기(0.1 + 0.2 = 0.30000000000000004)를 지운다 */
 const tidy = (n: number) => Number(n.toFixed(10));
 
-export interface SameFrame { model: SheetModel; rowRefs: FrameRowRef[]; spareRefs: FrameRowRef[]; matrixNotes: Record<string, string> }
+/** 숫자 표의 제출처 줄 하나가 어느 제출의 몇 번째 행 제목인지 (작성자 메모를 그 줄로 옮길 때 씀) */
+export interface MatrixRowRef { fileId: string; r: number }
+
+export interface SameFrame {
+  model: SheetModel; rowRefs: FrameRowRef[]; spareRefs: FrameRowRef[];
+  matrixNotes: Record<string, string>;
+  matrixRefs: Record<string, MatrixRowRef[]>;   // 블록 id → cellMap.cells와 같은 순서
+}
 
 const statusOf = (s: FinalSubmission, sourceRow: number, keys: string[], flags: string[] = []): string => {
   const words = new Set<string>();
@@ -70,6 +77,7 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
   const rowRefs: FrameRowRef[] = [];
   const spareRefs: FrameRowRef[] = [];
   const matrixNotes: Record<string, string> = {};
+  const matrixRefs: Record<string, MatrixRowRef[]> = {};
 
   if (list) {
     data.autoColumns = [...(useOrg ? [orgLabel(schema)] : []), ...headerFields.map((f) => f.label), ...(keepSource ? ['출처 파일'] : []), ...(clean ? [] : ['원본 줄', '상태'])];
@@ -110,16 +118,21 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
       if (skipped && !clean) matrixNotes[`${m.id}:${r}:${c}`] = `[자동] 숫자가 아니라서 합에서 뺀 값 ${skipped}개`;
       return any ? tidy(sum) : null;
     }));
-    // 합계 위 칸에는 한 숫자만 남으므로, 제출처가 적어 낸 값을 한 줄씩 그대로 쌓는다
+    // 표 칸에 합계 하나만 남지 않게, 제출처가 적어 낸 줄을 그대로 쌓고 맨 아래에 '계' 줄을 둔다
     const many = m.rowLabels.length > 1;
-    (data.stackedBy ??= {})[m.id] = {
-      title: `${who}별 적어 낸 값${m.title?.trim() ? ` — ${m.title.trim()}` : ''}`,
-      columns: [{ header: who }, ...(many ? [{ header: '항목' }] : []), ...m.colLabels.map((c) => ({ header: c, field: m.cell }))],
-      rows: res.included.flatMap((s) => m.rowLabels.map((rl, r) => [
-        useOrg ? s.label : s.sourceFile, ...(many ? [rl] : []),
-        ...m.colLabels.map((__, c) => s.matrices?.[m.id]?.[r]?.[c] ?? null),
-      ])),
-    };
+    const refs: MatrixRowRef[] = [];
+    const rows: MatrixRows = { who, labels: [], ...(many ? { group: [] } : {}), values: [] };
+    // 행 제목(항목)으로 묶고, 묶음 안에서는 제출처 순서
+    m.rowLabels.forEach((_, r) => {
+      for (const s of res.included) {
+        rows.labels.push(useOrg ? s.label : s.sourceFile);
+        rows.group?.push(r);
+        rows.values.push(m.colLabels.map((__, c) => s.matrices?.[m.id]?.[r]?.[c] ?? null));
+        refs.push({ fileId: s.fileId, r });
+      }
+    });
+    (data.matrixRowsBy ??= {})[m.id] = rows;
+    matrixRefs[m.id] = refs;
   }
 
   const grid = schema.blocks.find((b) => b.kind === 'grid');
@@ -149,7 +162,7 @@ export function buildSameFrame(schema: FormSchema, res: Resolved, info: string, 
   }
 
   const model = layoutSheet(schema, { mode: 'aggregate', info, data }, { today });
-  return { model, rowRefs, spareRefs, matrixNotes };
+  return { model, rowRefs, spareRefs, matrixNotes, matrixRefs };
 }
 
 /** 지사별 시트 이름: 제출처를 식별하지 않으면(none) 응답 파일 단위라 '파일별' */

@@ -41,9 +41,10 @@ export interface ListBlockMap {
 }
 export interface MatrixBlockMap {
   kind: 'matrix';
-  rowLabelCells: string[];      // rowLabels와 같은 순서
+  rowLabelCells: string[];      // rowLabels와 같은 순서 (취합본은 제출처 줄 순서)
   colLabelCells: string[];      // colLabels와 같은 순서
-  cells: string[][];            // [rowIndex][colIndex] = 칸 주소
+  cells: string[][];            // [rowIndex][colIndex] = 칸 주소 (취합본은 [제출처 줄][열])
+  totalCells?: string[][];      // 취합본만: [원래 행 제목][열] = 그 항목의 '계' 줄 칸 주소
 }
 export interface GridBlockMap {
   kind: 'grid';

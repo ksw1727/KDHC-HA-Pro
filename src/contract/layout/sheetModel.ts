@@ -48,13 +48,25 @@ export interface AggregateFill {
   }[];
   matrixSums?: CellValue[][];        // matrix: 칸별 합 [row][col]
   matrixSumsBy?: Record<string, CellValue[][]>;   // 자유 제작형처럼 숫자 표가 여러 개일 때: 블록 id → 칸별 합 (없으면 matrixSums)
+  matrixRowsBy?: Record<string, MatrixRows>;      // 블록 id → 제출처별 줄. 있으면 표 자리에 합계 대신 이 줄들 + '계' 줄을 그린다
   grid?: Record<string, { value: CellValue; note?: string }>;   // fill-in 입력칸 겹친 값
   gridSpare?: { values: CellValue[]; auto: CellValue[] }[];       // fill-in 여유 줄에 추가된 행
   stackedBy?: Record<string, StackedRows>;        // 블록 id → 제출처별로 그대로 쌓은 줄 (시트 맨 아래에 붙는다)
 }
 
 /**
- * 합계·대표값 하나만 남는 자리(숫자 표, 여러 곳이 같은 칸을 채운 빈칸채우기)의 원래 내용.
+ * 숫자 표의 취합 결과: 합계 한 줄 대신 제출처가 적어 낸 줄을 그대로 쌓는다.
+ * 행 제목이 여럿이면 `group`으로 묶고 묶음마다 '계' 줄이 붙는다(그 값이 예전 합계 칸 값이다).
+ */
+export interface MatrixRows {
+  who: string;                  // 첫 열 머리글 ('지사' 또는 '출처 파일')
+  labels: string[];             // 줄마다 제출처 이름
+  group?: number[];             // 줄마다 속한 행 제목 번호 (행 제목이 2개 이상일 때만)
+  values: CellValue[][];        // [줄][열] — 데이터 열만 (계 열·계산 열은 다시 계산한다)
+}
+
+/**
+ * 합계·대표값 하나만 남는 자리(여러 곳이 같은 칸을 채운 빈칸채우기)의 원래 내용.
  * 같은 틀 시트 맨 아래에 '제출처별 …' 블록으로 그대로 쌓아, 결과 파일만 봐도 누가 무엇을 냈는지 남는다.
  */
 export interface StackedRows {

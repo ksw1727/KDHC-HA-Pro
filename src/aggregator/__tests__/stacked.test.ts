@@ -4,6 +4,7 @@ import { SAMPLE, f } from '@contract/__tests__/fixtures';
 import { requiredAggregations } from '@contract/aggregationIds';
 import type { FormSchema } from '@contract/schema';
 import type { MatrixBlockMap } from '@contract/meta';
+import type { SheetModel } from '@contract/layout';
 import { analyze } from '../pipeline/run';
 import { resolve } from '../pipeline/resolve';
 import { emptyDecisions } from '../pipeline/types';
@@ -16,6 +17,14 @@ const ctx = { year: 2026, today: NOW };
 async function run(schema: FormSchema, files: Awaited<ReturnType<typeof makeFile>>[]) {
   const a = await analyze(files, [], schema, NOW);
   return resolve(schema, a.identified, a.parsed, emptyDecisions(), ctx);
+}
+
+
+/** 시트의 (행 from부터 n줄 × 왼쪽 w칸) 값 */
+function gridAt(model: SheetModel, from: number, w: number, n: number): (string | number | null)[][] {
+  const at = new Map(model.cells.map((c) => [c.address, c]));
+  return Array.from({ length: n }, (_, i) =>
+    Array.from({ length: w }, (__, k) => at.get(`${String.fromCharCode(65 + k)}${from + i}`)?.value ?? null));
 }
 
 /** 같은 틀 시트에서 '제출처별' 블록의 줄 (제목 행 → 머리글 행 → 값) */
@@ -38,39 +47,52 @@ function stackedRows(model: ReturnType<typeof buildSameFrame>['model'], title: s
   return { columns: read(top + 1), rows };
 }
 
-describe('숫자 표: 합계 아래에 제출처별 값이 그대로 쌓인다', () => {
-  const schema = SAMPLE.matrix;
+describe('숫자 표: 합계 한 칸 대신 제출처 줄 + 계 줄', () => {
+  const schema = SAMPLE.matrix;   // 행 '1학년'·'2학년', 열 '남'·'여', 합계 행·계 열 있음
   const fill = (vals: number[][]) => (ws: { getCell(a: string): { value: unknown } }, m: { cellMap: { blocks: Record<string, unknown> } }) => {
     const mm = m.cellMap.blocks.b1 as MatrixBlockMap;
     vals.forEach((row, r) => row.forEach((v, c) => { ws.getCell(mm.cells[r][c]).value = v; }));
   };
 
-  test('결과 파일 첫 장에 합계 한 줄 + 제출처별 줄이 같이 있다', async () => {
+  test('항목으로 묶어 제출처 줄을 쌓고, 묶음마다 계 줄에 열별 합이 들어간다', async () => {
     const files = [
       await makeFile(schema, '서울.xlsx', { fill: (ws, m) => { ws.getCell('B4').value = '서울'; fill([[3, 4], [5, 6]])(ws, m); } }),
       await makeFile(schema, '부산.xlsx', { fill: (ws, m) => { ws.getCell('B4').value = '부산'; fill([[1, 2], [7, 8]])(ws, m); } }),
     ];
     const res = await run(schema, files);
     const clean = buildSameFrame(schema, res, '', NOW, true);   // true = 결과 파일(값만)
-    const mm = clean.model.cellMap.blocks.b1 as MatrixBlockMap;
-    const at = new Map(clean.model.cells.map((c) => [c.address, c]));
-    expect(at.get(mm.cells[0][0])?.value).toBe(4);   // 합계는 그대로 (3 + 1)
-    expect(at.get(mm.cells[1][1])?.value).toBe(14);  // 6 + 8
-
-    const st = stackedRows(clean.model, '지사별 적어 낸 값');
-    expect(st?.columns).toEqual(['지사', '항목', '남', '여']);
-    expect(st?.rows).toEqual([
-      ['부산', '1학년', 1, 2], ['부산', '2학년', 7, 8],
-      ['서울', '1학년', 3, 4], ['서울', '2학년', 5, 6],
+    // 표 자리에 머리글 + (항목별 제출처 줄 + 계 줄) + 합계 줄
+    expect(gridAt(clean.model, 6, 5, 8)).toEqual([
+      ['지사', '항목', '남', '여', '계'],
+      ['부산', '1학년', 1, 2, 3],
+      ['서울', '1학년', 3, 4, 7],
+      ['계 · 1학년', '1학년', 4, 6, 10],
+      ['부산', '2학년', 7, 8, 15],
+      ['서울', '2학년', 5, 6, 11],
+      ['계 · 2학년', '2학년', 12, 14, 26],
+      ['합계', null, 16, 20, 36],
     ]);
   });
 
-  test('쌓은 줄은 검산(숫자 합계)을 흔들지 않는다', async () => {
+  test('합계 칸은 사라지고, 검산(숫자 합계)은 그대로 맞는다', async () => {
     const files = [await makeFile(schema, '서울.xlsx', { fill: (ws, m) => { ws.getCell('B4').value = '서울'; fill([[3, 4], [5, 6]])(ws, m); } })];
     const res = await run(schema, files);
     const frame = buildSameFrame(schema, res, '', NOW);
     const v = verify(schema, res, frame.model);
     expect(v.lines.filter((l) => !l.ok)).toEqual([]);
+    const mm = frame.model.cellMap.blocks.b1 as MatrixBlockMap;
+    expect(mm.cells.length).toBe(2);              // 제출처 1곳 × 항목 2개
+    expect(mm.totalCells?.length).toBe(2);        // 항목마다 계 줄
+  });
+
+  test('제출처가 적어 내지 않은 항목도 빈 줄로 남는다', async () => {
+    const files = [
+      await makeFile(schema, '서울.xlsx', { fill: (ws, m) => { ws.getCell('B4').value = '서울'; fill([[3, 4], [5, 6]])(ws, m); } }),
+      await makeFile(schema, '부산.xlsx', { fill: (ws) => { ws.getCell('B4').value = '부산'; } }),
+    ];
+    const res = await run(schema, files);
+    const clean = buildSameFrame(schema, res, '', NOW, true);
+    expect(gridAt(clean.model, 7, 3, 2)).toEqual([['부산', '1학년', null], ['서울', '1학년', 3]]);
   });
 });
 
