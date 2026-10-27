@@ -497,7 +497,7 @@ class Layouter {
     mr.labels.forEach((label, i) => {
       // 묶음이 바뀌면 앞 묶음의 계 줄을 먼저 넣는다
       const prev = mr.group?.[i - 1];
-      if (many && i > 0 && prev !== mr.group![i]) totalRow(`계 · ${b.rowLabels[prev!]}`, full.values[prev!], prev);
+      if (many && i > 0 && prev !== mr.group![i]) totalRow(TOTAL_COL_NAME, full.values[prev!], prev);
       const la = addr(c0, row);
       this.put({ address: la, value: label, role: 'header' });
       map.rowLabelCells.push(la);
@@ -516,7 +516,7 @@ class Layouter {
 
     // 마지막 묶음(또는 하나뿐인 표)의 계 줄
     const last = many ? mr.group![mr.labels.length - 1] : 0;
-    if (mr.labels.length) totalRow(many ? `계 · ${b.rowLabels[last]}` : '계', full.values[last] ?? [], last);
+    if (mr.labels.length) totalRow(TOTAL_COL_NAME, full.values[last] ?? [], last);
     // 행 제목이 여럿일 때만 전체 합계 줄 (하나면 위 '계'와 같은 값이라 넣지 않는다)
     if (many && b.totalRow) totalRow(TOTAL_ROW_NAME, full.values[b.rowLabels.length] ?? []);
     (b.calcRows ?? []).forEach((f, k) => totalRow(f.label, full.values[b.rowLabels.length + (b.totalRow ? 1 : 0) + k] ?? []));

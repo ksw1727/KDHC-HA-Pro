@@ -163,6 +163,16 @@ describe('안 낸 줄의 계산 칸은 빈칸', () => {
     expect(computeListRow(l, { q: null, p: null }).amt).toBeNull();
     expect(computeListRow(l, { q: 2, p: null }).amt).toBe(0);
   });
+  test('숫자 표: 계 열·합계 줄에 소수 찌꺼기가 남지 않는다', () => {
+    const m: MatrixBlock = {
+      kind: 'matrix', id: 'm1', rowLabels: ['정기'], colLabels: ['1분기', '2분기', '3분기', '4분기'],
+      cell: f('c', '값', { type: 'number' }), totalRow: true, totalCol: true,
+    };
+    // 1149.78 + 711.8 + 455.28 + 1231.44 = 3548.3 (그냥 더하면 3548.2999999999997)
+    const { values } = computeMatrix(m, [[1149.78, 711.8, 455.28, 1231.44]]);
+    expect(values[0][4]).toBe(3548.3);
+    expect(values[1][4]).toBe(3548.3);
+  });
   test('숫자 표: 안 적은 줄의 계산 열은 빈칸, 합계 줄은 계산', () => {
     const m: MatrixBlock = {
       kind: 'matrix', id: 'm1', rowLabels: ['1분기', '2분기'], colLabels: ['남', '여'],

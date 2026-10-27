@@ -116,7 +116,11 @@ export function computeHeader(schema: FormSchema, header: Record<string, Value>,
   return out;
 }
 
-const sum = (xs: Value[]) => xs.reduce<number>((s, v) => s + (typeof v === 'number' ? v : 0), 0);
+// 소수 더하기 찌꺼기(0.1 + 0.2 = 0.30000000000000004)는 엑셀처럼 유효숫자 15자리로 정리
+const sum = (xs: Value[]) => {
+  const t = xs.reduce<number>((s, v) => s + (typeof v === 'number' ? v : 0), 0);
+  return Number.isFinite(t) ? Number(t.toPrecision(15)) : t;
+};
 
 export interface MatrixFull {
   rowNames: string[];   // 행 제목 + (합계) + 계산 행

@@ -5,7 +5,7 @@ import { buildMeta, writeChunkSheet, writeMeta } from '@contract/metaIO';
 import { kdhcProps, patchXlsx } from '@contract/xlsxPatch';
 import { CONTRACT_VERSION } from '@contract/version';
 import { availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
-import { blockFields, orgLabel, type Field, type FormSchema } from '@contract/schema';
+import { blockFields, orgLabel, unitLabel, type Field, type FormSchema } from '@contract/schema';
 import { FIELD_TYPES } from '@contract/fieldTypes';
 import { buildSameFrame, fmtTime, spreadTable, statusTable, type SameFrame, type Table } from './aggregate';
 import { RECORDS_MARK, RECORDS_SHEET, slotId } from './parse';
@@ -187,7 +187,8 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
 /** 오류 · 파일목록 · 검산 · 판단 기록 · 메모 · 추가 칸 */
 function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, schema: FormSchema, res: Resolved, vr: VerifyResult, fieldOf: Map<string, Field>) {
   const collect = schema.layout === 'collect';
-  const lbl = orgLabel(schema);
+  // 제출처를 식별하지 않는 양식(none)은 한 줄 = 응답 파일이라 머리글도 '파일'
+  const lbl = unitLabel(schema);
   const labelOf = (fileId: string) => res.files.find((f) => f.fileId === fileId)?.label ?? '';
   const nameOf = (fileId: string) => res.files.find((f) => f.fileId === fileId)?.fileName ?? '';
   const infoIssues = res.included.flatMap((s) => s.issues.filter((i) => i.severity === 'info'));
@@ -270,7 +271,7 @@ function fileListTable(schema: FormSchema, res: Resolved): Table {
     ];
   });
   for (const o of res.missingOrgs) rows.push([o, '', '미제출', '', '', null, null, null, null, null, null, null, null, '', '', '']);
-  return table('파일목록', [orgLabel(schema), '파일명', '상태', '사유', '저장 시각', '읽은 줄', '반영 줄', '빈 줄', '예시 줄', '합계 줄', '운영자 제외', '중복 줄', '숨긴 줄 제외', '읽지 않은 시트', '모은 시트', '알림'], rows);
+  return table('파일목록', [unitLabel(schema), '파일명', '상태', '사유', '저장 시각', '읽은 줄', '반영 줄', '빈 줄', '예시 줄', '합계 줄', '운영자 제외', '중복 줄', '숨긴 줄 제외', '읽지 않은 시트', '모은 시트', '알림'], rows);
 }
 
 /** 시트 모으기: 원본 시트를 값·서식·합친 셀·열 너비·줄 높이 그대로 복사. collect 양식이면 맨 앞에 목차 */
