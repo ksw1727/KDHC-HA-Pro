@@ -1,4 +1,5 @@
 import type { FormSchema } from '@contract/schema';
+import { canonicalJSON } from '@contract/checksum';
 import { scopedStorageKey } from '../../cloud/runtime';
 import { queueForm, reportStorageFailure } from '../../cloud/forms';
 import { markRemoved } from './removedForms';
@@ -48,6 +49,18 @@ export function loadForm(formId: string): StoredForm | null {
   } catch {
     return null;
   }
+}
+
+/** 저장시각(updatedAt)만 빼고 같은 양식인가 */
+const sameContent = (a?: FormSchema, b?: FormSchema) => (!a && !b) || (!!a && !!b && canonicalJSON({ ...a, updatedAt: '' }) === canonicalJSON({ ...b, updatedAt: '' }));
+
+/**
+ * 이 브라우저에 이미 똑같이 저장돼 있나. 양식을 열기만 하고 고치지 않았으면 다시 저장하지 않는다:
+ * 열 때마다 저장하면 서버 버전만 올라가 다른 탭·기기의 수정과 충돌한다.
+ */
+export function isSavedAsIs(entry: Omit<StoredForm, 'savedAt'>): boolean {
+  const s = loadForm(entry.schema.formId);
+  return !!s && sameContent(s.schema, entry.schema) && sameContent(s.lastExported, entry.lastExported);
 }
 
 export function loadCurrent(): StoredForm | null {

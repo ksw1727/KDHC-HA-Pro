@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
+import { findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
 import { buildCloudChatBody, prepareCloudSources, type CloudSource } from './cloudAttachments';
 import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
@@ -57,7 +58,7 @@ const SOURCES_KEY = 'hanan-moa:ai-sources';
 function loadSources(): CloudSource[] {
   try { const xs = JSON.parse(sessionStorage.getItem(scopedStorageKey(SOURCES_KEY)) ?? '[]'); return Array.isArray(xs) ? xs : []; } catch { return []; }
 }
-function loadChat(): { chatId: string | null; msgs: Msg[]; aiVersion: string | null } {
+function loadChat(): { chatId: string | null; msgs: Msg[]; aiVersion: string | null; threadId?: string } {
   const draft = loadDraft();
   return { ...draft, msgs: draft.msgs as Msg[] };
 }
@@ -88,6 +89,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const [msgs, setMsgs] = useState<Msg[]>(saved.msgs);
   // AI 작업 폴더에 있는 양식(마지막으로 AI가 만들었거나 AI에게 넘긴 것). 화면 양식과 다르면 다음 말에 함께 넘긴다
   const [aiVersion, setAiVersion] = useState<string | null>(saved.aiVersion);
+  // 대화 보관함 번호 (src/ai/threads.ts). 말이 오가기 시작하면 붙인다
+  const [threadId, setThreadId] = useState<string | null>(saved.threadId ?? null);
   const [input, setInput] = useState('');
   const [attached, setAttached] = useState<File[]>([]);   // 쓰던 엑셀 올리기
   const [fileNote, setFileNote] = useState('');
@@ -108,8 +111,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const keepSources = (xs: CloudSource[]) => { sources.current = xs; try { sessionStorage.setItem(scopedStorageKey(SOURCES_KEY), JSON.stringify(xs)); } catch { /* 보관 못 해도 됨 */ } };
   const end = useRef<HTMLDivElement>(null);
 
-  const draftSync = useCloudDraft({ chatId, msgs, aiVersion }, busy, (draft: Draft) => {
-    setChatId(draft.chatId); setMsgs(draft.msgs as Msg[]); setAiVersion(draft.aiVersion);
+  const draftSync = useCloudDraft({ chatId, msgs, aiVersion, ...(threadId ? { threadId } : {}) }, busy, (draft: Draft) => {
+    setChatId(draft.chatId); setMsgs(draft.msgs as Msg[]); setAiVersion(draft.aiVersion); setThreadId(draft.threadId ?? null);
     if (!draft.msgs.length) keepSources([]);
   });
   useEffect(() => {
@@ -121,6 +124,83 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   useEffect(() => { try { if (model) localStorage.setItem(scopedStorageKey(MODEL_KEY), model); } catch { /* 저장 못 해도 됨 */ } }, [model]);
   const openaiModel = models.includes(model) ? model : models[0];
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
+
+  // ── 대화 보관함: 지금 대화를 남기고, 내 업무공간에서 연 양식의 대화로 바꾼다 ──
+  useEffect(() => { if (msgs.length && !threadId) setThreadId(newThreadId()); }, [msgs.length, threadId]);
+  const [archiveNote, setArchiveNote] = useState('');
+  const now = useRef({ threadId, chatId, msgs, aiVersion, busy }); now.current = { threadId, chatId, msgs, aiVersion, busy };
+  const canSwitch = !cloudEnabled || draftSync.ready;
+  useEffect(() => {
+    if (!threadId || !msgs.length || busy || !canSwitch) return;
+    const t = setTimeout(() => { void saveThread({ threadId, chatId, msgs, aiVersion }).then((e) => setArchiveNote(e ? '이 대화를 서버 대화 목록에 남기지 못했어요 (이 기기에는 남아 있어요).' : '')); }, 800);
+    return () => clearTimeout(t);
+  }, [threadId, chatId, msgs, aiVersion, busy, canSwitch]);
+  const [opening, setOpening] = useState('');   // 대화를 찾는 중 안내
+  /** 다른 대화로 바꾼다. form: 그 대화에서 열 양식 → 마지막 카드가 그 양식이 되게 (아니면 카드를 붙인다) */
+  const switchTo = async (next: { threadId: string; chatId: string | null; msgs: Msg[]; aiVersion: string | null }, form?: FormSchema, note = '내 업무공간에서 연 양식이에요. 오른쪽 패널에서 고치거나, 여기서 말로 고쳐 달라고 해 주세요.') => {
+    const cur = now.current;
+    if (cur.threadId && cur.msgs.length && cur.threadId !== next.threadId) await saveThread(cur);
+    let xs = next.msgs;
+    if (form) {
+      const found = loadForm(form.formId)?.schema;
+      const s = found && sameForm(found, form) ? found : form;
+      const i = xs.map((m) => !!m.form).lastIndexOf(true);
+      if (i >= 0 && xs[i].form!.formId === s.formId) {
+        if (sig(xs[i].form!) !== sig(s)) xs = xs.map((m, k) => (k === i ? { ...m, ...checkLocal(s), edited: true, base: m.base ?? m.form } : m));
+      } else xs = [...xs, { role: 'ai', opened: true, text: note, ...checkLocal(s) }];
+    }
+    setThreadId(next.threadId); setChatId(next.chatId); setAiVersion(next.aiVersion); setMsgs(xs);
+    setInput(''); setAttached([]); setFileNote(''); keepSources([]);
+  };
+  /** 내 업무공간(일정·양식 카드)에서 양식을 열었다 → 그 양식을 만든 대화와 미리보기를 보여 준다 */
+  const openFor = async (form: FormSchema) => {
+    const cur = now.current;
+    if (cur.busy) { setOpening('AI가 답하는 중이라 대화를 바꾸지 않았어요. 답이 끝난 뒤 다시 열어 주세요.'); return; }
+    if (cur.msgs.some((m) => m.form?.formId === form.formId)) { await switchTo({ ...cur, threadId: cur.threadId ?? newThreadId() }, form); return; }
+    setOpening('이 양식을 만든 대화를 찾고 있어요…');
+    try {
+      const t = await findThreadForForm(form.formId);
+      if (t) { await switchTo({ threadId: t.threadId, chatId: t.chatId, msgs: t.msgs as Msg[], aiVersion: t.aiVersion }, form); setOpening(''); return; }
+      const rec = await recoverFromServerChat(form.formId).catch(() => null);
+      if (rec && rec.msgs.length) {
+        await switchTo({ threadId: newThreadId(), chatId: rec.chatId, msgs: rec.msgs, aiVersion: rec.form ? sig(rec.form) : '' }, form,
+          '예전 대화는 글만 남아 있어 다시 불러왔어요. 이 양식의 미리보기예요. 여기서 이어서 말하면 같은 대화로 이어져요.');
+      } else {
+        await switchTo({ threadId: newThreadId(), chatId: null, msgs: [], aiVersion: '' }, form,
+          '이 양식을 만든 대화 기록이 남아 있지 않아 양식만 불러왔어요. 오른쪽 패널에서 고치거나, 여기서 말로 고쳐 달라고 해 주세요.');
+      }
+      setOpening('');
+    } catch (e) { setOpening(`대화를 불러오지 못했어요: ${(e as Error).message}`); }
+  };
+  const openForRef = useRef(openFor); openForRef.current = openFor;
+  const pendingOpen = useRef<FormSchema | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const d = (e as CustomEvent<{ schema: FormSchema; from?: string }>).detail;
+      if (d.from !== 'workspace') return;
+      if (canSwitchRef.current) void openForRef.current(d.schema); else pendingOpen.current = d.schema;
+    };
+    window.addEventListener('hanan-moa:open-form', on);
+    return () => window.removeEventListener('hanan-moa:open-form', on);
+  }, []);
+  const canSwitchRef = useRef(canSwitch); canSwitchRef.current = canSwitch;
+  useEffect(() => { if (canSwitch && pendingOpen.current) { const f = pendingOpen.current; pendingOpen.current = null; void openFor(f); } });
+  const [threadList, setThreadList] = useState<{ list: ThreadSummary[]; error?: string; loading?: boolean } | null>(null);
+  const showThreads = async () => {
+    const cur = now.current;
+    if (cur.threadId && cur.msgs.length) await saveThread(cur);
+    setThreadList({ list: [], loading: true }); setThreadList(await listThreads());
+  };
+  const pickThread = async (id: string) => {
+    setThreadList(null);
+    if (id === now.current.threadId || now.current.busy) return;
+    const t = await loadThread(id);
+    if (!t) { setOpening('그 대화를 불러오지 못했어요.'); return; }
+    setOpening('');
+    await switchTo({ threadId: t.threadId, chatId: t.chatId, msgs: t.msgs as Msg[], aiVersion: t.aiVersion });
+    const last = [...(t.msgs as Msg[])].reverse().find((m) => m.form)?.form;
+    if (last && !isRemoved(last.formId)) toPanel(loadForm(last.formId)?.schema ?? last, { auto: true, preferStored: true });
+  };
 
 
   const lastForm = [...msgs].reverse().find((m) => m.form)?.form;
@@ -231,10 +311,11 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   };
 
   const reset = () => {
-    if (msgs.length && !window.confirm(cloudEnabled ? '화면 대화를 새로 시작할까요? 서버 대화 기록은 삭제되지 않고, 현재 저장 초안만 비워요. 만든 양식은 빌더·양식 파일에 남아요.' : '지금 대화를 지우고 새로 시작할까요? (만든 양식은 빌더·양식 파일에 남아요)')) return;
     if (busy || (cloudEnabled && !draftSync.ready)) return;
+    // 지금 대화는 [대화 목록]에 남긴다
+    if (threadId && msgs.length) void saveThread({ threadId, chatId, msgs, aiVersion });
     draftSync.markCleared();
-    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); keepSources([]);
+    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); keepSources([]); setThreadId(null); setOpening('');
   };
 
   if (health === 'off' || health === 'nokey') {
@@ -261,8 +342,13 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
             {models.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         )}
+        <div className="relative">
+          <Button size="sm" variant="ghost" disabled={busy || !canSwitch} aria-expanded={!!threadList} onClick={() => (threadList ? setThreadList(null) : void showThreads())}>대화 목록</Button>
+          {threadList && <ThreadMenu data={threadList} current={threadId} onPick={(id) => void pickThread(id)} onClose={() => setThreadList(null)} />}
+        </div>
         {msgs.length > 0 && <Button size="sm" variant="ghost" disabled={busy || !draftSync.ready} onClick={reset}>새 대화</Button>}
       </div>
+      {(opening || archiveNote) && <div role="status" className="rounded-box border border-line bg-panel px-3 py-2 text-[13px] text-sub">{opening || archiveNote}</div>}
 
       {cloudEnabled && (!draftSync.ready || draftSync.notice) && <div role="status" className="rounded-box border border-line p-3 text-sm">
         {draftSync.notice || '서버 대화를 불러오는 중이에요. 완료되면 AI에게 보낼 수 있어요.'}
@@ -313,6 +399,27 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       </div>
       <p className="m-0 text-xs text-muted">Enter로 보내고 Shift+Enter로 줄을 바꿔요. 보낸 말은 OpenAI{!cloudEnabled && openaiModel ? ` ${openaiModel}` : ''}로 전달돼요. {cloudEnabled ? '첨부 원본은 보내거나 저장하지 않으며, 동의한 엑셀 요약은 외부 AI에 전달돼요.' : '회신 파일 내용은 보내지 않아요.'}</p>
     </div>
+  );
+}
+
+/** [대화 목록]: 예전 대화로 돌아간다 (최근 순) */
+function ThreadMenu({ data, current, onPick, onClose }: { data: { list: ThreadSummary[]; error?: string; loading?: boolean }; current: string | null; onPick: (id: string) => void; onClose: () => void }) {
+  const when = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  return (
+    <>
+      <div className="fixed inset-0 z-20" aria-hidden onClick={onClose} />
+      <div role="menu" aria-label="대화 목록" className="absolute right-0 top-full z-30 mt-1 flex max-h-[60vh] w-[340px] flex-col overflow-auto rounded-card border border-line bg-white p-1 shadow-lg">
+        {data.error && <p className="m-0 px-2 py-1.5 text-xs text-warn-ink">서버 대화 목록을 읽지 못해 이 기기 대화만 보여요.</p>}
+        {data.list.length === 0 && <p className="m-0 px-2 py-3 text-center text-sub">{data.loading ? '불러오는 중…' : '남아 있는 대화가 없어요.'}</p>}
+        {data.list.map((t) => (
+          <button key={t.threadId} type="button" role="menuitem" onClick={() => onPick(t.threadId)}
+            className={cx('flex flex-col items-start gap-0.5 rounded-box px-2.5 py-2 text-left hover:bg-pri-bg', t.threadId === current && 'bg-panel')}>
+            <span className="w-full truncate text-[13.5px] font-semibold">{t.title}</span>
+            <span className="text-xs text-muted">{when(t.updatedAt)}{t.formIds.length ? ` · 양식 ${t.formIds.length}개` : ''}{t.threadId === current ? ' · 지금 대화' : ''}</span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 

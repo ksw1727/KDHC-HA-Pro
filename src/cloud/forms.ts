@@ -3,7 +3,9 @@ import { markRemoved } from '../generator/storage/removedForms';
 import { activeUser, cloudClient, cloudEnabled, requireUser, scopedStorageKey } from './runtime';
 
 interface Row { form_id: string; payload: StoredForm; updated_at: string; deleted_at: string | null }
-interface Pending { payload: StoredForm | null; deletedPayload?: StoredForm; base: string | null; conflict?: boolean }
+/** force: 사용자가 [삭제]로 지운 것. 지우기는 다른 기기의 수정과 충돌해도 이긴다 (충돌로 묶여 서버에 못 가면 다시 살아난다) */
+interface Pending { payload: StoredForm | null; deletedPayload?: StoredForm; base: string | null; conflict?: boolean; force?: boolean }
+const forceDelete = (p: Pending) => !p.payload && !!p.force;
 interface CacheMeta { versions: Record<string, string>; pending: Record<string, Pending> }
 /** `conflicted` lists the titles of forms held back by a conflict, so the banner can name them. */
 export interface SyncStatus { pending: number; message: string; conflict: boolean; conflicted: string[] }
@@ -57,7 +59,10 @@ export function queueForm(formId: string, payload: StoredForm | null, deletedPay
   requireUser();
   const meta = readMeta();
   if (!payload && !deletedPayload && !meta.pending[formId]?.payload && !meta.versions[formId]) return;
-  meta.pending[formId] = { ...meta.pending[formId], payload, deletedPayload: deletedPayload ?? meta.pending[formId]?.payload ?? meta.pending[formId]?.deletedPayload, base: meta.pending[formId]?.base ?? meta.versions[formId] ?? null };
+  const prev = meta.pending[formId];
+  meta.pending[formId] = { ...prev, payload, deletedPayload: deletedPayload ?? prev?.payload ?? prev?.deletedPayload, base: prev?.base ?? meta.versions[formId] ?? null,
+    // 지우기: 남아 있던 충돌을 풀고 서버 버전과 상관없이 지운다. 다시 저장하면 보통 저장(버전 비교)으로 돌아간다
+    conflict: payload ? prev?.conflict : false, force: payload ? undefined : true };
   persist(meta);
   report(meta, '클라우드 저장 대기 중 · 현재는 이 기기에만 저장됨');
   if (timer) clearTimeout(timer);
@@ -91,7 +96,7 @@ async function hydrateLocked(owner: string, epoch: number): Promise<void> {
     const pending = meta.pending[row.form_id];
     if (!pending) { cacheRow(row); meta.versions[row.form_id] = row.updated_at; }
     else if (sameAsServer(pending, row)) settle(meta, row.form_id, row);
-    else if (pending.base !== row.updated_at) pending.conflict = true;
+    else if (!forceDelete(pending) && pending.base !== row.updated_at) pending.conflict = true;
   }
   for (const [id, p] of Object.entries(meta.pending)) {
     if (!ids.has(id) && !p.payload) { settle(meta, id, undefined); continue; }
@@ -115,10 +120,16 @@ export async function flushForms(): Promise<void> {
         if (!pending || pending.conflict || activeUser() !== owner || epoch !== sequence) continue;
         const updatedAt = new Date(Math.max(Date.now(), Date.parse(pending.base ?? '') + 1 || 0)).toISOString();
         const row = { user_id: owner, form_id: id, ...(pending.payload ? { payload: pending.payload } : pending.base === null ? { payload: pending.deletedPayload } : {}), updated_at: updatedAt, deleted_at: pending.payload ? null : updatedAt };
+        const force = forceDelete(pending);
+        // 지우기는 서버 내용(payload)은 그대로 두고 지운 표시만 한다. 버전이 달라도 지운다
+        const tombstone = () => cloudClient().from('moa_forms').update({ user_id: owner, form_id: id, updated_at: updatedAt, deleted_at: updatedAt }).eq('user_id', owner).eq('form_id', id).select('updated_at');
         // Compare-and-swap prevents quietly overwriting another device, including tombstones.
-        const result = pending.base === null
+        let result = pending.base === null
           ? await cloudClient().from('moa_forms').insert(row).select('updated_at')
+          : force ? await tombstone()
           : await cloudClient().from('moa_forms').update(row).eq('user_id', owner).eq('form_id', id).eq('updated_at', pending.base).select('updated_at');
+        // 이 기기에서 처음 올리는 양식을 지웠는데 서버에 이미 있으면(다른 기기·탭이 올림) 그 행을 지운다
+        if (force && pending.base === null && result.error?.code === '23505') result = await tombstone();
         if (activeUser() !== owner || epoch !== sequence) return;
         meta = readMeta();
         if (result.error || !result.data?.length) {

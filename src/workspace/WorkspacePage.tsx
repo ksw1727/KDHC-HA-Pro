@@ -26,7 +26,8 @@ const DONE_TONE = { bg: '#f1f4f8', fg: '#56616e', solid: '#8a95a2' };
 const go = (tab: 'ai' | 'aggregator', formId?: string) => window.dispatchEvent(new CustomEvent('hanan-moa:tab', { detail: { tab, formId } }));
 /** 새 양식: AI로 만들기 화면의 오른쪽 설정 패널에서 시작 (빈 양식 만들기·양식 파일 열기) */
 const newForm = () => window.dispatchEvent(new CustomEvent('hanan-moa:tab', { detail: { tab: 'ai', panel: true } }));
-const openForm = (i: WorkItem) => window.dispatchEvent(new CustomEvent('hanan-moa:open-form', { detail: { schema: i.schema, lastExported: i.entry.lastExported } }));
+/** 양식 열기: 설정 패널에 열고, AI로 만들기는 그 양식을 만든 대화와 미리보기로 바꾼다 (from: 'workspace') */
+const openForm = (i: WorkItem) => window.dispatchEvent(new CustomEvent('hanan-moa:open-form', { detail: { schema: i.schema, lastExported: i.entry.lastExported, from: 'workspace' } }));
 
 export function WorkspacePage() {
   const today = useMemo(() => midnight(new Date()), []);
@@ -38,6 +39,16 @@ export function WorkspacePage() {
     return () => { alive = false; };
   }, []);
   const [rev, setRev] = useState(0);   // 양식을 지우면 목록을 다시 읽는다
+  // 다른 화면·탭이나 클라우드 동기화가 양식을 바꾸거나 지워도 목록과 달력을 다시 읽는다
+  useEffect(() => {
+    const bump = () => setRev((n) => n + 1);
+    window.addEventListener('storage', bump);
+    window.addEventListener('hanan-moa:form-saved', bump);
+    window.addEventListener('hanan-moa:form-removed', bump);
+    return () => { window.removeEventListener('storage', bump); window.removeEventListener('hanan-moa:form-saved', bump); window.removeEventListener('hanan-moa:form-removed', bump); };
+  }, []);
+  // 양식 지우기 확인 창: 내가 만든 양식 카드와 취합 기다리는 양식 카드가 함께 쓴다
+  const [del, setDel] = useState<WorkItem | null>(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const items = useMemo(() => workItems(listForms(), aggs), [aggs, rev]);
   const c = counts(items, aggs, today);
@@ -93,7 +104,7 @@ export function WorkspacePage() {
                 기다리는 양식이 없어요.<br />양식을 엑셀로 내보내면 여기에 올라와요.
               </div>
             )}
-            {waiting.map((i) => <WaitCard key={i.schema.formId} i={i} today={today} tone={tone(i)} hl={hl === i.schema.formId} setHl={setHl} />)}
+            {waiting.map((i) => <WaitCard key={i.schema.formId} i={i} today={today} tone={tone(i)} hl={hl === i.schema.formId} setHl={setHl} onDelete={() => setDel(i)} />)}
           </div>
         </aside>
       </section>
@@ -107,8 +118,16 @@ export function WorkspacePage() {
             </button>
           ))}
         </div>
-        {tab === 'forms' ? <Forms items={items} onRemoved={() => setRev((n) => n + 1)} /> : <History aggs={aggs} items={items} onRemoved={setAggs} />}
+        {tab === 'forms' ? <Forms items={items} onDelete={setDel} /> : <History aggs={aggs} items={items} onRemoved={setAggs} />}
       </section>
+      {del && (
+        <Dialog title="양식을 지울까요?" onClose={() => setDel(null)}
+          footer={<><span className="flex-1" /><Button onClick={() => setDel(null)}>취소</Button>
+            <Button variant="danger" onClick={() => { removeForm(del.schema.formId); setDel(null); setRev((n) => n + 1); }}>삭제</Button></>}>
+          <p className="m-0"><b>{del.schema.title || '제목 없는 양식'}</b> 양식을 내 양식 목록, 취합 기다리는 양식, 취합 일정에서 지워요.</p>
+          <p className="m-0 text-[13px] text-sub">이미 보낸 엑셀 파일과 취합 이력은 그대로 남아요. 양식 파일(.form.json)이 있으면 다시 열 수 있어요.</p>
+        </Dialog>
+      )}
     </div>
   );
 }
@@ -202,7 +221,7 @@ function Calendar({ items, aggs, today, tone, hl, setHl }: {
   );
 }
 
-function WaitCard({ i, today, tone, hl, setHl }: { i: WorkItem; today: Date; tone: Tone; hl: boolean; setHl: (id: string | null) => void }) {
+function WaitCard({ i, today, tone, hl, setHl, onDelete }: { i: WorkItem; today: Date; tone: Tone; hl: boolean; setHl: (id: string | null) => void; onDelete: () => void }) {
   const left = i.deadline ? dayDiff(i.deadline, today) : null;
   const urgent = left !== null && left <= 2;
   const passed = i.deadline && i.deadline > i.made ? Math.max(0, Math.min(1, dayDiff(today, i.made) / dayDiff(i.deadline, i.made))) : 0;
@@ -233,6 +252,7 @@ function WaitCard({ i, today, tone, hl, setHl }: { i: WorkItem; today: Date; ton
       <div className="flex gap-1.5">
         <Button size="sm" variant="pri" onClick={() => go('aggregator', i.schema.formId)}>받은 파일 취합하기</Button>
         <Button size="sm" onClick={() => openForm(i)}>양식 열기</Button>
+        <Button size="sm" aria-label={`취합 기다리는 양식 ${i.schema.title || '제목 없는 양식'} 삭제`} onClick={onDelete}>삭제</Button>
       </div>
     </article>
   );
@@ -240,9 +260,8 @@ function WaitCard({ i, today, tone, hl, setHl }: { i: WorkItem; today: Date; ton
 
 const LAYOUT_FILTERS: Layout[] = ['matrix', 'list', 'header-list', 'fill-in', 'collect', 'free'];
 
-function Forms({ items, onRemoved }: { items: WorkItem[]; onRemoved: () => void }) {
+function Forms({ items, onDelete }: { items: WorkItem[]; onDelete: (i: WorkItem) => void }) {
   const [only, setOnly] = useState<Layout | null>(null);
-  const [del, setDel] = useState<WorkItem | null>(null);
   const shown = items.filter((i) => !only || i.schema.layout === only);
   const used = LAYOUT_FILTERS.filter((l) => items.some((i) => i.schema.layout === l));
   return (
@@ -277,21 +296,13 @@ function Forms({ items, onRemoved }: { items: WorkItem[]; onRemoved: () => void 
                   {i.state === 'draft'
                     ? <Button size="sm" variant="pri" onClick={() => openForm(i)}>이어서 고치기</Button>
                     : <><Button size="sm" onClick={() => openForm(i)}>열기</Button><Button size="sm" onClick={() => go('aggregator', i.schema.formId)}>취합하기</Button></>}
-                  <Button size="sm" variant="ghost" className="ml-auto" aria-label={`${i.schema.title || '제목 없는 양식'} 삭제`} onClick={() => setDel(i)}>삭제</Button>
+                  <Button size="sm" variant="ghost" className="ml-auto" aria-label={`${i.schema.title || '제목 없는 양식'} 삭제`} onClick={() => onDelete(i)}>삭제</Button>
                 </div>
               </div>
             </article>
           );
         })}
       </div>
-      {del && (
-        <Dialog title="양식을 지울까요?" onClose={() => setDel(null)}
-          footer={<><span className="flex-1" /><Button onClick={() => setDel(null)}>취소</Button>
-            <Button variant="danger" onClick={() => { removeForm(del.schema.formId); setDel(null); onRemoved(); }}>삭제</Button></>}>
-          <p className="m-0"><b>{del.schema.title || '제목 없는 양식'}</b> 양식을 내 양식 목록과 취합 일정에서 지워요.</p>
-          <p className="m-0 text-[13px] text-sub">이미 보낸 엑셀 파일과 취합 이력은 그대로 남아요. 양식 파일(.form.json)이 있으면 다시 열 수 있어요.</p>
-        </Dialog>
-      )}
     </>
   );
 }
