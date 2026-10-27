@@ -5,7 +5,7 @@ import { formReducer, type Action } from './formReducer';
 import { newSchema, randomFormId, randomKey } from './newSchema';
 import { nextVersion } from './versioning';
 import type { ExportProblem, Where } from './validateForExport';
-import { loadCurrent, saveForm, type StoredForm } from '../storage/localForms';
+import { isSavedAsIs, loadCurrent, saveForm, type StoredForm } from '../storage/localForms';
 
 export type PanelId = Where;
 
@@ -28,6 +28,8 @@ export function useBuilder(start?: StoredForm) {
   const save = useCallback(() => {
     // 손대지 않은 제목 없는 새 양식은 최근 양식에 쌓지 않는다
     if (schema === init.schema && !schema.title && !init.savedAt) return null;
+    // 열기만 하고 고치지 않았으면 다시 쓰지 않는다 (서버 버전만 올라 다른 탭·기기와 충돌하던 원인)
+    if (isSavedAsIs({ schema, lastExported })) return true;
     const now = new Date();
     return saveForm({ schema: { ...schema, updatedAt: now.toISOString() }, lastExported }, now);
   }, [schema, lastExported, init]);

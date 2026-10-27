@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { cloudEnabled, readCloudChat, scopedStorageKey, writeCloudChat } from '../cloud';
 import { canonicalJSON } from '@contract/checksum';
 
-export interface Draft { chatId: string | null; msgs: unknown[]; aiVersion: string | null }
+/** threadId: 대화 보관함(src/ai/threads.ts)에서 이 대화를 가리키는 번호. 예전 초안에는 없다 */
+export interface Draft { chatId: string | null; msgs: unknown[]; aiVersion: string | null; threadId?: string }
 const empty = (): Draft => ({ chatId: null, msgs: [], aiVersion: null });
 const key = () => scopedStorageKey('hanan-moa:ai-chat');
 // 서버(jsonb)는 키 순서를 바꿔 돌려주므로 키 순서와 무관하게 비교한다
@@ -11,7 +12,7 @@ export function parseDraft(value: unknown): Draft | null {
   if (!value || typeof value !== 'object') return null;
   const v = value as Partial<Draft>;
   if (!Array.isArray(v.msgs)) return null;
-  return { chatId: typeof v.chatId === 'string' ? v.chatId : null, msgs: v.msgs.filter((m) => m && typeof m === 'object' && ['ai', 'user'].includes((m as { role: string }).role)).map((m) => ({ ...m as object, status: undefined })), aiVersion: typeof v.aiVersion === 'string' ? v.aiVersion : null };
+  return { chatId: typeof v.chatId === 'string' ? v.chatId : null, msgs: v.msgs.filter((m) => m && typeof m === 'object' && ['ai', 'user'].includes((m as { role: string }).role)).map((m) => ({ ...m as object, status: undefined })), aiVersion: typeof v.aiVersion === 'string' ? v.aiVersion : null, ...(typeof v.threadId === 'string' ? { threadId: v.threadId } : {}) };
 }
 export function loadDraft(): Draft {
   try { return parseDraft(JSON.parse(localStorage.getItem(key()) ?? 'null')) ?? empty(); } catch { return empty(); }
@@ -103,7 +104,7 @@ export function useCloudDraft(payload: Draft, busy: boolean, apply: (draft: Draf
       }).finally(() => { writing.current = false; if (alive.current) setTick((n) => n + 1); });
     }, 450);
     return () => clearTimeout(timer);
-  }, [payload.chatId, payload.msgs, payload.aiVersion, busy, ready, tick]);
+  }, [payload.chatId, payload.msgs, payload.aiVersion, payload.threadId, busy, ready, tick]);
 
   return { ready, notice, conflict, markCleared: () => { clearRequested.current = true; }, reload: () => void read(), chooseServer: () => void read('server'), chooseLocal: () => void read('local') };
 }
