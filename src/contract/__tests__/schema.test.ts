@@ -1,4 +1,4 @@
-import { validateSchema, blockFields, aggregationLabel, gridOwners, type FormSchema } from '../schema';
+import { validateSchema, blockFields, aggregationLabel, unitLabel, gridOwners, type FormSchema } from '../schema';
 import { availableAggregations } from '../aggregationIds';
 import { SAMPLE, f } from './fixtures';
 
@@ -115,6 +115,15 @@ describe('aggregationLabel', () => {
     expect(aggregationLabel({ org: { mode: 'input', label: '부서' } }, 'spread')).toBe('부서별 펼치기');
     expect(aggregationLabel({ org: { mode: 'none', label: '부서' } }, 'spread')).toBe('파일별 펼치기');
     expect(aggregationLabel({ org: { mode: 'none' } }, 'same-frame')).toBe('같은 틀 시트');
+  });
+});
+
+describe('unitLabel (취합 결과의 한 줄·한 시트 단위)', () => {
+  it('제출처를 부르는 말 그대로, 식별 안 함이면 파일', () => {
+    expect(unitLabel({ org: { mode: 'preset', orgs: ['A'] } })).toBe('지사');
+    expect(unitLabel({ org: { mode: 'input', label: '담당자' } })).toBe('담당자');
+    expect(unitLabel({ org: { mode: 'none', label: '부서' } })).toBe('파일');
+    expect(unitLabel({ org: { mode: 'none' } })).toBe('파일');
   });
 });
 
