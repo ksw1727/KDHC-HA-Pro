@@ -521,9 +521,12 @@ function FileDetail({ res, s }: { res: Resolved; s: FileState }) {
   const reasons: Record<string, string> = { blank: '빈 줄', example: '예시 줄', total: '합계 줄', operator: '운영자 제외', duplicate: '중복', hidden: '숨긴 줄 제외' };
   const ex = [...r.excludedRows, ...(fin?.removedRows ?? [])].reduce<Record<string, number>>((m, e) => { m[e.reason] = (m[e.reason] ?? 0) + 1; return m; }, {});
   const kept = fin ? fin.rows.length + (fin.gridSpareRows?.length ?? 0) : 0;
+  const collectSheets = r.collectSheets ?? [];
   return (
     <div className="flex flex-col gap-1.5 text-[12.5px]">
       {r.readCount > 0 && <div>읽은 {r.readCount}줄 = 반영 {kept}{Object.entries(ex).map(([k, n]) => ` + ${reasons[k]} ${n}`).join('')}</div>}
+      {/* 시트 모으기형은 칸을 읽지 않으니, 펼친 칸에 옮겨 갈 시트 이름을 보여 준다 */}
+      {collectSheets.length > 0 && <div>모을 시트 {collectSheets.length}개: <b>{collectSheets.join(', ')}</b> — 결과 파일에 그대로 옮겨요</div>}
       {p.autoFixed.length > 0 && (
         <table className="border-collapse">
           <thead><tr className="text-left text-xs text-sub"><th className="pr-3">위치</th><th className="pr-3">원래 값</th><th>정리한 값</th></tr></thead>
@@ -531,7 +534,7 @@ function FileDetail({ res, s }: { res: Resolved; s: FileState }) {
         </table>
       )}
       {r.authorNotes.length > 0 && <div>작성자 메모 {r.authorNotes.length}개: {r.authorNotes.map((n) => `${n.address} "${n.text}"`).join(', ')}</div>}
-      {r.unreadSheets.length > 0 && <div>읽지 않은 시트: {r.unreadSheets.join(', ')} (작성자가 추가한 시트라 읽지 않았어요)</div>}
+      {r.unreadSheets.length > 0 && <div>{collectSheets.length > 0 ? `모으지 않는 시트: ${r.unreadSheets.join(', ')}` : `읽지 않은 시트: ${r.unreadSheets.join(', ')} (작성자가 추가한 시트라 읽지 않았어요)`}</div>}
       {r.extraColumns.length > 0 && <div>양식에 없는 칸: {r.extraColumns.map((e) => e.header).join(', ')} → 결과 파일 "추가 칸" 시트에 담아요</div>}
       {p.issues.filter((i) => i.severity === 'info' && i.code !== 'OTHER_ORG_CELL').map((i) => <div key={i.id} className="text-sub">· {i.message}</div>)}
     </div>
