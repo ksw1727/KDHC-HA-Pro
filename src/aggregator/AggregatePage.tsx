@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { AGGREGATION_LABELS, availableAggregations, requiredAggregations, type AggregationId } from '@contract/aggregationIds';
-import { blockFields, LAYOUT_LABELS, orgLabel, type Field, type FormSchema } from '@contract/schema';
+import { blockFields, LAYOUT_LABELS, orgLabel, unitLabel, type Field, type FormSchema } from '@contract/schema';
 import { analyze, loadInputs, patchCopies, type Analysis, type InputFile } from './pipeline/run';
 import { resolve, STATUS_LABEL, type FileState, type Resolved } from './pipeline/resolve';
 import { preview, writeResult } from './pipeline/write';
@@ -152,7 +152,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
 
   if (!res || !pv) return null;
 
-  const L = orgLabel(schema);
+  const L = unitLabel(schema);
   const collect = schema.layout === 'collect';
   const fieldOf = new Map<string, Field>();
   for (const b of schema.blocks) for (const f of blockFields(b)) fieldOf.set(f.key, f);
@@ -283,7 +283,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
         </Card>
       )}
 
-      <Fold title={collect ? `${L}별 파일` : '파일'} open={collect || fileAttention > 0}
+      <Fold title={collect && schema.org.mode !== 'none' ? `${L}별 파일` : '파일'} open={collect || fileAttention > 0}
         summary={<>{res.files.length}개{fileAttention ? <> · <span className="text-warn-ink">살펴볼 파일 {fileAttention}개</span></> : ''} <span className="text-xs">(줄을 누르면 읽은 내용이 펼쳐져요)</span></>}>
         <FileTable schema={schema} res={res} d={d} set={set} />
       </Fold>
@@ -424,7 +424,7 @@ const STATUS_TONE: Record<FileState['status'], Tone> = { included: 'ok', duplica
 
 function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved; d: Decisions; set: (p: (x: Decisions) => Decisions) => void }) {
   const [open, setOpen] = useState<string | null>(null);
-  const L = orgLabel(schema);
+  const L = unitLabel(schema);
   const orgs = schema.org.orgs ?? [];
   const order = (s: FileState) => {
     const p = [...res.valueIssues, ...res.crossIssues].some((i) => i.fileId === s.fileId) || s.needsOrgLink ? 0 : s.status === 'included' ? 1 : s.status === 'duplicate' ? 2 : 3;
@@ -434,7 +434,7 @@ function FileTable({ schema, res, d, set }: { schema: FormSchema; res: Resolved;
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[640px] border-collapse">
-        <thead><tr className="text-left text-xs text-sub">{[`${L} / 파일`, '상태', '내용', '처리'].map((h) => <th key={h} className="border-b border-line px-2 py-1.5 font-semibold">{h}</th>)}</tr></thead>
+        <thead><tr className="text-left text-xs text-sub">{[schema.org.mode === 'none' ? '파일' : `${L} / 파일`, '상태', '내용', '처리'].map((h) => <th key={h} className="border-b border-line px-2 py-1.5 font-semibold">{h}</th>)}</tr></thead>
         <tbody>
           {rows.map((s) => {
             const fin = res.included.find((x) => x.fileId === s.fileId);
