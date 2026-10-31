@@ -19,6 +19,12 @@ const FORBIDDEN = /[\\/?*[\]:]/g;
 
 const stamp = (d: Date) => fmtTime(d.toISOString()).replace(/[-:]/g, '').replace(' ', '-');
 
+/** 머리글 두 번째 줄의 「몇 곳에서 받았나」. 제출처를 안 쓰는 양식은 파일 수로 세다 */
+const whoLine = (schema: FormSchema, res: Resolved) =>
+  schema.org.mode === 'none'
+    ? `파일 ${res.included.length}개`
+    : `${orgLabel(schema)} ${res.included.length}곳${res.missingOrgs.length ? ` (미제출 ${res.missingOrgs.length}곳)` : ''}`;
+
 /** 엑셀 시트 이름 규칙: 31자, 금지 문자 → _, ' → ’(sheetNameOf와 같은 이유), 같은 이름이면 (2) */
 export function sheetNamer() {
   const used = new Set<string>();
@@ -147,8 +153,7 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
     vr = verify(schema, res, first.model);
 
     // 결과 파일: 값만
-    const who = schema.org.mode === 'none' ? `파일 ${res.included.length}개` : `${orgLabel(schema)} ${res.included.length}곳${res.missingOrgs.length ? ` (미제출 ${res.missingOrgs.length}곳)` : ''}`;
-    const clean = buildSameFrame(schema, res, `취합일 ${day} · ${who}`, now, true);
+    const clean = buildSameFrame(schema, res, `취합일 ${day} · ${whoLine(schema, res)}`, now, true);
     writeModel(wb.addWorksheet(name(clean.model.sheetName)), clean.model, fieldOf);
     if (chosen.includes('spread')) {
       const t = spreadTable(schema, res);
@@ -297,7 +302,7 @@ function writeCollectSheets(wb: ExcelJS.Workbook, schema: FormSchema, res: Resol
   const lbl = schema.org.mode !== 'none' ? orgLabel(schema) : '번호';
   toc.getCell('A1').value = schema.title;
   toc.getCell('A1').font = { bold: true, size: 14 };
-  toc.getCell('A2').value = `취합일 ${fmtTime(now.toISOString()).slice(0, 10)} · 파일 ${res.included.length}개 · 미제출 ${res.missingOrgs.length}`;
+  toc.getCell('A2').value = `취합일 ${fmtTime(now.toISOString()).slice(0, 10)} · ${whoLine(schema, res)}`;
   const head = toc.getRow(4);
   head.values = [lbl, '상태', '원본 파일', '저장 시각', '모은 시트', '바로가기'];
   head.font = { bold: true };

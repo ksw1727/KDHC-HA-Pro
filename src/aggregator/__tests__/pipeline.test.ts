@@ -329,6 +329,21 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
     expect(seoul.getColumn(2).width).toBe(33);
     expect(seoul.getRow(6).height).toBe(40);
     expect(wb.getWorksheet('목차')!.getCell('F5').value).toMatchObject({ hyperlink: "#'서울'!A1" });
+    // 목차 두 번째 줄도 머리글·줄과 같은 말로 제출처를 센다 (「파일 1개」 아님)
+    expect(String(wb.getWorksheet('목차')!.getCell('A2').value)).toContain('지사 1곳 (미제출 1곳)');
+    expect(wb.getWorksheet('목차')!.getCell('A4').value).toBe('지사');
+  });
+
+  test('시트 모으기형 · 제출처를 안 쓰면 목차가 파일 수로 센다', async () => {
+    const c = { ...structuredClone(SAMPLE.collect), org: { mode: 'none' } as FormSchema['org'], aggregations: ['collect-sheets'] as FormSchema['aggregations'] };
+    const { wb } = await runAll([
+      await makeFile(c, '파읷1.xlsx', { unprotected: true, fill: (ws) => { ws.getCell('A5').value = '첫 번째'; } }),
+      await makeFile(c, '파읷2.xlsx', { unprotected: true, fill: (ws) => { ws.getCell('A5').value = '두 번째'; } }),
+    ], emptyDecisions(), c.aggregations);
+    const toc = wb.getWorksheet('목차')!;
+    expect(String(toc.getCell('A2').value)).toContain('파일 2개');
+    expect(String(toc.getCell('A2').value)).not.toContain('지사');
+    expect(toc.getCell('A4').value).toBe('번호');
   });
 });
 
