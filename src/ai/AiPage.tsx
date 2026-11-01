@@ -14,7 +14,7 @@ import { isRemoved } from '@gen/storage/removedForms';
 import { describeChanges } from './formDiff';
 import { sameForm } from '@gen/state/versioning';
 import { randomFormId } from '@gen/state/newSchema';
-import { Button, Chip, TextArea, cx } from '@gen/ui/ui';
+import { Button, Chip, cx } from '@gen/ui/ui';
 
 const aiFetch: typeof fetch = (url, init) => cloudEnabled ? cloudFetch(String(url), init) : fetch(url, init);
 type AiEvent =
@@ -38,11 +38,12 @@ interface Msg {
 /** 양식 비교용 (빌더가 저장할 때마다 바뀌는 updatedAt은 빼고) */
 const sig = (s: FormSchema) => JSON.stringify({ ...s, updatedAt: '' });
 
+/** 빈 화면 예시: 제목·한 줄 설명·구조를 보여 주고, 누르면 text가 입력창에 들어간다 */
 const EXAMPLES = [
-  '지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일, 지사 전체',
-  '위에 담당자·연락처를 받고, 아래에 안전보호구 지급 내역(품목·수량·단가)을 받는 부서별 양식',
-  '협력기관 10곳에서 분기별(1~4분기) 에너지 절감량을 항목별 숫자 표로 받고 싶어요',
-  '2027 사업예산 요구표. 사업별로 지사마다 자기 열에 요구액을 적게 해 주세요',
+  { title: '지사별 교육 참가자 명단', desc: '이름·직급·참가 희망일 · 지사 전체', layout: '목록형', text: '지사별 교육 참가자 명단을 받고 싶어요. 이름·직급·참가 희망일, 지사 전체' },
+  { title: '부서별 안전보호구 지급 내역', desc: '위에 담당자·연락처, 아래에 품목·수량·단가', layout: '혼합형', text: '위에 담당자·연락처를 받고, 아래에 안전보호구 지급 내역(품목·수량·단가)을 받는 부서별 양식' },
+  { title: '협력기관 분기별 에너지 절감량', desc: '10곳 · 1~4분기 · 항목별 숫자 표', layout: '표형', text: '협력기관 10곳에서 분기별(1~4분기) 에너지 절감량을 항목별 숫자 표로 받고 싶어요' },
+  { title: '2027 사업예산 요구표', desc: '사업별로 지사마다 자기 열에 요구액', layout: '표형', text: '2027 사업예산 요구표. 사업별로 지사마다 자기 열에 요구액을 적게 해 주세요' },
 ];
 const MODEL_KEY = 'hanan-moa:ai-openai-model';
 const MAX_FILE = 10 * 1024 * 1024;   // 올릴 수 있는 엑셀 크기
@@ -96,6 +97,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const [fileNote, setFileNote] = useState('');
   const [consent, setConsent] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // 빈 화면에서 고르는 시작 방법: 말로 만들기 / 쓰던 엑셀로 만들기
+  const [mode, setMode] = useState<'say' | 'excel'>('say');
   const addFiles = (list: FileList | File[]) => {
     if (busy) return;
     const fs = [...list];
@@ -103,6 +106,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     const bad = fs.filter((f) => !isExcel(f) || f.size > MAX_FILE);
     setFileNote(cloudEnabled && fs.some((f) => /\.xls$/i.test(f.name)) ? '.xls는 분석할 수 없어요. .xlsx로 다시 저장해 주세요.' : bad.length ? `엑셀 파일(.xlsx·.xlsm, 10MB 이하)만 올릴 수 있어요: ${bad.map((f) => f.name).join(', ')}` : '');
     setAttached((xs) => [...xs, ...fs.filter((f) => isExcel(f) && f.size <= MAX_FILE && (!cloudEnabled || !/\.xls$/i.test(f.name)))].slice(0, 5));
+    setMode('excel');   // 빈 화면이면 "쓰던 엑셀로 만들기"로 바꿔 올린 파일을 보여 준다
   };
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
@@ -186,10 +190,14 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const canSwitchRef = useRef(canSwitch); canSwitchRef.current = canSwitch;
   useEffect(() => { if (canSwitch && pendingOpen.current) { const f = pendingOpen.current; pendingOpen.current = null; void openFor(f); } });
   const [threadList, setThreadList] = useState<{ list: ThreadSummary[]; error?: string; loading?: boolean } | null>(null);
+  // [대화 목록] 옆 숫자: 남아 있는 대화 수 (지금 대화가 바뀌거나 목록을 열 때 다시 센다)
+  const [threadCount, setThreadCount] = useState(0);
+  const hasMsgs = msgs.length > 0;
+  useEffect(() => { let alive = true; void listThreads().then((r) => { if (alive) setThreadCount(r.list.length); }).catch(() => {}); return () => { alive = false; }; }, [threadId, hasMsgs]);
   const showThreads = async () => {
     const cur = now.current;
     if (cur.threadId && cur.msgs.length) await saveThread(cur);
-    setThreadList({ list: [], loading: true }); setThreadList(await listThreads());
+    setThreadList({ list: [], loading: true }); const r = await listThreads(); setThreadList(r); setThreadCount(r.list.length);
   };
   const pickThread = async (id: string) => {
     setThreadList(null);
@@ -331,22 +339,67 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   }
 
   const ok = health === 'ok';
-  return (
-    <div className="mx-auto flex h-full max-w-[1080px] flex-col gap-3 px-4 py-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="m-0 text-xl font-bold">무엇을 받고 싶으세요?</h1>
+  const empty = msgs.length === 0;
+  const canSend = (input.trim() || attached.length) && ok && draftSync.ready && !(cloudEnabled && attached.length > 0 && !consent);
+  const pickFile = () => fileRef.current?.click();
+  // 첨부 파일 칩 줄 + (온라인) 요약 전달 동의. 입력창 상자 안 맨 위에 둔다
+  const attachBlock = (
+    <>
+      {(attached.length > 0 || fileNote) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {attached.map((f, i) => <FileChip key={`${f.name}-${i}`} name={f.name} onRemove={() => setAttached((xs) => xs.filter((_, k) => k !== i))} />)}
+          {fileNote && <span className="text-xs text-err-ink">{fileNote}</span>}
+        </div>
+      )}
+      {cloudEnabled && attached.length > 0 && <label className="text-sm"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} disabled={busy} /> 원본은 브라우저에서만 분석하고 서버에 저장하지 않아요. 민감한 셀 값이 포함될 수 있는 요약 내용이 외부 AI로 전달되는 것에 동의해요.</label>}
+    </>
+  );
+  /** 입력창: 글 입력칸 + [엑셀 올리기] + 둥근 보내기 버튼을 한 상자에 */
+  const composer = (placeholder: string, opts: { attach?: boolean; rows?: number } = {}) => (
+    <div className="flex flex-col gap-2 rounded-[16px] border border-line-strong bg-white px-3.5 pb-2.5 pt-3 text-left shadow-[0_2px_10px_rgba(20,30,20,.06)] focus-within:border-pri-line focus-within:shadow-[0_0_0_4px_var(--color-pri-bg)]">
+      {attachBlock}
+      <textarea aria-label="AI에게 보낼 말" rows={opts.rows ?? 2} value={input} disabled={health === 'checking'} placeholder={placeholder}
+        className="w-full resize-none border-0 bg-transparent p-0 text-[14.5px] leading-relaxed text-ink outline-none placeholder:text-muted"
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
+      <div className="flex items-center gap-2">
+        {opts.attach !== false && <Button size="sm" disabled={busy || health === 'checking'} onClick={pickFile} title="쓰던 엑셀 양식 올리기" className="inline-flex items-center gap-1"><Icon name="clip" />엑셀 올리기</Button>}
         <span className="flex-1" />
+        <span className="text-xs text-muted max-sm:hidden"><kbd className="mr-1 rounded border border-b-2 border-line-strong bg-white px-1 font-sans text-[10.5px] font-semibold text-sub">Enter</kbd>보내기</span>
+        {busy
+          ? <button type="button" aria-label="멈추기" onClick={() => abort.current?.abort()} className="grid size-9 place-items-center rounded-full border border-line-strong bg-white text-ink hover:bg-panel"><span className="size-3 rounded-[2px] bg-ink" /></button>
+          : <button type="button" aria-label="보내기" disabled={!canSend} onClick={() => void send()}
+              className="grid size-9 place-items-center rounded-full bg-pri text-white shadow-[0_2px_6px_rgba(55,145,63,.3)] hover:bg-pri-ink disabled:bg-line-strong disabled:shadow-none"><Icon name="up" size={18} /></button>}
+      </div>
+    </div>
+  );
+  const foot = <p className="m-0 text-center text-xs text-muted">보낸 말은 OpenAI{!cloudEnabled && openaiModel ? ` ${openaiModel}` : ''}로 전달돼요 · {cloudEnabled ? '엑셀은 원본 대신 동의한 요약만 보내요' : '회신 파일 내용은 보내지 않아요'}</p>;
+
+  return (
+    <div className="mx-auto flex h-full max-w-[1080px] flex-col gap-2 px-4 pb-3 pt-3"
+      onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+      onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } }}>
+      <input ref={fileRef} type="file" accept=".xlsx,.xlsm,.xls" multiple hidden aria-label="엑셀 파일 고르기"
+        onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+      {/* 머리줄: [대화 목록]은 흰 테두리 + 대화 수, [새 대화]는 초록 채움 */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
         {!cloudEnabled && models.length > 0 && (
-          <select aria-label="OpenAI 모델" className="rounded-box border border-line bg-white px-2 py-1 text-[13px]" value={openaiModel} disabled={busy}
+          <select aria-label="OpenAI 모델" className="mr-auto rounded-box border border-line bg-white px-2 py-1 text-[13px]" value={openaiModel} disabled={busy}
             onChange={(e) => setModel(e.target.value)}>
             {models.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         )}
         <div className="relative">
-          <Button size="sm" variant="ghost" disabled={busy || !canSwitch} aria-expanded={!!threadList} onClick={() => (threadList ? setThreadList(null) : void showThreads())}>대화 목록</Button>
+          <button type="button" aria-label="대화 목록" aria-expanded={!!threadList} disabled={busy || !canSwitch} onClick={() => (threadList ? setThreadList(null) : void showThreads())}
+            className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] border border-line-strong bg-white px-3 text-[13.5px] font-semibold text-ink shadow-[0_1px_0_rgba(0,0,0,.03)] hover:bg-panel disabled:opacity-50">
+            <Icon name="clock" />대화 목록{threadCount ? <span className="grid h-[19px] min-w-[19px] place-items-center rounded-full bg-chip px-1.5 text-[11px] font-bold text-sub">{threadCount}</span> : null}
+          </button>
           {threadList && <ThreadMenu data={threadList} current={threadId} onPick={(id) => void pickThread(id)} onClose={() => setThreadList(null)} />}
         </div>
-        {msgs.length > 0 && <Button size="sm" variant="ghost" disabled={busy || !draftSync.ready} onClick={reset}>새 대화</Button>}
+        <button type="button" disabled={busy || !draftSync.ready} onClick={() => { reset(); setMode('say'); }}
+          className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] bg-pri px-3.5 text-[13.5px] font-semibold text-white shadow-[0_2px_6px_rgba(55,145,63,.25)] hover:bg-pri-ink disabled:opacity-50 disabled:shadow-none">
+          <Icon name="plus" />새 대화
+        </button>
       </div>
       {(opening || archiveNote) && <div role="status" className="rounded-box border border-line bg-panel px-3 py-2 text-[13px] text-sub">{opening || archiveNote}</div>}
 
@@ -355,51 +408,96 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
         {draftSync.conflict ? <div className="mt-2 flex gap-2"><Button onClick={draftSync.chooseServer}>서버 대화 불러오기</Button><Button onClick={draftSync.chooseLocal}>이 기기 대화 저장</Button></div>
           : draftSync.notice && <Button onClick={draftSync.reload}>다시 불러오기</Button>}
       </div>}
-      <div className="min-h-0 flex-1 overflow-auto rounded-card border border-line bg-white p-3" aria-live="polite"
-        onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
-        onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); } }}>
-        {msgs.length === 0 ? (
-          <div className="flex flex-col gap-3 text-sub">
-            <p className="m-0">받고 싶은 내용을 말로 적어 주세요. AI가 이 프로그램 규칙대로 양식을 만들고, 미리보기를 보여 드려요. 마음에 들면 엑셀로 내보내거나 빌더에서 직접 고칠 수 있어요.</p>
-            <p className="m-0 text-xs"><b>쓰던 엑셀 양식</b>이 있으면 아래 [엑셀 올리기]를 누르거나 여기에 끌어다 놓으세요. 같은 모양으로 만들고, 그대로 옮길 수 없는 부분은 어떻게 바꿨는지 알려 드려요.</p>
-            <div className="flex flex-wrap gap-1.5">
-              {EXAMPLES.map((x) => <button key={x} type="button" onClick={() => setInput(x)} className="rounded-full border border-line bg-panel px-3 py-1 text-left text-[13px] text-ink hover:border-pri">{x}</button>)}
+
+      {empty ? (
+        <div className="min-h-0 flex-1 overflow-auto">
+          <div className="mx-auto flex min-h-full max-w-[720px] flex-col items-center pt-6">
+            <div className="mb-3 grid size-11 place-items-center rounded-[14px] bg-[linear-gradient(135deg,var(--color-pri-bg),var(--color-acc-bg))] text-pri-ink"><Icon name="spark" size={22} /></div>
+            <h1 className="m-0 text-[26px] font-bold tracking-tight">무엇을 받고 싶으세요?</h1>
+            {/* 시작 방법 고르기 */}
+            <div role="tablist" aria-label="시작 방법" className="mt-5 inline-flex gap-1.5 rounded-[14px] border border-line bg-white p-[5px] shadow-[0_1px_3px_rgba(20,30,20,.05)]">
+              {([['say', '말로 만들기', '받고 싶은 내용을 적어요', 'chat'], ['excel', '쓰던 엑셀로 만들기', '같은 모양으로 만들어요', 'clip']] as const).map(([id, t, d, ic]) => {
+                const on = mode === id, pink = id === 'excel';
+                return (
+                  <button key={id} type="button" role="tab" aria-selected={on} onClick={() => setMode(id)}
+                    className={cx('flex items-center gap-2.5 rounded-[10px] border py-2 pl-2.5 pr-4 text-left',
+                      on ? (pink ? 'border-[#efc3bf] bg-acc-bg' : 'border-pri-line bg-pri-bg') : 'border-transparent hover:bg-panel')}>
+                    <span className={cx('grid size-7 place-items-center rounded-[9px]', pink ? 'bg-acc-bg text-acc-ink' : 'bg-pri-bg text-pri-ink')}><Icon name={ic} /></span>
+                    <span><b className={cx('block text-[14px]', on && (pink ? 'text-acc-ink' : 'text-pri-ink'))}>{t}</b><span className="block text-[11.5px] text-muted">{d}</span></span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-[18px] w-full">
+              {mode === 'say' ? (
+                <>
+                  {composer('예: 지사별 동절기 안전교육 이수자 명단. 담당자 연락처도 받고, 교육비는 원 단위로', { attach: false })}
+                  <div className="mb-2.5 mt-5 text-xs font-semibold text-muted">이렇게 말해 보세요</div>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    {EXAMPLES.map((x) => (
+                      <button key={x.title} type="button" onClick={() => setInput(x.text)}
+                        className="flex flex-col gap-0.5 rounded-[12px] border border-line bg-white px-3.5 py-2.5 text-left hover:border-pri-line hover:bg-pri-bg/40">
+                        <span className="flex items-center gap-1.5 text-[13.5px] font-bold text-ink">{x.title}<span className="rounded-full bg-chip px-2 text-[11.5px] font-semibold leading-[21px] text-sub">{x.layout}</span></span>
+                        <span className="text-[12.5px] text-muted">{x.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : attached.length === 0 ? (
+                <>
+                  <button type="button" onClick={pickFile} disabled={busy || health === 'checking'}
+                    className="flex h-[236px] w-full flex-col items-center justify-center gap-2 rounded-[14px] border-2 border-dashed border-[#e7b9b5] bg-[linear-gradient(180deg,#fffafa,#fff)] text-center hover:border-acc">
+                    <span className="grid h-[46px] w-10 place-items-center rounded-[7px] bg-[#1e7b45] text-[11px] font-extrabold text-white shadow-[0_3px_8px_rgba(30,123,69,.25)]">XLSX</span>
+                    <b className="text-[14px] text-ink">쓰던 엑셀을 여기에 끌어다 놓기</b>
+                    <span className="text-xs text-muted">또는 <u className="text-acc-ink underline-offset-[3px]">파일 고르기</u> · .xlsx 10MB까지, 5개까지</span>
+                  </button>
+                  {fileNote && <p className="m-0 mt-2 text-xs text-err-ink">{fileNote}</p>}
+                  <div className="mt-3.5 flex items-center gap-2.5 rounded-[12px] border border-line bg-white px-3 py-2.5 text-[12.5px] text-sub">
+                    <span className="grid size-7 flex-none place-items-center rounded-[9px] bg-pri-bg text-pri-ink"><Icon name="chat" /></span>
+                    파일을 넣으면 입력창이 열려요. "열 이름은 그대로, 교육비만 빼 주세요"처럼 덧붙여 보낼 수 있어요.
+                  </div>
+                </>
+              ) : (
+                composer('덧붙일 말이 있으면 적어 주세요 (예: 열 이름은 그대로, 교육비만 빼 주세요). 비워 두고 보내도 돼요')
+              )}
+            </div>
+            <div className="mt-auto pt-6">{foot}</div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="min-h-0 flex-1 overflow-auto" aria-live="polite">
+            <div className="mx-auto flex max-w-[820px] flex-col gap-3.5 py-2">
+              {msgs.map((m, i) => (m.role === 'user'
+                ? <div key={i} className="ml-auto flex max-w-[80%] flex-col items-end gap-1">
+                    {m.files?.length ? <div className="flex flex-wrap justify-end gap-1">{m.files.map((n) => <FileChip key={n} name={n} />)}</div> : null}
+                    <div className="whitespace-pre-wrap rounded-[14px] rounded-br-[4px] bg-pri-bg px-3.5 py-2 text-[13.5px]">{m.text}</div>
+                  </div>
+                : <AiBubble key={i} m={m} last={i === lastFormAt} linked={i === lastFormAt && panelOpen} selKey={i === lastFormAt ? selKey : null} />))}
+              <div ref={end} />
             </div>
           </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {msgs.map((m, i) => (m.role === 'user'
-              ? <div key={i} className="ml-auto flex max-w-[80%] flex-col items-end gap-1">
-                  {m.files?.length ? <div className="flex flex-wrap justify-end gap-1">{m.files.map((n) => <FileChip key={n} name={n} />)}</div> : null}
-                  <div className="whitespace-pre-wrap rounded-card bg-pri-bg px-3 py-2">{m.text}</div>
-                </div>
-              : <AiBubble key={i} m={m} last={i === lastFormAt} linked={i === lastFormAt && panelOpen} selKey={i === lastFormAt ? selKey : null} />))}
-            <div ref={end} />
+          <div className="mx-auto flex w-full max-w-[820px] flex-col gap-1.5">
+            {composer(lastForm ? '고칠 내용을 말해 주세요 (예: 교육비는 빼 주세요, 제출처를 부서로 바꿔 주세요)' : '예: 지사별 동절기 안전교육 이수자 명단. 담당자 연락처도 받고, 교육비는 원 단위로', { rows: 1 })}
+            {foot}
           </div>
-        )}
-      </div>
-
-      {(attached.length > 0 || fileNote) && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {attached.map((f, i) => <FileChip key={`${f.name}-${i}`} name={f.name} onRemove={() => setAttached((xs) => xs.filter((_, k) => k !== i))} />)}
-          {fileNote && <span className="text-xs text-err-ink">{fileNote}</span>}
-        </div>
+        </>
       )}
-      {cloudEnabled && attached.length > 0 && <label className="text-sm"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} disabled={busy} /> 원본은 브라우저에서만 분석하고 서버에 저장하지 않아요. 민감한 셀 값이 포함될 수 있는 요약 내용이 외부 AI로 전달되는 것에 동의해요.</label>}
-      <div className="flex items-end gap-2">
-        <input ref={fileRef} type="file" accept=".xlsx,.xlsm,.xls" multiple hidden aria-label="엑셀 파일 고르기"
-          onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
-        <Button disabled={busy || health === 'checking'} onClick={() => fileRef.current?.click()} title="쓰던 엑셀 양식 올리기">엑셀 올리기</Button>
-        <TextArea aria-label="AI에게 보낼 말" className="min-h-[64px] flex-1" value={input} disabled={health === 'checking'}
-          placeholder={lastForm ? '고칠 내용을 말해 주세요 (예: 교육비는 빼 주세요, 제출처를 부서로 바꿔 주세요)' : '예: 지사별 동절기 안전교육 이수자 명단. 담당자 연락처도 받고, 교육비는 원 단위로'}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
-        {busy ? <Button onClick={() => abort.current?.abort()}>멈추기</Button>
-          : <Button variant="pri" disabled={(!input.trim() && !attached.length) || !ok || !draftSync.ready || (cloudEnabled && attached.length > 0 && !consent)} onClick={() => void send()}>보내기</Button>}
-      </div>
-      <p className="m-0 text-xs text-muted">Enter로 보내고 Shift+Enter로 줄을 바꿔요. 보낸 말은 OpenAI{!cloudEnabled && openaiModel ? ` ${openaiModel}` : ''}로 전달돼요. {cloudEnabled ? '첨부 원본은 보내거나 저장하지 않으며, 동의한 엑셀 요약은 외부 AI에 전달돼요.' : '회신 파일 내용은 보내지 않아요.'}</p>
     </div>
   );
+}
+
+/** 대화창 아이콘 (선 아이콘, 글자색을 따름) */
+const ICONS = {
+  plus: <path d="M12 5v14M5 12h14" />,
+  clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3 2" /></>,
+  clip: <path d="M20.5 11.5 12.4 19.6a5 5 0 0 1-7.1-7.1l8.3-8.3a3.4 3.4 0 0 1 4.8 4.8l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" />,
+  up: <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />,
+  chat: <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6a2.5 2.5 0 0 1-2.5 2.5H11l-4 4v-4A2 2 0 0 1 5 13z" />,
+  spark: <><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M19 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" /></>,
+};
+function Icon({ name, size = 16 }: { name: keyof typeof ICONS; size?: number }) {
+  return <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={size > 16 ? 2.2 : 1.9} strokeLinecap="round" strokeLinejoin="round" className="flex-none">{ICONS[name]}</svg>;
 }
 
 /** [대화 목록]: 예전 대화로 돌아간다 (최근 순) */
@@ -450,13 +548,16 @@ function Changes({ lines }: { lines: string[] }) {
 
 function AiBubble({ m, last, linked, selKey }: { m: Msg; last: boolean; linked: boolean; selKey: string | null }) {
   return (
-    <div className="flex max-w-full flex-col gap-2">
-      {m.text && <div className={cx('whitespace-pre-wrap rounded-card px-3 py-2', /다시 만들 수 없어요/.test(m.text) ? 'border border-[#f3c2bd] bg-[#fffafa]' : 'bg-panel')}>{bold(m.text)}</div>}
+    <div className="flex max-w-full gap-2.5">
+    <span aria-hidden className="grid size-7 flex-none place-items-center rounded-[9px] bg-[linear-gradient(135deg,var(--color-pri),#7cbf6d)] text-[11px] font-extrabold text-white">AI</span>
+    <div className="flex min-w-0 flex-1 flex-col gap-2 text-[13.5px]">
+      {m.text && <div className={cx('whitespace-pre-wrap', /다시 만들 수 없어요/.test(m.text) ? 'rounded-card border border-[#f3c2bd] bg-[#fffafa] px-3 py-2' : 'pt-1')}>{bold(m.text)}</div>}
       {m.status && <div className="flex items-center gap-2 text-xs text-sub"><span className="inline-block h-2 w-2 animate-pulse rounded-full bg-pri" />{m.status}…</div>}
       {m.badForm && <div className="rounded-card border border-[#f3c2bd] bg-[#fffafa] px-3 py-2 text-sm text-err-ink">AI가 만든 양식이 규칙에 맞지 않아요: {m.badForm}. "규칙에 맞게 다시 고쳐 줘"라고 말해 보세요.</div>}
       {m.form && <FormCard schema={m.form} problems={m.problems ?? []} edited={m.edited} last={last} linked={linked} selKey={selKey} />}
       {m.form && m.base && <Changes lines={describeChanges(m.base, m.form)} />}
       {m.error && <div className="text-sm text-err-ink">{m.error}</div>}
+    </div>
     </div>
   );
 }
