@@ -16,6 +16,7 @@ import { validateForExport } from '@gen/state/validateForExport';
 import { newSchema, randomKey } from '@gen/state/newSchema';
 import { KDHC_TREE, type OrgNode } from '@gen/org/kdhcOrg';
 import { dumpExcel } from './excelDump';
+import { LockedFileError, openWorkbook } from './excelOpen';
 
 const [cmd = 'help', ...args] = process.argv.slice(2);
 const LAYOUTS = Object.keys(LAYOUT_LABELS) as Layout[];
@@ -110,10 +111,13 @@ switch (cmd) {
   case 'read-excel': {
     const path = args.join(' ').trim();
     if (!path) { console.log('읽을 엑셀 파일을 알려 주세요: moa read-excel <파일>'); process.exit(2); }
-    if (/\.xls$/i.test(path)) { console.log('예전 엑셀(.xls)은 읽을 수 없어요. 엑셀에서 .xlsx로 다시 저장해 달라고 안내하세요.'); process.exit(1); }
     try {
-      console.log((await dumpExcel(new Uint8Array(readFileSync(path)))).text);
+      // .xls는 .xlsx로 바꿔 읽는다. 열기 암호가 걸린 파일은 화면(브라우저)에서 암호를 풀어 보낸다
+      const o = await openWorkbook(new Uint8Array(readFileSync(path)), path);
+      const { text } = await dumpExcel(o.bytes);
+      console.log(o.notes.length ? `${o.notes.join('\n')}\n${text}` : text);
     } catch (e) {
+      if (e instanceof LockedFileError) { console.log(`${e.message} 사용자에게 암호를 풀어 다시 올려 달라고 안내하세요.`); process.exit(1); }
       console.log(`엑셀을 읽지 못했어요: ${(e as Error).message}. 암호가 걸렸거나 엑셀 파일이 아닐 수 있어요.`);
       process.exit(1);
     }

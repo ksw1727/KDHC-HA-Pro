@@ -8,6 +8,7 @@ import { readSubmission } from './read';
 import { expandAggregate, parseSubmission } from './parse';
 import type { Ctx } from './normalize';
 import { fmtTime } from './aggregate';
+import { LockedFileError, openWorkbook } from '../../../tools/excelOpen';
 import type { Resolved } from './resolve';
 import type { BaseForm, IdentifiedFile, LoadedFile, ParsedSubmission } from './types';
 
@@ -20,9 +21,27 @@ export async function loadInputs(inputs: InputFile[]): Promise<{ files: LoadedFi
   const files: LoadedFile[] = [];
   const schemas: FormSchema[] = [];
   const notes: string[] = [];
-  const add = (name: string, bytes: Uint8Array, lastModified: number) => {
-    if (files.some((f) => f.fileName === name && f.bytes.length === bytes.length)) return;   // 같은 파일 두 번
-    files.push({ id: `${files.length}:${name}`, fileName: name, bytes, lastModified });
+  const seen = new Set<string>();
+  const add = async (name: string, bytes: Uint8Array, lastModified: number) => {
+    const key = `${name}\u0000${bytes.length}`;
+    if (seen.has(key)) return;   // 같은 파일 두 번
+    seen.add(key);
+    const file: LoadedFile = { id: `${files.length}:${name}`, fileName: name, bytes, lastModified };
+    files.push(file);
+    // 옛 .xls는 .xlsx로 바꿔 담는다 (값·숨김 시트·파일 속성은 남고, 글자 모양·숨긴 행 표시는 빠질 수 있다)
+    if (/\.xls$/i.test(name)) {
+      try {
+        const o = await openWorkbook(bytes, name);
+        if (o.bytes !== bytes) {
+          // 한난MOA 파일 속성(kdhc.*)은 바꾼 .xlsx에 다시 넣는다: 숨김 정보 시트가 상해도 어느 양식·지사 파일인지 알아보게
+          const kdhc = Object.fromEntries(Object.entries(o.customProps ?? {}).filter(([k]) => k.startsWith('kdhc.')));
+          file.bytes = Object.keys(kdhc).length ? await patchXlsx(o.bytes, { customProps: kdhc }) : o.bytes;
+          file.convertedFrom = 'xls';
+        }
+      } catch (e) {
+        file.convertError = e instanceof LockedFileError ? '암호가 걸린 옛 엑셀(.xls) 파일이에요. 암호를 풀어서 다시 보내 달라고 해 주세요' : `옛 엑셀(.xls)을 읽지 못했어요(${(e as Error).message}). 엑셀에서 .xlsx로 다시 저장해서 보내 달라고 해 주세요`;
+      }
+    }
   };
   for (const f of inputs) {
     const lower = f.name.toLowerCase();
@@ -32,7 +51,7 @@ export async function loadInputs(inputs: InputFile[]): Promise<{ files: LoadedFi
         for (const entry of Object.values(zip.files)) {
           const base = entry.name.split('/').pop() ?? '';
           if (entry.dir || entry.name.startsWith('__MACOSX') || base.startsWith('~$') || !/\.(xlsx|xls|csv)$/i.test(base)) continue;
-          add(base, await entry.async('uint8array'), entry.date?.getTime() ?? f.lastModified);
+          await add(base, await entry.async('uint8array'), entry.date?.getTime() ?? f.lastModified);
         }
       } catch { notes.push(`${f.name}: zip 파일을 풀 수 없어요`); }
     } else if (lower.endsWith('.json')) {
@@ -40,7 +59,7 @@ export async function loadInputs(inputs: InputFile[]): Promise<{ files: LoadedFi
         const v = validateSchema(JSON.parse(new TextDecoder().decode(f.bytes)));
         if (v.ok) schemas.push(v.schema); else notes.push(`${f.name}: 양식 파일이 아니에요`);
       } catch { notes.push(`${f.name}: 양식 파일을 읽을 수 없어요`); }
-    } else if (!f.name.startsWith('~$')) add(f.name, f.bytes, f.lastModified);
+    } else if (!f.name.startsWith('~$')) await add(f.name, f.bytes, f.lastModified);
   }
   return { files, schemas, notes };
 }
@@ -128,7 +147,7 @@ export async function patchCopies(res: Resolved, files: LoadedFile[], includePro
     const bytes = props['kdhc.formId']
       ? await patchXlsx(raw as ArrayBuffer, { customProps: kdhcProps({ formId: props['kdhc.formId'], formVersion: Number(props['kdhc.formVersion']) || 1, kind: 'submission', org: props['kdhc.org'] }) })
       : new Uint8Array(raw as ArrayBuffer);
-    zip.file(src.fileName.replace(/\.xlsx$/i, '') + '_수정.xlsx', bytes);
+    zip.file(src.fileName.replace(/\.xlsx?$/i, '') + '_수정.xlsx', bytes);
   }
   const safe = title.replace(/[\\/:*?"<>|]/g, '_').trim() || '양식';
   const stamp = fmtTime(now.toISOString()).replace(/[-:]/g, '').replace(' ', '-');

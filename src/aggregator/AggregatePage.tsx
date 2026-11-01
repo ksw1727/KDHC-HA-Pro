@@ -386,7 +386,7 @@ function Upload({ hint, onForget, bag, setBag, reading, error, onAdd, onStart }:
         onDrop={(e) => { e.preventDefault(); setOver(false); onAdd(e.dataTransfer.files); }}>
         <div className="text-[18px] font-semibold">회신받은 엑셀 파일이나 zip을 여기에 끌어다 놓으세요</div>
         <div className="mt-1">또는 눌러서 파일 고르기</div>
-        <div className="mt-1.5 text-sub">.xlsx만 처리합니다 · 이전 취합본도 함께 넣을 수 있어요 · 파일 내용은 이 컴퓨터 밖으로 나가지 않아요</div>
+        <div className="mt-1.5 text-sub">.xlsx와 옛 .xls(바꿔 읽음)를 처리합니다 · 이전 취합본도 함께 넣을 수 있어요 · 파일 내용은 이 컴퓨터 밖으로 나가지 않아요</div>
       </div>
       {bag.length > 0 && (
         <section className="mt-3.5 rounded-card border border-line p-4">
