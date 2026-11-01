@@ -45,6 +45,9 @@ BRANCHES = {
 ALIAS = {"기획본부": "부사장(기획본부)"}
 # 파견·외부 기관 등 공사 조직이 아닌 부서명
 EXCLUDE = {"(주)넥스젠에너지솔루션", "(주)테크윌", "한국남부발전", "한국서부발전", "기후에너지환경부"}
+# 조직도에는 있는데 직원 목록에 안 잡히는 부서. {전체 부서명: 바로 뒤에 올 형제 이름 (없으면 맨 뒤)}
+# 청주지사 열수송부 — 다른 지사와 같이 안전관리관 앞 (2026-11-01 확인)
+EXTRA = {"청주지사 열수송부": "안전관리관"}
 
 
 def unit_type(name):
@@ -73,7 +76,54 @@ def build_units(depts):
         for p in parts[1:]:
             cur = cur["sub"].setdefault(p, {"n": 0, "sub": {}})
         cur["n"] += n
+    for dept, before in EXTRA.items():
+        *path, name = dept.split()
+        cur = units.setdefault(path[0], {"n": 0, "sub": {}})
+        for p in path[1:]:
+            cur = cur["sub"].setdefault(p, {"n": 0, "sub": {}})
+        cur["sub"].setdefault(name, {"n": 0, "sub": {}})
+        if before in cur["sub"]:   # dict는 넣은 순서를 지키므로 그 순서대로 다시 쌓는다
+            rest = [k for k in cur["sub"] if k != name]
+            i = rest.index(before)
+            cur["sub"] = {k: cur["sub"][k] for k in rest[:i] + [name] + rest[i:]}
     return units
+
+
+def write_files(tree, fetched_at):
+    """트리(인원수 뺀 것) → json·csv·txt. 손으로 고친 뒤 다시 뽑을 때도 이 함수를 쓴다."""
+    OUT.mkdir(parents=True, exist_ok=True)
+    data = {
+        "version": 1,
+        "fetchedAt": fetched_at,
+        "source": "https://www.kdhc.co.kr 조직도(menuNo=200319)·임직원검색(menuNo=200320)",
+        "categories": [{"id": "hq", "name": "본사"}, {"id": "branch", "name": "지사"}],
+        "tree": tree,   # 인원수는 저장하지 않는다 (제출처 고르기에 필요 없음)
+    }
+    (OUT / "kdhc-org.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    rows, lines = [], []
+
+    def walk(n, path, prefix, last):
+        path = path + [n["name"]]
+        if n["level"] > 0:
+            rows.append(["본사" if n["category"] == "hq" else "지사", n["level"], n["type"], n["name"], n["id"],
+                         " > ".join(path), "Y" if n["selectable"] else "N", n.get("bonbu", "")])
+        mark = "" if n["selectable"] else " *"
+        lines.append(f"{prefix}{('└─ ' if last else '├─ ') if n['level'] else ''}{n['name']}{mark}")
+        child_prefix = prefix + (("   " if last else "│  ") if n["level"] else "")
+        for i, c in enumerate(n["children"]):
+            walk(c, path, child_prefix, i == len(n["children"]) - 1)
+    for root in tree:
+        walk(root, [], "", True)
+        lines.append("")
+
+    with open(OUT / "kdhc-org.csv", "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f)
+        w.writerow(["구분", "단계", "유형", "이름", "제출처이름(id)", "경로", "선택가능", "관할본부"])
+        w.writerows(rows)
+    lines.append("* = 선택 불가(묶음)")
+    (OUT / "kdhc-org.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return len(rows)
 
 
 def main():
@@ -153,39 +203,8 @@ def main():
         out["children"] = [strip(c) for c in n["children"]]
         return out
 
-    OUT.mkdir(parents=True, exist_ok=True)
-    data = {
-        "version": 1,
-        "fetchedAt": datetime.date.today().isoformat(),
-        "source": "https://www.kdhc.co.kr 조직도(menuNo=200319)·임직원검색(menuNo=200320)",
-        "categories": [{"id": "hq", "name": "본사"}, {"id": "branch", "name": "지사"}],
-        "tree": [strip(hq), strip(br)],   # 인원수는 저장하지 않는다 (제출처 고르기에 필요 없음)
-    }
-    (OUT / "kdhc-org.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-    rows, lines = [], []
-
-    def walk(n, path, prefix, last):
-        path = path + [n["name"]]
-        if n["level"] > 0:
-            rows.append(["본사" if n["category"] == "hq" else "지사", n["level"], n["type"], n["name"], n["id"],
-                         " > ".join(path), "Y" if n["selectable"] else "N", n.get("bonbu", "")])
-        mark = "" if n["selectable"] else " *"
-        lines.append(f"{prefix}{('└─ ' if last else '├─ ') if n['level'] else ''}{n['name']}{mark}")
-        child_prefix = prefix + (("   " if last else "│  ") if n["level"] else "")
-        for i, c in enumerate(n["children"]):
-            walk(c, path, child_prefix, i == len(n["children"]) - 1)
-    for root in (hq, br):
-        walk(root, [], "", True)
-        lines.append("")
-
-    with open(OUT / "kdhc-org.csv", "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f)
-        w.writerow(["구분", "단계", "유형", "이름", "제출처이름(id)", "경로", "선택가능", "관할본부"])
-        w.writerows(rows)
-    lines.append("* = 선택 불가(묶음)")
-    (OUT / "kdhc-org.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"저장: {OUT} (본사 {hq['total']}명, 지사 {br['total']}명, 노드 {len(rows)}개)")
+    n_rows = write_files([strip(hq), strip(br)], datetime.date.today().isoformat())
+    print(f"저장: {OUT} (본사 {hq['total']}명, 지사 {br['total']}명, 노드 {n_rows}개)")
 
 
 if __name__ == "__main__":

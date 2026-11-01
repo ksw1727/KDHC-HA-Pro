@@ -1746,6 +1746,16 @@
               ]
             },
             {
+              "id": "청주지사 열수송부",
+              "name": "열수송부",
+              "type": "부",
+              "category": "branch",
+              "selectable": true,
+              "level": 2,
+              "leaf": true,
+              "children": []
+            },
+            {
               "id": "청주지사 안전관리관",
               "name": "안전관리관",
               "type": "관",
