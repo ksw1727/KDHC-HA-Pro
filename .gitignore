@@ -17,3 +17,7 @@ tools/ai/eval/out/
 # 배포 계정 연결 정보·서버 빌드 산출물
 .vercel/
 server/runtime.mjs
+
+# 파이썬 스크립트 실행 찌꺼기
+__pycache__/
+*.pyc
