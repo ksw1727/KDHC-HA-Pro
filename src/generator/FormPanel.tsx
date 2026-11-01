@@ -12,6 +12,7 @@ import { Button, Dialog } from './ui/ui';
  * 화면끼리는 window 이벤트로 주고받는다.
  *  - 받기 `hanan-moa:select-field` {key}: 카드 미리보기에서 머리글을 눌렀다 → 그 항목을 연다
  *  - 받기 `hanan-moa:form-removed` {formId}: 내 업무공간에서 지운 양식이 열려 있으면 닫는다
+ *  - 받기 `hanan-moa:close-form`: 대화가 비었다([새 대화]·대화 지우기·양식 없는 대화) → 패널도 비운다
  *  - 받기 `hanan-moa:export-form` {schema}: 카드의 [엑셀 내보내기] → 그 양식을 열고 내보내기 창(① 일정 정보부터)을 띄운다
  *  - 보내기 `hanan-moa:form-edit` (FormSchema): 고칠 때마다 → 카드가 바로 따라 바뀐다
  *  - 보내기 `hanan-moa:field-selected` {key}: 고른 항목 → 카드에 표시
@@ -51,7 +52,13 @@ export function FormPanel({ incoming }: { incoming?: Incoming }) {
       setExportReq(Date.now());
     };
     window.addEventListener('hanan-moa:export-form', exp);
-    return () => { window.removeEventListener('hanan-moa:select-field', on); window.removeEventListener('hanan-moa:export-form', exp); };
+    // [새 대화]처럼 대화에 양식이 없어지면 패널도 "열린 양식이 없어요"로 되돌린다
+    const close = () => { setOpen(null); setFull(false); setFocus(undefined); setExportReq(undefined); };
+    window.addEventListener('hanan-moa:close-form', close);
+    return () => {
+      window.removeEventListener('hanan-moa:select-field', on); window.removeEventListener('hanan-moa:export-form', exp);
+      window.removeEventListener('hanan-moa:close-form', close);
+    };
   }, []);
   const openId = open?.start.schema.formId;
   useEffect(() => {

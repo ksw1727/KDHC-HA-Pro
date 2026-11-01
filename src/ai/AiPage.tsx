@@ -79,6 +79,8 @@ const checkLocal = (s: FormSchema): Pick<Msg, 'form' | 'problems' | 'badForm'> =
 /** 오른쪽 설정 패널로 이 양식을 보낸다. auto: AI가 새로 만들었을 때(패널을 억지로 열지 않음) */
 const toPanel = (schema: FormSchema, o: { auto?: boolean; preferStored?: boolean } = {}) =>
   window.dispatchEvent(new CustomEvent('hanan-moa:open-form', { detail: { schema, ...o } }));
+/** 오른쪽 설정 패널을 비운다 (지금 대화에 양식이 없을 때: [새 대화]·대화 지우기·양식 없는 대화로 바꾸기) */
+const closePanel = () => window.dispatchEvent(new Event('hanan-moa:close-form'));
 
 /** AI로 만들기: 하고 싶은 말을 하면 AI(OpenAI SDK)가 이 프로그램 규칙대로 양식을 만든다 (tools/ai/bridge.ts).
  *  panelOpen: 오른쪽 설정 패널이 켜져 있으면 마지막 양식 카드가 패널과 연결돼, 고칠 때마다 미리보기가 바로 바뀐다 */
@@ -134,6 +136,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const draftSync = useCloudDraft({ chatId, msgs, aiVersion, ...(threadId ? { threadId } : {}) }, busy, (draft: Draft) => {
     setChatId(draft.chatId); setMsgs(draft.msgs as Msg[]); setAiVersion(draft.aiVersion); setThreadId(draft.threadId ?? null);
     if (!draft.msgs.length) keepSources([]);
+    if (!(draft.msgs as Msg[]).some((m) => m.form)) closePanel();
   });
   useEffect(() => {
     aiFetch('/api/ai/health').then(requireOk).then((r) => r.json()).then((j) => {
@@ -171,6 +174,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     }
     setThreadId(next.threadId); setChatId(next.chatId); setAiVersion(next.aiVersion); setMsgs(xs);
     setInput(''); setAttached([]); setSheetPicks(new Map()); setFileNote(''); keepSources([]);
+    if (!xs.some((m) => m.form)) closePanel();   // 양식이 없는 대화면 패널도 "열린 양식이 없어요"로
   };
   /** 내 업무공간(일정·양식 카드)에서 양식을 열었다 → 그 양식을 만든 대화와 미리보기를 보여 준다 */
   const openFor = async (form: FormSchema) => {
@@ -222,6 +226,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     if (id === cur.threadId) {
       draftSync.markCleared();
       setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); setSheetPicks(new Map()); keepSources([]); setThreadId(null); setMode('say');
+      closePanel();
       now.current = { ...cur, threadId: null, msgs: [] };
     }
     const err = await deleteThread(id);
@@ -365,6 +370,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     if (threadId && msgs.length) void saveThread({ threadId, chatId, msgs, aiVersion });
     draftSync.markCleared();
     abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); setSheetPicks(new Map()); keepSources([]); setThreadId(null); setOpening('');
+    closePanel();   // 오른쪽 설정 패널도 같이 비운다
   };
 
   if (health === 'off' || health === 'nokey') {
