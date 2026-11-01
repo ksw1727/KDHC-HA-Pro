@@ -76,6 +76,19 @@ class Layouter {
 
   private get isTemplate() { return this.input.mode === 'template'; }
   private get autoCount() { return this.agg?.autoColumns.length ?? 0; }
+  /**
+   * 취합본 자동 칸 중 제출처 칸과 함께 움직이는 앞쪽 묶음 수: 제출처 칸 + (혼합형) 머리정보 반복 칸.
+   * 제출처를 식별하지 않으면 0 (자리 설정이 없다). 검토용 칸(출처 파일·원본 줄·상태)은 늘 맨 뒤라 세지 않는다.
+   */
+  private leadAutoCount(): number {
+    const names = this.agg?.autoColumns ?? [];
+    if (this.schema.org.mode === 'none' || names[0] !== orgLabel(this.schema)) return 0;
+    const header = this.schema.blocks.find((x) => x.kind === 'fields');
+    const labels = header?.kind === 'fields' ? header.fields.map((f) => f.label) : [];
+    let n = 1;
+    while (n - 1 < labels.length && names[n] === labels[n - 1]) n++;
+    return n;
+  }
 
   private put(cell: ModelCell) {
     this.cells.set(cell.address, cell);
@@ -387,13 +400,18 @@ class Layouter {
     const headerRow = row;
     const map: ListBlockMap = { kind: 'list', headerRow, firstDataRow: 0, lastDataRow: 0, columns: {} };
     if (numbered) this.put({ address: addr(c0 - 1, headerRow), value: '번호', role: 'header' });
+    // 취합본: 제출처 칸(+혼합형 머리정보 반복 칸)을 b.orgAfter 자리에 끼운다. 항목 i의 열 = fieldCol(i), 자동 칸 j의 열 = autoCol(j)
+    const lead = numbered ? this.leadAutoCount() : 0;
+    const at = lead && b.orgAfter !== undefined ? (b.orgAfter === '' ? 0 : b.columns.findIndex((c) => c.key === b.orgAfter) + 1) : -1;
+    const split = at > 0 || at === 0 ? at : b.columns.length;   // 이 수만큼의 항목 뒤에 앞쪽 자동 칸이 온다
+    const fieldCol = (i: number) => c0 + i + (i >= split && at >= 0 ? lead : 0);
+    const autoCol = (j: number) => (at >= 0 && j < lead ? c0 + split + j : c0 + b.columns.length + j);
     b.columns.forEach((f, i) => {
-      const col = c0 + i;
+      const col = fieldCol(i);
       this.put({ address: addr(col, headerRow), value: headerText(f), role: 'header', required: f.required, fieldKey: f.key });
       map.columns[f.key] = colLetter(col);
     });
-    const autoStart = c0 + b.columns.length;
-    this.agg?.autoColumns.forEach((name, i) => this.put({ address: addr(autoStart + i, headerRow), value: name, role: 'auto-header' }));
+    this.agg?.autoColumns.forEach((name, j) => this.put({ address: addr(autoCol(j), headerRow), value: name, role: 'auto-header' }));
     if (numbered) this.freeze = { row: headerRow };
 
     let r = headerRow + 1;
@@ -402,11 +420,11 @@ class Layouter {
       if (numbered) this.put({ address: addr(c0 - 1, r), value: '예시', role: 'row-number' });
       // 예시 줄의 계산 칸은 예시 값으로 계산해 보여 준다
       const ex = b.columns.some((f) => f.type === 'calc') ? computeListRow(b, { ...b.exampleRow }) : b.exampleRow ?? {};
-      b.columns.forEach((f, i) => this.put({ address: addr(c0 + i, r), value: asCell(ex[f.key]), role: 'example', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
+      b.columns.forEach((f, i) => this.put({ address: addr(fieldCol(i), r), value: asCell(ex[f.key]), role: 'example', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), fieldKey: f.key }));
       r += 1;
     }
     map.firstDataRow = r;
-    const cols = new Map(b.columns.map((f, i) => [f.label.trim(), colLetter(c0 + i)]));
+    const cols = new Map(b.columns.map((f, i) => [f.label.trim(), colLetter(fieldCol(i))]));
 
     if (this.isTemplate) {
       for (let n = 1; n <= b.maxRows; n++, r++) {
@@ -434,9 +452,9 @@ class Layouter {
         const vals = b.columns.some((f) => f.type === 'calc' && rec.values[f.key] === undefined) ? computeListRow(b, rec.values) : rec.values;
         b.columns.forEach((f, i) => {
           const m = rec.marks?.find((x) => x.key === f.key);
-          this.put({ address: addr(c0 + i, r), value: asCell(vals[f.key]), role: f.type === 'calc' ? 'calc' : 'input', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), mark: m?.mark ?? rowMark, note: m?.note, fieldKey: f.key });
+          this.put({ address: addr(fieldCol(i), r), value: asCell(vals[f.key]), role: f.type === 'calc' ? 'calc' : 'input', numFmt: FIELD_TYPES[f.type].excelNumFmt(f), mark: m?.mark ?? rowMark, note: m?.note, fieldKey: f.key });
         });
-        rec.auto.forEach((v, i) => this.put({ address: addr(autoStart + i, r), value: asCell(v), role: 'auto-value', mark: rowMark }));
+        rec.auto.forEach((v, j) => this.put({ address: addr(autoCol(j), r), value: asCell(v), role: 'auto-value', mark: rowMark }));
         r += 1;
       });
       map.lastDataRow = Math.max(map.firstDataRow, r - 1);

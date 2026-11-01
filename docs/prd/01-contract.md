@@ -70,6 +70,7 @@ export interface ListBlock {
   columns: Field[];
   maxRows: number;               // 입력 줄 수 (기본 100, D3)
   exampleRow?: Record<string, string | number>;   // 첫 줄 회색 예시(선택). key = field.key
+  orgAfter?: string;   // 취합본 제출처 칸 자리(2026-11-01): 없음=맨 뒤(기본) · ''=맨 앞(번호 다음) · 항목 key=그 항목 다음. 빈 양식에는 영향 없음, 칸 구조(structureKey)에도 넣지 않음
 }
 
 export interface MatrixBlock {
@@ -261,6 +262,7 @@ export interface ListBlockMap {
   firstDataRow: number;
   lastDataRow: number;          // firstDataRow + maxRows - 1
   exampleRow?: number;          // 예시 줄 행 번호 (있을 때)
+  // 취합본에서 orgAfter로 제출처 칸이 항목 사이에 끼면 columns의 열 글자도 그만큼 밀린다(결과·검토·검산은 모두 이 지도를 따른다)
   columns: Record<string, string>;   // key = field.key, 값 = 열 문자 예: "B"
 }
 export interface MatrixBlockMap {
