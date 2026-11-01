@@ -47,9 +47,9 @@ export function FormulaEditor({ value, onChange, scope, decimals = 0 }: { value:
   };
 
   const rowNames = scope.names.filter((n) => !scope.aggregateOnly.includes(n));
-  const { problem, preview } = useMemo(() => {
+  const { problem, preview, roundHint } = useMemo(() => {
     const problem = calcProblem(scope, value);
-    if (problem) return { problem, preview: '' };
+    if (problem) return { problem, preview: '', roundHint: false };
     try {
       const n = parseFormula(value);
       // 예시 값은 계산식에 실제로 쓴 칸에만 준다 (쓰지도 않은 칸 이름이 나오던 것)
@@ -59,11 +59,13 @@ export function FormulaEditor({ value, onChange, scope, decimals = 0 }: { value:
       const v = evaluate(n, (name, agg) => (scope.aggregateOnly.includes(name) && agg ? [10, 20, 30] : sample.get(name)));
       const vs = v === null ? '(빈칸)' : typeof v === 'number' ? v.toLocaleString('ko-KR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : `"${v}"`;
       const ex = [...one.map((name, i) => `${name}=${(i + 1) * 10}`), ...(used.some((name) => scope.aggregateOnly.includes(name)) ? ['목록 10·20·30'] : [])].join(', ');
-      return { problem: null, preview: `${printFormula(n)}  →  ${ex ? `예시(${ex})로 ` : ''}계산하면 ${vs}` };
+      // 자릿수를 골라 두어도 빈 양식 수식은 그대로라, 받는 사람이 엑셀에서 채우면 셀 값에 긴 소수가 남는다
+      const roundHint = decimals > 0 && typeof v === 'number' && !(n.t === 'fn' && n.name === 'ROUND');
+      return { problem: null, preview: `${printFormula(n)}  →  ${ex ? `예시(${ex})로 ` : ''}계산하면 ${vs}`, roundHint };
     } catch {
-      return { problem: '계산식을 읽을 수 없어요.', preview: '' };
+      return { problem: '계산식을 읽을 수 없어요.', preview: '', roundHint: false };
     }
-  }, [value, scope]);
+  }, [value, scope, decimals]);
 
   const chip = 'rounded-btn border px-1.5 py-0.5 text-xs hover:bg-white';
   return (
@@ -105,6 +107,12 @@ export function FormulaEditor({ value, onChange, scope, decimals = 0 }: { value:
         <div className="rounded-btn bg-pri-bg px-2.5 py-1.5 text-xs text-pri-ink">{preview}</div>
       ) : (
         <div className="text-xs text-muted">예: [여] ÷ ([남] + [여]) × 100 · 반올림([금액] × 0.1) · 조건([점수] ≥ 80, "적합", "부적합")</div>
+      )}
+      {value && roundHint && (
+        <div className="rounded-btn bg-panel px-2.5 py-1.5 text-xs text-sub">
+          화면과 취합 결과는 소수 {decimals}자리로 맞춰 드려요. 다만 받는 사람이 빈 양식에 직접 채우면 셀 값에는 긴 소수가 남아요.
+          값까지 맞추려면 <b>반올림(계산식, {decimals})</b> 으로 감싸세요.
+        </div>
       )}
     </div>
   );
