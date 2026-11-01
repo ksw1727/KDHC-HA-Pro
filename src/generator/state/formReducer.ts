@@ -14,7 +14,7 @@ export type Action =
   | { type: 'field/update'; blockId: string; key: string; patch: Partial<Field> }
   | { type: 'field/remove'; blockId: string; key: string }
   | { type: 'field/move'; blockId: string; from: number; to: number }
-  | { type: 'list/set'; blockId: string; patch: { maxRows?: number; exampleRow?: Record<string, string | number> | null } }
+  | { type: 'list/set'; blockId: string; patch: { maxRows?: number; exampleRow?: Record<string, string | number> | null; orgAfter?: string | null } }
   | { type: 'matrix/set'; blockId: string; patch: Partial<Pick<MatrixBlock, 'rowLabels' | 'colLabels' | 'totalRow' | 'totalCol' | 'calcRows' | 'calcCols'>> }
   | { type: 'grid/replace'; blockId: string; grid: Pick<GridBlock, 'colLabels' | 'rows' | 'spareRows' | 'spareColumns'> }
   | { type: 'collect/set'; patch: Partial<CollectSpec> }
@@ -126,6 +126,11 @@ function formReducerCore(s: FormSchema, a: Action): FormSchema {
         const list = fieldsOf(b);
         if (!list) return b;
         const next = withFields(b, list.filter((f) => f.key !== a.key));
+        // 제출처 칸이 지운 항목 다음이었으면 그 앞 항목 다음(첫 항목이었으면 맨 앞)으로 옮긴다
+        if (next.kind === 'list' && next.orgAfter === a.key) {
+          const i = list.findIndex((f) => f.key === a.key);
+          next.orgAfter = i > 0 ? list[i - 1].key : '';
+        }
         if (next.kind === 'list' && next.exampleRow) {
           const { [a.key]: _drop, ...rest } = next.exampleRow;
           next.exampleRow = rest;
@@ -150,6 +155,8 @@ function formReducerCore(s: FormSchema, a: Action): FormSchema {
         if (a.patch.maxRows !== undefined) next.maxRows = Math.max(1, Math.min(5000, Math.round(a.patch.maxRows)));
         if (a.patch.exampleRow === null) delete next.exampleRow;
         else if (a.patch.exampleRow) next.exampleRow = a.patch.exampleRow;
+        if (a.patch.orgAfter === null) delete next.orgAfter;
+        else if (a.patch.orgAfter !== undefined && (a.patch.orgAfter === '' || b.columns.some((c) => c.key === a.patch.orgAfter))) next.orgAfter = a.patch.orgAfter;
         return next;
       });
 

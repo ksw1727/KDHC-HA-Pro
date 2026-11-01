@@ -33,6 +33,12 @@ export interface ListBlock {
   columns: Field[];
   maxRows: number;               // 입력 줄 수 (기본 100, D3)
   exampleRow?: Record<string, string | number>;   // 첫 줄 회색 예시(선택). key = field.key
+  /**
+   * 취합본에서 제출처 칸(지사 등, 이름은 org.label)을 둘 자리. 빈 양식에는 없는 칸이다.
+   * 없음 = 맨 뒤(오른쪽 자동 칸 맨 앞, 예전과 같음) · '' = 맨 앞(번호 다음) · 항목 key = 그 항목 바로 다음.
+   * 혼합형의 머리정보 반복 칸은 제출처 칸 바로 뒤에 같이 붙고, 검토용 칸(출처 파일·원본 줄·상태)은 늘 맨 뒤다.
+   */
+  orgAfter?: string;
 }
 
 export interface MatrixBlock {
@@ -248,6 +254,7 @@ export function validateSchema(x: unknown): ValidateResult {
 
   for (const b of s.blocks) {
     if (b?.kind === 'matrix' && b.cell?.type !== 'number') errors.push('표형 칸은 숫자 타입이어야 해요');
+    if (b?.kind === 'list' && b.orgAfter !== undefined && (typeof b.orgAfter !== 'string' || (b.orgAfter !== '' && !b.columns.some((c) => c.key === b.orgAfter)))) errors.push('제출처 칸 위치(orgAfter)는 \'\'(맨 앞) 또는 목록 항목 key여야 해요');
     if (b?.kind === 'grid') {
       const width = b.colLabels.length;
       if (b.rows.some((r) => r.length !== width)) errors.push('빈칸채우기 표의 각 행 칸 수가 머리글 수와 달라요');

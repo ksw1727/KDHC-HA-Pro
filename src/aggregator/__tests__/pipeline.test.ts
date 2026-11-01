@@ -388,3 +388,22 @@ describe('자유 제작형', () => {
 });
 
 function orgLabelOf(s: FormSchema) { return s.org.label?.trim() || '지사'; }
+
+describe('취합본 제출처 칸 자리 (ListBlock.orgAfter)', () => {
+  test("orgAfter ''(맨 앞): 결과 파일은 번호 다음에 지사, 검토 파일도 같은 자리, 검산은 그대로 일치", async () => {
+    const s: FormSchema = { ...structuredClone(list), blocks: [{ ...(structuredClone(list.blocks[0]) as Extract<FormSchema['blocks'][number], { kind: 'list' }>), orgAfter: '' }] };
+    const { out, wb, rb } = await runAll([
+      await makeFile(s, 'a.xlsx', { orgName: '서울', fill: put([{ name: '김', qty: 3 }, { name: '이', qty: 4 }]) }),
+      await makeFile(s, 'b.xlsx', { orgName: '부산', fill: put([{ name: '박', qty: 5 }]) }),
+    ]);
+    expect(out.verify.ok).toBe(true);
+    const row = (ws: ExcelJS.Worksheet) => { let r = 1; while (ws.getCell(`A${r}`).value !== '번호') r++; return r; };
+    for (const ws of [wb.worksheets[0], rb.worksheets[0]]) {
+      const h = row(ws);
+      expect([1, 2, 3, 4, 5].map((c) => String(ws.getRow(h).getCell(c).value ?? '').replace(' *', ''))).toEqual(['번호', '지사', '이름', '직급', '수량']);
+      expect(ws.getRow(h + 1).getCell(2).value).toBe('서울');
+      expect(ws.getRow(h + 3).getCell(2).value).toBe('부산');
+      expect(ws.getRow(h + 3).getCell(5).value).toBe(5);
+    }
+  });
+});
