@@ -303,7 +303,7 @@ describe('계산 칸', () => {
     expect(at(m, 'B10')?.formula).toBe('IF(COUNTA(B8,B7)=0,"",IFERROR(B8-B7,""))');
     expect(at(m, 'E10')?.formula).toBe('IFERROR(C10/D10*100,"")');
     const a = layoutSheet(s, { mode: 'aggregate', info: '', data: { autoColumns: [], matrixSums: [[45, 41], [38, 40]] } }, { today });
-    expect(at(a, 'E9')?.value).toBeCloseTo((81 / 164) * 100, 5); // 합계 행 비율은 다시 계산
+    expect(at(a, 'E9')?.value).toBe(49.4); // 합계 행 비율은 다시 계산 — 소수 1자리로 적어 둔 칸이라 값도 49.4 (49.390243…이 아님)
     expect(at(a, 'B10')?.value).toBe(-7);
     expect(at(a, 'D9')?.value).toBe(164);
   });
