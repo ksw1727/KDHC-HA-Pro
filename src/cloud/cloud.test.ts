@@ -253,3 +253,23 @@ test('보관함이 없던 예전 양식은 서버 AI 대화 기록에서 글만 
   expect(r).toMatchObject({ chatId: 'chat-1', msgs: [{ role: 'user', text: '교육비 빼 주세요' }, { role: 'ai', text: '뺐어요' }] });
   expect(r?.form?.formId).toBe(SAMPLE.list.formId);
 });
+
+test('대화 지우기(온라인): 서버 대화 목록 행을 지우고, 다른 대화가 같은 서버 대화를 쓰지 않으면 AI 대화 기록도 지운다', async () => {
+  await setup(); const th = await import('../ai/threads');
+  const up = query2({ data: null, error: null });
+  mock.client.from.mockReturnValue(up);
+  await th.saveThread({ threadId: 't1', chatId: 'c1', aiVersion: null, msgs: [{ role: 'user', text: '하나' }] });
+  await th.saveThread({ threadId: 't2', chatId: 'c2', aiVersion: null, msgs: [{ role: 'user', text: '둘' }] });
+  await th.saveThread({ threadId: 't3', chatId: 'c2', aiVersion: null, msgs: [{ role: 'user', text: '셋' }] });
+  const del = { ...query2({ data: null, error: null }), delete: vi.fn() }; del.delete.mockReturnValue(del);
+  mock.client.from.mockReturnValue(del);
+  mock.client.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'user-a' } } }, error: null });
+  const fetcher = vi.fn().mockResolvedValue(new Response('{"ok":true}')); vi.stubGlobal('fetch', fetcher);
+  expect(await th.deleteThread('t1')).toBeNull();
+  expect(del.delete).toHaveBeenCalled(); expect(del.eq).toHaveBeenCalledWith('thread_id', 't1');
+  expect(fetcher).toHaveBeenCalledWith('/api/ai/forget', expect.objectContaining({ method: 'POST', body: JSON.stringify({ chatId: 'c1' }) }));
+  fetcher.mockClear();
+  await th.deleteThread('t2');   // t3가 같은 서버 대화(c2)를 쓰므로 AI 대화 기록은 둔다
+  expect(fetcher).not.toHaveBeenCalled();
+  expect((await th.listThreads()).list.map((t) => t.threadId)).toEqual(['t3']);
+});

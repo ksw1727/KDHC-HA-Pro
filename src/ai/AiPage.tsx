@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
-import { findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
+import { deleteThread, findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
 import { AttachmentError, bytesForLocal, buildCloudChatBody, isCutSource, LockedFileError, MAX_CLOUD_FILE, prepareCloudSources, readSheetList, WrongPasswordError, type CloudSource } from './cloudAttachments';
 import { defaultPick, isPartial, pickedSheets, SheetPicker, type SheetPick } from './SheetPicker';
 import { readNdjson, requireOk, ServerMessageError } from './http';
@@ -215,6 +215,20 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     if (cur.threadId && cur.msgs.length) await saveThread(cur);
     setThreadList({ list: [], loading: true }); const r = await listThreads(); setThreadList(r); setThreadCount(r.list.length);
   };
+  /** [대화 목록]에서 지우기. 지금 대화를 지우면 빈 대화로 시작한다(보관함에 다시 남기지 않게 먼저 비운다) */
+  const removeThread = async (id: string) => {
+    const cur = now.current;
+    if (cur.busy) return;
+    if (id === cur.threadId) {
+      draftSync.markCleared();
+      setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); setSheetPicks(new Map()); keepSources([]); setThreadId(null); setMode('say');
+      now.current = { ...cur, threadId: null, msgs: [] };
+    }
+    const err = await deleteThread(id);
+    const r = await listThreads();
+    setThreadList((x) => (x ? r : x)); setThreadCount(r.list.length);
+    setOpening(err ?? '');
+  };
   const pickThread = async (id: string) => {
     setThreadList(null);
     if (id === now.current.threadId || now.current.busy) return;
@@ -424,7 +438,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
             className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] border border-line-strong bg-white px-3 text-[13.5px] font-semibold text-ink shadow-[0_1px_0_rgba(0,0,0,.03)] hover:bg-panel disabled:opacity-50">
             <Icon name="clock" />대화 목록{threadCount ? <span className="grid h-[19px] min-w-[19px] place-items-center rounded-full bg-chip px-1.5 text-[11px] font-bold text-sub">{threadCount}</span> : null}
           </button>
-          {threadList && <ThreadMenu data={threadList} current={threadId} onPick={(id) => void pickThread(id)} onClose={() => setThreadList(null)} />}
+          {threadList && <ThreadMenu data={threadList} current={threadId} onPick={(id) => void pickThread(id)} onDelete={(id) => removeThread(id)} onClose={() => setThreadList(null)} />}
         </div>
         <button type="button" disabled={busy || !draftSync.ready} onClick={() => { reset(); setMode('say'); }}
           className="inline-flex h-[34px] items-center gap-1.5 rounded-[9px] bg-pri px-3.5 text-[13.5px] font-semibold text-white shadow-[0_2px_6px_rgba(55,145,63,.25)] hover:bg-pri-ink disabled:opacity-50 disabled:shadow-none">
@@ -524,27 +538,44 @@ const ICONS = {
   clip: <path d="M20.5 11.5 12.4 19.6a5 5 0 0 1-7.1-7.1l8.3-8.3a3.4 3.4 0 0 1 4.8 4.8l-8.3 8.3a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6" />,
   up: <path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" />,
   chat: <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6a2.5 2.5 0 0 1-2.5 2.5H11l-4 4v-4A2 2 0 0 1 5 13z" />,
+  trash: <><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.8 12.2h9.4L17.5 7" /><path d="M10.2 10.5v5.5M13.8 10.5v5.5" /></>,
   spark: <><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M19 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" /></>,
 };
 function Icon({ name, size = 16 }: { name: keyof typeof ICONS; size?: number }) {
   return <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={size > 16 ? 2.2 : 1.9} strokeLinecap="round" strokeLinejoin="round" className="flex-none">{ICONS[name]}</svg>;
 }
 
-/** [대화 목록]: 예전 대화로 돌아간다 (최근 순) */
-function ThreadMenu({ data, current, onPick, onClose }: { data: { list: ThreadSummary[]; error?: string; loading?: boolean }; current: string | null; onPick: (id: string) => void; onClose: () => void }) {
+/** [대화 목록]: 예전 대화로 돌아간다 (최근 순). 줄마다 [지우기] → 그 자리에서 한 번 더 확인 */
+function ThreadMenu({ data, current, onPick, onDelete, onClose }: { data: { list: ThreadSummary[]; error?: string; loading?: boolean }; current: string | null; onPick: (id: string) => void; onDelete: (id: string) => Promise<void>; onClose: () => void }) {
   const when = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  const [ask, setAsk] = useState<string | null>(null);   // 지울지 묻는 대화
+  const [busyId, setBusyId] = useState<string | null>(null);
   return (
     <>
       <div className="fixed inset-0 z-20" aria-hidden onClick={onClose} />
-      <div role="menu" aria-label="대화 목록" className="absolute right-0 top-full z-30 mt-1 flex max-h-[60vh] w-[340px] flex-col overflow-auto rounded-card border border-line bg-white p-1 shadow-lg">
+      <div role="menu" aria-label="대화 목록" className="absolute right-0 top-full z-30 mt-1 flex max-h-[60vh] w-[360px] flex-col overflow-auto rounded-card border border-line bg-white p-1 shadow-lg">
         {data.error && <p className="m-0 px-2 py-1.5 text-xs text-warn-ink">서버 대화 목록을 읽지 못해 이 기기 대화만 보여요.</p>}
         {data.list.length === 0 && <p className="m-0 px-2 py-3 text-center text-sub">{data.loading ? '불러오는 중…' : '남아 있는 대화가 없어요.'}</p>}
-        {data.list.map((t) => (
-          <button key={t.threadId} type="button" role="menuitem" onClick={() => onPick(t.threadId)}
-            className={cx('flex flex-col items-start gap-0.5 rounded-box px-2.5 py-2 text-left hover:bg-pri-bg', t.threadId === current && 'bg-panel')}>
-            <span className="w-full truncate text-[13.5px] font-semibold">{t.title}</span>
-            <span className="text-xs text-muted">{when(t.updatedAt)}{t.formIds.length ? ` · 양식 ${t.formIds.length}개` : ''}{t.threadId === current ? ' · 지금 대화' : ''}</span>
-          </button>
+        {data.list.map((t) => ask === t.threadId ? (
+          <div key={t.threadId} role="group" aria-label={`${t.title} 대화 지우기 확인`} className="flex flex-col gap-1.5 rounded-box border border-[#f3c2bd] bg-[#fffafa] px-2.5 py-2">
+            <span className="text-[13px]"><b className="font-semibold">{t.title}</b> 대화를 지울까요?</span>
+            <span className="text-xs text-sub">대화 목록과 서버의 AI 대화 기록에서 지워요. 만든 양식은 내 양식에 그대로 남아요.{t.threadId === current ? ' 지금 대화라 빈 대화로 시작해요.' : ''}</span>
+            <span className="flex justify-end gap-1.5">
+              <Button size="sm" disabled={!!busyId} onClick={() => setAsk(null)}>취소</Button>
+              <Button size="sm" variant="danger" disabled={!!busyId} onClick={() => { setBusyId(t.threadId); void onDelete(t.threadId).finally(() => { setBusyId(null); setAsk(null); }); }}>{busyId === t.threadId ? '지우는 중…' : '지우기'}</Button>
+            </span>
+          </div>
+        ) : (
+          <div key={t.threadId} className={cx('group flex items-center rounded-box hover:bg-pri-bg', t.threadId === current && 'bg-panel')}>
+            <button type="button" role="menuitem" onClick={() => onPick(t.threadId)} className="flex min-w-0 flex-1 flex-col items-start gap-0.5 px-2.5 py-2 text-left">
+              <span className="w-full truncate text-[13.5px] font-semibold">{t.title}</span>
+              <span className="text-xs text-muted">{when(t.updatedAt)}{t.formIds.length ? ` · 양식 ${t.formIds.length}개` : ''}{t.threadId === current ? ' · 지금 대화' : ''}</span>
+            </button>
+            <button type="button" aria-label={`${t.title} 대화 지우기`} title="대화 지우기" onClick={() => setAsk(t.threadId)}
+              className="mr-1.5 grid size-7 flex-none place-items-center rounded-btn text-muted opacity-60 hover:bg-err hover:text-err-ink hover:opacity-100 group-hover:opacity-100">
+              <Icon name="trash" />
+            </button>
+          </div>
         ))}
       </div>
     </>

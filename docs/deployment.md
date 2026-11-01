@@ -115,6 +115,8 @@ Neon 인증 설정의 이메일 회원가입은 꺼 두고, 이메일 로그인�
 
 ## AI 대화 목록 (2026-10-26 추가)
 
+- 지우기(2026-11-01): 브라우저가 `moa_chat_threads` 본인 행을 지우고(표 권한 `delete`는 처음부터 있음), 서버 함수 `api/ai/forget.ts`가 `moa_ai_chats` 본인 행을 지운다(서버 DB 연결 사용, 새 SQL 없음)
+
 - AI로 만들기의 대화마다 말풍선·양식 카드를 `moa_chat_threads`(사용자·대화 번호당 한 줄, `form_ids`로 양식→대화 찾기)에 남긴다. 지금 대화 초안 `moa_chat_drafts`는 그대로 쓴다
 - 적용 SQL: `neon/migrations/202610260001_chat_threads.sql` (2026-10-28 적용 완료: RLS·정책 1개·authenticated 권한 SELECT/INSERT/UPDATE/DELETE·색인 3개 확인, Data API [Refresh schema cache] 후 로그인 사용자 조회 200 확인). 표가 없으면 대화는 이 기기에만 남고, AI 화면에 "서버 대화 목록에 남기지 못했어요" 안내가 뜬다
 

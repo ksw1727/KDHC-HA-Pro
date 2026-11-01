@@ -65,3 +65,25 @@ test('대화 기록이 없는 양식은 양식 카드만 띄우고 그렇다고 
   await screen.findByText(/대화 기록이 남아 있지 않아 양식만 불러왔어요/);
   expect(screen.getAllByText('대화 없는 양식').length).toBeGreaterThan(0);
 });
+
+test('[대화 목록]에서 지우기: 한 번 더 확인한 뒤 목록에서 빠지고, 지금 대화를 지우면 빈 대화가 된다', async () => {
+  localStorage.setItem('hanan-moa:ai-chat', JSON.stringify({ chatId: null, threadId: 't-now', aiVersion: null, msgs: [{ role: 'user', text: '지금 하던 말' }, { role: 'ai', text: '지금 답', form: formX }] }));
+  await saveThread({ threadId: 't-old', chatId: null, aiVersion: null, msgs: [{ role: 'user', text: '예전 말' }, { role: 'ai', text: '', form: formY }] });
+  render(<AiPage />);
+  await screen.findByText('지금 하던 말');
+  fireEvent.click(screen.getByRole('button', { name: '대화 목록' }));
+  await screen.findByRole('menuitem', { name: /예전 대화 양식/ });
+  fireEvent.click(screen.getByRole('button', { name: '예전 대화 양식 대화 지우기' }));
+  fireEvent.click(screen.getByRole('button', { name: '취소' }));
+  expect(screen.getByRole('menuitem', { name: /예전 대화 양식/ })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: '예전 대화 양식 대화 지우기' }));
+  fireEvent.click(screen.getByRole('button', { name: '지우기' }));
+  await waitFor(() => expect(screen.queryByRole('menuitem', { name: /예전 대화 양식/ })).toBeNull());
+  expect((await listThreads()).list.map((t) => t.threadId)).toEqual(['t-now']);
+  // 지금 대화 지우기
+  fireEvent.click(screen.getByRole('button', { name: '지금 대화 양식 대화 지우기' }));
+  fireEvent.click(screen.getByRole('button', { name: '지우기' }));
+  await screen.findByText('무엇을 받고 싶으세요?');
+  await new Promise((r) => setTimeout(r, 900));   // 보관함 저장(0.8초 뒤)이 지운 대화를 되살리지 않는다
+  expect((await listThreads()).list).toEqual([]);
+});

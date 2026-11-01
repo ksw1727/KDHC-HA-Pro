@@ -10,7 +10,7 @@ async function body(req:Request):Promise<unknown> {
   for await (const c of req) { const b=Buffer.from(c); n+=b.length; if(n>limits.request) throw new SafeError(413,'요청이 너무 커요.'); chunks.push(b); }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
-export function handler(route:'health'|'chat'|'form'|'account', deps:Dependencies={}) {
+export function handler(route:'health'|'chat'|'form'|'account'|'forget', deps:Dependencies={}) {
   return async (req:Request,res:ServerResponse) => {
     const env=deps.env ?? process.env; let streaming=false; let timedOut=false; let store:Store|undefined; let user=''; let chatId=''; let lease=''; let reserved=false; let saved=false;
     const controller=new AbortController();
@@ -29,7 +29,8 @@ export function handler(route:'health'|'chat'|'form'|'account', deps:Dependencie
       if(origin && origin!==env.SERVER_APP_ORIGIN && origin!==`${proto}://${host}`) throw new SafeError(403,'허용되지 않은 접근이에요.');
       if(origin && env.SERVER_APP_ORIGIN===origin) {res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type');res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');}
       if(req.method==='OPTIONS') {res.statusCode=204;res.end();return;}
-      if(req.method!==(route==='chat'?'POST':'GET')) {res.setHeader('Allow',route==='chat'?'POST':'GET');throw new SafeError(405,'지원하지 않는 요청이에요.');}
+      const post=route==='chat' || route==='forget';
+      if(req.method!==(post?'POST':'GET')) {res.setHeader('Allow',post?'POST':'GET');throw new SafeError(405,'지원하지 않는 요청이에요.');}
       const authorization=req.headers.authorization;
       if(!authorization || !/^Bearer [^\s]+$/i.test(authorization)) throw new SafeError(401,'로그인이 필요해요.');
       store=deps.store ?? makeStore(env);
@@ -42,11 +43,14 @@ export function handler(route:'health'|'chat'|'form'|'account', deps:Dependencie
       if(route==='health') {json(200,{mode:'cloud',engines:{claude:!!providerConfig('claude',env),codex:!!providerConfig('codex',env)}});return;}
       if(route==='form') { const id=new URL(req.url ?? '', 'https://local.invalid').searchParams.get('chatId'); if(!uuid(id)) throw new SafeError(400,'대화 번호가 올바르지 않아요.');const chat=await store.chat(id,user);if(!chat || chat.user_id!==user) throw new SafeError(404,'대화를 찾을 수 없어요.');json(200,chat.form);return; }
       let raw:unknown; try {raw=await body(req);} catch(e) {if(e instanceof SafeError) throw e;throw new SafeError(400,'JSON 요청이 올바르지 않아요.');}
+      // [대화 목록]에서 지운 대화: 서버에 남은 AI 대화 기록(최근 글·양식)도 지운다. 남의 대화·없는 대화는 조용히 넘어간다
+      if(route==='forget') { const id=(raw && typeof raw==='object' ? (raw as {chatId?:unknown}).chatId : null); if(!uuid(id)) throw new SafeError(400,'대화 번호가 올바르지 않아요.'); if(!store.forget) throw new SafeError(503,'대화를 지울 수 없어요.'); await store.forget(id,user); json(200,{ok:true}); return; }
       const input=parseInput(raw);
       const cfg=providerConfig(input.engine,env); if(!cfg) throw new SafeError(503,'인공지능 키와 모델 설정이 필요해요.');
       chatId=input.chatId ?? randomUUID();
-      const chat=input.chatId ? await store.chat(chatId,user) : null;
-      if(input.chatId && !chat) throw new SafeError(404,'대화를 찾을 수 없어요.');
+      let chat=input.chatId ? await store.chat(chatId,user) : null;
+      // 서버 기록이 지워진 대화(다른 화면에서 [대화 목록] 삭제 등)는 새 대화 번호로 이어 간다. 화면은 'chat' 이벤트로 번호를 바꾼다
+      if(input.chatId && !chat) { chatId=randomUUID(); chat=null; }
       if(chat && chat.user_id!==user) throw new SafeError(404,'대화를 찾을 수 없어요.');
       const previous=input.form ?? chat?.form ?? null;
       const history:Turn[]=(chat?.conversation ?? []).slice(-12);

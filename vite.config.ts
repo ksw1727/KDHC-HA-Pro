@@ -24,6 +24,7 @@ function cloudApi(env: NodeJS.ProcessEnv): Plugin {
     ['/api/ai/health', handler('health', { env })],
     ['/api/ai/chat', handler('chat', { env })],
     ['/api/ai/form', handler('form', { env })],
+    ['/api/ai/forget', handler('forget', { env })],
   ]);
   const setup = (server: ViteDevServer | PreviewServer) => {
     server.middlewares.use((req, res, next) => {

@@ -9,6 +9,8 @@ export interface Store {
   chat(id:string,user:string):Promise<Chat|null>;
   reserve(user:string,id:string,lease:string):Promise<void>;
   finish(user:string,id:string,lease:string,conversation:Turn[]|null,form:FormSchema|null):Promise<void>;
+  /** 본인 대화 기록 지우기 (진행 중인 요청이 있으면 지우지 않는다) */
+  forget?(id:string,user:string):Promise<void>;
 }
 export type Query=(strings:TemplateStringsArray,...values:unknown[])=>Promise<Record<string,unknown>[]>;
 export interface StoreOptions { sql?:Query; verify?:(token:string,env:NodeJS.ProcessEnv)=>Promise<Identity> }
@@ -41,6 +43,10 @@ export function makeStore(env:NodeJS.ProcessEnv, options:StoreOptions={}):Store 
       if(result==='global_limit') throw new SafeError(429,'오늘 전체 AI 사용 한도에 도달했어요. 내일 오전 9시에 다시 쓸 수 있어요.');
       if(result==='busy') throw new SafeError(429,'진행 중인 요청이 있어요. 끝난 뒤 다시 보내 주세요.');
       throw new SafeError(403,'AI를 사용할 권한이 없어요.');
+    },
+    async forget(id,user) {
+      try {await sql`delete from public.moa_ai_chats where id=${id}::uuid and user_id=${user}::uuid and (lease_until is null or lease_until<now())`;}
+      catch {throw new SafeError(503,'대화를 지우지 못했어요.');}
     },
     async finish(user,id,lease,conversation,form) {
       try {const rows=await sql`select moa_private.moa_ai_finish(${user}::uuid,${id}::uuid,${lease}::uuid,${conversation===null?null:JSON.stringify(conversation)}::jsonb,${form===null?null:JSON.stringify(form)}::jsonb) as accepted`;if(rows[0]?.accepted!==true) throw new Error('finish');}

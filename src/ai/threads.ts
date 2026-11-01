@@ -1,6 +1,6 @@
 import { canonicalJSON } from '@contract/checksum';
 import { validateSchema, type FormSchema } from '@contract/schema';
-import { cloudEnabled, findCloudThreadByForm, findServerChatByForm, listCloudThreads, readCloudThread, scopedStorageKey, upsertCloudThread, type CloudThread } from '../cloud';
+import { cloudEnabled, cloudFetch, deleteCloudThread, findCloudThreadByForm, findServerChatByForm, listCloudThreads, readCloudThread, scopedStorageKey, upsertCloudThread, type CloudThread } from '../cloud';
 import { parseDraft } from './useCloudDraft';
 
 /**
@@ -64,6 +64,31 @@ export async function saveThread(t: Pick<Thread, 'chatId' | 'msgs' | 'aiVersion'
   if (!cloudEnabled) return null;
   try {
     await upsertCloudThread({ threadId: next.threadId, title: next.title, formIds: next.formIds, payload: { threadId: next.threadId, chatId: next.chatId, msgs, aiVersion: next.aiVersion }, updatedAt: next.updatedAt });
+    return null;
+  } catch (e) {
+    return (e as Error).message;
+  }
+}
+
+/**
+ * 대화 지우기: 이 기기·서버 대화 목록에서 빼고, 온라인이면 서버에 남은 AI 대화 기록(최근 글·양식)도 지운다.
+ * 같은 서버 대화를 쓰는 다른 대화가 이 기기에 남아 있으면 서버 기록은 둔다(그 대화가 이어지도록).
+ * 만든 양식은 내 양식 목록에 그대로 남는다. 서버에서 못 지우면 그 이유를 돌려준다.
+ */
+export async function deleteThread(threadId: string): Promise<string | null> {
+  const map = readLocal();
+  const local = map[threadId];
+  delete map[threadId];
+  writeLocal(map);
+  if (!cloudEnabled) return null;
+  try {
+    const t = local ?? (await readCloudThread(threadId).then((r) => (r ? fromCloud(r) : null)).catch(() => null));
+    await deleteCloudThread(threadId);
+    const shared = t?.chatId && Object.values(map).some((x) => x.chatId === t.chatId);
+    if (t?.chatId && !shared) {
+      const r = await cloudFetch('/api/ai/forget', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ chatId: t.chatId }) });
+      if (!r.ok) return '서버의 AI 대화 기록은 지우지 못했어요. 대화 목록에서는 빠졌어요.';
+    }
     return null;
   } catch (e) {
     return (e as Error).message;

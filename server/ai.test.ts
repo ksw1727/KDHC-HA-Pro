@@ -16,8 +16,8 @@ function setup() {
  const provider=vi.fn<typeof callProvider>(async()=>({text:'목록형으로 준비했어요.',form:form()}));
  return {store,provider};
 }
-async function run(route:'health'|'chat'|'form',body:unknown, deps:ReturnType<typeof setup>,auth=true,url='/api/ai/chat') {
- const req=Object.assign(new EventEmitter(),{method:route==='chat'?'POST':'GET',headers:auth?{authorization:'Bearer fake-token'}:{},body,url}) as Request;
+async function run(route:'health'|'chat'|'form'|'forget',body:unknown, deps:ReturnType<typeof setup>,auth=true,url='/api/ai/chat') {
+ const req=Object.assign(new EventEmitter(),{method:route==='chat'||route==='forget'?'POST':'GET',headers:auth?{authorization:'Bearer fake-token'}:{},body,url}) as Request;
  const res=Object.assign(new EventEmitter(),{statusCode:200,headers:{} as Record<string,unknown>,parts:[] as string[],destroyed:false,writableEnded:false,setHeader(k:string,v:unknown){this.headers[k]=v;},write(s:string){this.parts.push(s);},end(s?:string){if(s)this.parts.push(s);this.writableEnded=true;}});
  await handler(route,{...deps,env})(req,res as unknown as ServerResponse);return res;
 }
@@ -72,5 +72,24 @@ describe('cloud AI fail closed',()=>{
    await run('chat',{engine:'codex',message:'목록'},d);
    expect(rejectReasons({text:'x',form:bad},null).length).toBeGreaterThan(0);
    expect(d.provider.mock.calls[1][2]).toContain('실패 이유');
+ });
+});
+
+describe('대화 지우기 (/api/ai/forget)',()=>{
+ it('본인 대화 기록을 지우고, 대화 번호가 이상하면 거절한다',async()=>{
+   const d=setup();const forget=vi.fn(async()=>{});(d.store as Store).forget=forget;
+   const ok=await run('forget',{chatId:CHAT},d);
+   expect(ok.statusCode).toBe(200);expect(forget).toHaveBeenCalledWith(CHAT,USER);
+   expect((await run('forget',{chatId:'x'},d)).statusCode).toBe(400);
+   expect((await run('forget',{chatId:CHAT},d,false)).statusCode).toBe(401);
+   expect(d.provider).not.toHaveBeenCalled();
+ });
+ it('서버 기록이 지워진 대화로 이어 말하면 404 대신 새 대화 번호로 이어 간다',async()=>{
+   const d=setup();vi.mocked(d.store.chat).mockResolvedValue(null);
+   const r=await run('chat',{chatId:CHAT,engine:'codex',message:'이어서 고쳐 줘'},d);
+   expect(r.statusCode).toBe(200);
+   const ev=r.parts.join('').trim().split('\n').map(l=>JSON.parse(l));
+   const id=ev.find(e=>e.type==='chat').chatId;
+   expect(id).not.toBe(CHAT);expect(d.store.reserve).toHaveBeenCalledWith(USER,id,expect.any(String));
  });
 });

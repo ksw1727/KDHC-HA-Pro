@@ -19,6 +19,13 @@ export async function upsertCloudThread(t: { threadId: string; title: string; fo
   same(user);
   if (error) throw new Error(`대화 보관 실패: ${error.message}`);
 }
+export async function deleteCloudThread(threadId: string): Promise<void> {
+  if (!cloudEnabled) return;
+  const user = requireUser();
+  const { error } = await cloudClient().from(TABLE).delete().eq('user_id', user).eq('thread_id', threadId);
+  same(user);
+  if (error) throw new Error(`대화 지우기 실패: ${error.message}`);
+}
 export async function listCloudThreads(limit = 30): Promise<CloudThread[]> {
   if (!cloudEnabled) return [];
   const user = requireUser();
