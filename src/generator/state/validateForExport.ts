@@ -77,11 +77,35 @@ function blockProblems(b: Block, layout: FormSchema['layout'], out: ExportProble
   }
 }
 
+const squash = (x: string) => x.replace(/[\s·・,/()（）]/g, '');
+/**
+ * 제출처 이름을 받는 항목은 따로 두지 않는다: 위쪽 '{제출처}명' 칸에 자동으로 들어가고(잠김),
+ * 취합하면 목록 오른쪽 자동 칸 '{제출처}'에 줄마다 채워진다. 여러 지사를 모아 둔 엑셀을 올리면 AI가 그 열을 그대로 옮기기 쉽다.
+ */
+export function orgFieldNames(s: FormSchema): Set<string> {
+  const label = orgLabel(s);
+  const names = [label, `${label}명`];
+  if (/지사|사업소/.test(label)) names.push('지사', '지사명', '사업소', '사업소명', '지사사업소', '지사사업소명', '지사및사업소');
+  return new Set(names.map(squash));
+}
+function orgFieldProblems(s: FormSchema, out: ExportProblem[]) {
+  if (s.org.mode === 'none' || (s.layout !== 'list' && s.layout !== 'header-list')) return;
+  const names = orgFieldNames(s), label = orgLabel(s);
+  for (const b of s.blocks) {
+    const fields = b.kind === 'fields' ? b.fields : b.kind === 'list' ? b.columns : [];
+    for (const f of fields) {
+      if (!names.has(squash(f.label))) continue;
+      out.push({ where: 'fields', blockId: b.id, key: f.key, message: `"${f.label.trim()}" 항목은 지워 주세요. 누가 냈는지는 위쪽 '${label}명' 칸에 자동으로 들어가고, 취합하면 줄마다 '${label}' 자동 칸에 채워져요.` });
+    }
+  }
+}
+
 /** 내보내기 전 검사 (02-generator.md 2.2). 문제가 없으면 빈 배열. */
 export function validateForExport(s: FormSchema): ExportProblem[] {
   const out: ExportProblem[] = [];
   if (!s.title.trim()) out.push({ where: 'meta', message: '제목을 입력해 주세요.' });
   s.blocks.forEach((b) => blockProblems(b, s.layout, out));
+  orgFieldProblems(s, out);
   for (const e of calcEntries(s)) {
     const p = calcProblem(scopeFor(s, e.block, e.field, e.where), e.field.formula);
     if (p) out.push({ where: 'fields', blockId: e.block.id, key: e.field.key, message: `${e.field.label || '계산 칸'}: ${p}` });
