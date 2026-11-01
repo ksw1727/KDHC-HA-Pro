@@ -187,6 +187,53 @@ describe('안 낸 줄의 계산 칸은 빈칸', () => {
   });
 });
 
+/**
+ * 소수 자릿수를 골라 둔 계산 칸은 서식만이 아니라 값까지 그 자릿수로 맞춘다.
+ * (엑셀 화면엔 15.4인데 셀 값은 15.3846…이 남아 있으면 그 값을 다시 쓸 때 숫자가 어긋난다)
+ */
+describe('계산 칸: 적어 둔 소수 자릿수로 값까지 반올림', () => {
+  const ratio = (decimals?: number): GridBlock => ({
+    kind: 'grid', id: 'g1', colLabels: ['부서', '현원', '참여 인원', '참여율'], spareRows: 0,
+    rows: [[
+      { kind: 'fixed', value: '안전관리부' }, { kind: 'fixed', value: 312 },
+      { kind: 'input', field: f('p', '안전관리부 참여 인원', { type: 'number' }) },
+      { kind: 'calc', field: f('r', '안전관리부 참여율', { type: 'calc', formula: '[안전관리부 참여 인원] ÷ [안전관리부 · 현원] × 100', decimals }) },
+    ]],
+  });
+  test('소수 1자리로 적어 두면 값도 15.4 (15.384615…이 아님)', () => {
+    expect(computeGrid(ratio(1), { p: 48 }).r).toBe(15.4);
+  });
+  test('정수(기본)는 값을 건드리지 않는다 — 금액 1.21이 1이 되면 안 되니까', () => {
+    expect(computeGrid(ratio(), { p: 48 }).r).toBeCloseTo((48 / 312) * 100, 10);
+    expect(computeGrid(ratio(0), { p: 48 }).r).toBeCloseTo((48 / 312) * 100, 10);
+  });
+  test('엑셀 반올림처럼 0에서 먼 쪽으로', () => {
+    const l: ListBlock = { kind: 'list', id: 'b1', maxRows: 5, columns: [
+      f('n', '값', { type: 'number' }),
+      f('half', '반쪽', { type: 'calc', formula: '[값] ÷ 2', decimals: 1 }),
+    ] };
+    expect(computeListRow(l, { n: 4.5 }).half).toBe(2.3);    // 2.25 → 2.3
+    expect(computeListRow(l, { n: -4.5 }).half).toBe(-2.3);  // -2.25 → -2.3
+  });
+  test('반올림한 값이 다음 계산 칸으로 이어진다', () => {
+    const l: ListBlock = { kind: 'list', id: 'b1', maxRows: 5, columns: [
+      f('n', '현원', { type: 'number' }),
+      f('rate', '참여율', { type: 'calc', formula: '48 ÷ [현원] × 100', decimals: 1 }),
+      f('twice', '참여율 두 배', { type: 'calc', formula: '[참여율] × 2', decimals: 1 }),
+    ] };
+    const out = computeListRow(l, { n: 312 });
+    expect(out.rate).toBe(15.4);
+    expect(out.twice).toBe(30.8); // 15.384615… × 2 = 30.769…가 아니라, 화면에 보이는 15.4의 두 배
+  });
+  test('글자를 내놓는 계산 칸(조건)은 그대로', () => {
+    const l: ListBlock = { kind: 'list', id: 'b1', maxRows: 5, columns: [
+      f('t', '온도', { type: 'number' }),
+      f('v', '판정', { type: 'calc', formula: '조건([온도] >= 80, "점검 필요", "정상")', decimals: 1 }),
+    ] };
+    expect(computeListRow(l, { t: 410 }).v).toBe('점검 필요');
+  });
+});
+
 describe('계산식 검사 (validateSchema)', () => {
   const withCols = (...cols: ReturnType<typeof f>[]) => {
     const s = structuredClone(SAMPLE.list) as FormSchema;

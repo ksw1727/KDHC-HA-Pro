@@ -1,5 +1,5 @@
 import type { Field, FormSchema, GridBlock, ListBlock, MatrixBlock } from '../schema';
-import { evaluate, formulaRefs, parseFormula, type Node, type Value } from './formula';
+import { evaluate, formulaRefs, parseFormula, roundTo, type Node, type Value } from './formula';
 import { gridFixedName, TOTAL_COL_NAME, TOTAL_ROW_NAME } from './context';
 
 /**
@@ -23,6 +23,12 @@ function nodeOf(formula: string | undefined): Node | null {
 export type RefState = 'empty' | 'filled' | 'other';
 
 const isBlank = (v: Value | Value[] | undefined) => v === null || v === undefined || v === '';
+
+/**
+ * 계산 칸에 적어 둔 소수 자릿수. 0은 「정수」라는 기본값이라 값은 건드리지 않고(금액 1.21이 1이 되면 안 된다),
+ * 1~4를 골라 둔 칸만 그 자릿수로 값까지 맞춘다.
+ */
+const decimalsOf = (f: Field) => Math.max(0, Math.min(4, f.decimals ?? 0));
 
 /** 계산식이 가리키는 이름 (계산 칸을 거쳐 이어지는 것까지 펼친다) */
 function deepRefs(name: string, byName: Map<string, Field>): Set<string> {
@@ -58,8 +64,12 @@ function solve(calcs: Field[], base: (name: string, agg: boolean) => Value | Val
     const n = nodeOf(f.formula);
     let v: Value = null;
     try { v = n ? evaluate(n, valueOf) : null; } catch { v = null; }
-    // 소수 계산 찌꺼기(93.60000000000001)는 엑셀처럼 유효숫자 15자리로 정리
-    if (typeof v === 'number' && Number.isFinite(v)) v = Number(v.toPrecision(15));
+    // 소수 계산 찌꺼기(93.60000000000001)를 정리하고, 소수 자릿수를 골라 둔 칸은 값 자체를 그 자릿수로 반올림한다.
+    // 서식만 바꾸면 화면엔 15.4인데 셀 값은 15.3846…이 남아, 그 값을 다시 쓰면 숫자가 어긋난다.
+    if (typeof v === 'number' && Number.isFinite(v)) {
+      const d = decimalsOf(f);
+      v = d > 0 ? roundTo(v, d) : Number(v.toPrecision(15));
+    }
     busy.delete(name);
     done.set(name, v);
     return v;

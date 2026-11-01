@@ -309,9 +309,7 @@ export function evaluate(node: Node, resolve: ValueResolver): Value {
           const v = num(blank0(scalar(ev(n.args[0], agg))));
           const d = n.args[1] ? num(blank0(scalar(ev(n.args[1], agg)))) ?? 0 : 0;
           if (v === null) return null;
-          // 엑셀 ROUND처럼 0에서 먼 쪽으로 (-2.5 → -3), 소수 오차 보정
-          const f = 10 ** d;
-          return (Math.sign(v) * Math.round(Number((Math.abs(v) * f).toPrecision(15)))) / f;
+          return roundTo(v, d);
         }
         // 개수: 빈칸이 아닌 값(숫자·글자)의 수 (예: 이수 인원 = 개수([이름]))
         if (n.name === 'COUNTA') return n.args.map((a) => ev(a, true)).flat().filter((v) => v !== null && v !== '').length;
@@ -325,6 +323,13 @@ export function evaluate(node: Node, resolve: ValueResolver): Value {
   };
   const r = scalar(ev(node, false));
   return typeof r === 'number' && !Number.isFinite(r) ? null : r;
+}
+
+/** 엑셀 ROUND처럼 0에서 먼 쪽으로 (-2.5 → -3). 소수 오차(1.005 × 100 = 100.49999…)는 유효숫자 15자리로 보정 */
+export function roundTo(v: number, d: number): number {
+  if (!Number.isFinite(v)) return v;
+  const f = 10 ** d;
+  return (Math.sign(v) * Math.round(Number((Math.abs(v) * f).toPrecision(15)))) / f;
 }
 
 const blank0 = (v: Value): Value => (v === null ? 0 : v);
