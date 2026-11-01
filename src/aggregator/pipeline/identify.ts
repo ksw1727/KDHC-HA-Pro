@@ -38,8 +38,10 @@ async function contentHashOf(wb: ExcelJS.Workbook): Promise<string> {
 /** 파일 한 개를 열어 어떤 양식의 파일인지 알아본다 (기준 양식과 비교는 classify에서) */
 export async function identifyFile(file: LoadedFile): Promise<IdentifiedFile> {
   const ext = /\.([^.]+)$/.exec(file.fileName)?.[1]?.toLowerCase() ?? '';
-  if (ext === 'xls') return skipped(file, '옛날 엑셀(.xls) 형식이에요. 엑셀에서 .xlsx로 다시 저장해서 보내 달라고 해 주세요');
-  if (ext !== 'xlsx') return skipped(file, `.${ext || '?'} 파일은 받지 않아요. 엑셀(.xlsx)로 다시 저장해서 보내 달라고 해 주세요`);
+  if (file.convertError) return skipped(file, file.convertError);
+  const zipBytes = file.bytes[0] === 0x50 && file.bytes[1] === 0x4b;   // 확장자만 .xls인 .xlsx도 그대로 읽는다
+  if (ext === 'xls' && !file.convertedFrom && !zipBytes) return skipped(file, '옛날 엑셀(.xls) 형식이에요. 엑셀에서 .xlsx로 다시 저장해서 보내 달라고 해 주세요');
+  if (ext !== 'xlsx' && ext !== 'xls') return skipped(file, `.${ext || '?'} 파일은 받지 않아요. 엑셀(.xlsx)로 다시 저장해서 보내 달라고 해 주세요`);
   if (OLE_MAGIC.every((b, i) => file.bytes[i] === b)) return skipped(file, '암호가 걸린 파일이에요. 암호를 풀어서 다시 보내 달라고 해 주세요');
 
   const wb = new ExcelJS.Workbook();
@@ -53,7 +55,7 @@ export async function identifyFile(file: LoadedFile): Promise<IdentifiedFile> {
     ? wb.modified.toISOString() : new Date(file.lastModified).toISOString();
   const base: IdentifiedFile = {
     file, source: 'none', kind: 'unknown', savedAt, contentHash: await contentHashOf(wb),
-    status: 'ok', notes: [], workbook: wb,
+    status: 'ok', notes: file.convertedFrom ? ['옛 엑셀(.xls)을 .xlsx로 바꿔 읽었어요. 취소선 같은 글자 모양과 직접 숨긴 행·열 표시는 확인하지 못했을 수 있어요'] : [], workbook: wb,
   };
 
   const m = await readMeta(wb);

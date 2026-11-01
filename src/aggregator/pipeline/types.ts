@@ -10,6 +10,9 @@ export interface LoadedFile {
   fileName: string;
   bytes: Uint8Array;
   lastModified: number;          // 브라우저 File.lastModified (파일 속성 modified가 없을 때만 씀)
+  /** 옛 .xls를 읽을 때 .xlsx로 바꿔 담았으면 'xls' (bytes는 바꾼 .xlsx). 바꾸지 못했으면 이유 */
+  convertedFrom?: 'xls';
+  convertError?: string;
 }
 
 export type MetaSource = 'meta-sheet' | 'doc-props' | 'header-match' | 'none';

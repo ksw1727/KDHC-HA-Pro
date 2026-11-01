@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
 import { findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
-import { buildCloudChatBody, prepareCloudSources, type CloudSource } from './cloudAttachments';
+import { AttachmentError, bytesForLocal, buildCloudChatBody, isCutSource, LockedFileError, MAX_CLOUD_FILE, prepareCloudSources, readSheetList, WrongPasswordError, type CloudSource } from './cloudAttachments';
+import { defaultPick, isPartial, pickedSheets, SheetPicker, type SheetPick } from './SheetPicker';
 import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
 import { layoutSheet } from '@contract/layout';
@@ -46,11 +47,13 @@ const EXAMPLES = [
   { title: '2027 사업예산 요구표', desc: '사업별로 지사마다 자기 열에 요구액', layout: '표형', text: '2027 사업예산 요구표. 사업별로 지사마다 자기 열에 요구액을 적게 해 주세요' },
 ];
 const MODEL_KEY = 'hanan-moa:ai-openai-model';
-const MAX_FILE = 10 * 1024 * 1024;   // 올릴 수 있는 엑셀 크기
+// 올릴 수 있는 엑셀 크기: 온라인은 브라우저에서 요약만 보내므로 크게, 로컬 연결은 원본을 보내므로 10MB
+const MAX_FILE = cloudEnabled ? MAX_CLOUD_FILE : 10 * 1024 * 1024;
+const MAX_FILE_LABEL = `${MAX_FILE / 1024 / 1024}MB`;
 const isExcel = (f: File) => /\.(xlsx|xlsm|xls)$/i.test(f.name);
 
 async function toBase64(f: File): Promise<string> {
-  const bytes = new Uint8Array(await f.arrayBuffer());
+  const bytes = await bytesForLocal(f);   // 열기 암호를 푼 파일은 푼 내용
   let s = '';
   for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   return btoa(s);
@@ -97,6 +100,17 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const [fileNote, setFileNote] = useState('');
   const [consent, setConsent] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // 첨부 엑셀마다 AI에게 보낼 시트 (브라우저 안에서 시트 목록만 읽는다. .xls는 바꿔 읽고, 열기 암호는 여기서 푼다)
+  const [sheetPicks, setSheetPicks] = useState<Map<File, SheetPick>>(new Map());
+  const setPick = (f: File, p: SheetPick) => setSheetPicks((m) => new Map(m).set(f, p));
+  const loadSheets = (f: File, password?: string) => {
+    setPick(f, { status: 'loading' });
+    readSheetList(f, password).then((sheets) => setPick(f, { status: 'ok', sheets, picked: defaultPick(sheets) }))
+      .catch((e: Error) => setPick(f, e instanceof LockedFileError || e instanceof WrongPasswordError
+        ? { status: 'locked', message: e instanceof WrongPasswordError ? e.message : '열기 암호가 걸린 파일이에요.', wrong: e instanceof WrongPasswordError }
+        : { status: 'error', message: e.message }));
+  };
+  const pickBlocked = attached.some((f) => { const p = sheetPicks.get(f); return p?.status === 'loading' || p?.status === 'locked' || pickedSheets(p)?.length === 0; });
   // 빈 화면에서 고르는 시작 방법: 말로 만들기 / 쓰던 엑셀로 만들기
   const [mode, setMode] = useState<'say' | 'excel'>('say');
   const addFiles = (list: FileList | File[]) => {
@@ -104,8 +118,10 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     const fs = [...list];
     setConsent(false);
     const bad = fs.filter((f) => !isExcel(f) || f.size > MAX_FILE);
-    setFileNote(cloudEnabled && fs.some((f) => /\.xls$/i.test(f.name)) ? '.xls는 분석할 수 없어요. .xlsx로 다시 저장해 주세요.' : bad.length ? `엑셀 파일(.xlsx·.xlsm, 10MB 이하)만 올릴 수 있어요: ${bad.map((f) => f.name).join(', ')}` : '');
-    setAttached((xs) => [...xs, ...fs.filter((f) => isExcel(f) && f.size <= MAX_FILE && (!cloudEnabled || !/\.xls$/i.test(f.name)))].slice(0, 5));
+    setFileNote(bad.length ? `엑셀 파일(.xlsx·.xlsm·.xls, ${MAX_FILE_LABEL} 이하)만 올릴 수 있어요: ${bad.map((f) => f.name).join(', ')}` : '');
+    const good = fs.filter((f) => isExcel(f) && f.size <= MAX_FILE);
+    setAttached((xs) => [...xs, ...good].slice(0, 5));
+    for (const f of good) loadSheets(f);
     setMode('excel');   // 빈 화면이면 "쓰던 엑셀로 만들기"로 바꿔 올린 파일을 보여 준다
   };
   const [busy, setBusy] = useState(false);
@@ -154,7 +170,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       } else xs = [...xs, { role: 'ai', opened: true, text: note, ...checkLocal(s) }];
     }
     setThreadId(next.threadId); setChatId(next.chatId); setAiVersion(next.aiVersion); setMsgs(xs);
-    setInput(''); setAttached([]); setFileNote(''); keepSources([]);
+    setInput(''); setAttached([]); setSheetPicks(new Map()); setFileNote(''); keepSources([]);
   };
   /** 내 업무공간(일정·양식 카드)에서 양식을 열었다 → 그 양식을 만든 대화와 미리보기를 보여 준다 */
   const openFor = async (form: FormSchema) => {
@@ -268,10 +284,13 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     if (!message || busy || !draftSync.ready || health !== 'ok') return;
     if (cloudEnabled && files.length && !consent) { setFileNote('요약 내용이 외부 AI로 전달되는 것에 동의해 주세요.'); return; }
     if (cloudEnabled && message.length > 6000) { setFileNote('메시지는 6,000자 이하로 줄여 주세요.'); return; }
+    if (files.length && pickBlocked) { setFileNote('첨부 엑셀을 여는 중이거나, 암호 입력·시트 고르기가 남아 있어요.'); return; }
+    const picks = files.map((f) => pickedSheets(sheetPicks.get(f)));
+    const fileLabels = files.map((f, i) => (isPartial(sheetPicks.get(f)) ? `${f.name} · ${picks[i]!.join(', ')}` : f.name));
     setInput('');
     setFileNote('');
     setBusy(true);
-    setMsgs((xs) => [...xs, { role: 'user', text: message, ...(files.length ? { files: files.map((f) => f.name) } : {}) }, { role: 'ai', text: '', status: files.length ? '엑셀 올리는 중' : '보내는 중' }]);
+    setMsgs((xs) => [...xs, { role: 'user', text: message, ...(files.length ? { files: fileLabels } : {}) }, { role: 'ai', text: '', status: files.length ? '엑셀 올리는 중' : '보내는 중' }]);
     const ctl = new AbortController();
     abort.current = ctl;
     try {
@@ -282,13 +301,21 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       const form = lastForm && (aiVersion !== null ? sig(lastForm) !== aiVersion : edited || lastMsg?.opened) ? lastForm : undefined;
       if (form) patchLast((m) => ({ ...m, status: lastMsg?.opened && !edited ? '패널에서 연 양식을 AI에게 넘기는 중' : '패널에서 고친 양식을 AI에게 넘기는 중' }));
       if (form) setAiVersion(sig(form));
-      const text = form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message;
+      // 로컬 연결 서버는 원본 파일을 읽으므로, 일부 시트만 골랐으면 말로 알린다
+      const sheetNote = !cloudEnabled && files.some((f) => isPartial(sheetPicks.get(f)))
+        ? `\n(첨부 엑셀에서 이 시트만 보고 만들어 주세요: ${files.flatMap((f, i) => (isPartial(sheetPicks.get(f)) ? [`${f.name} → ${picks[i]!.join(', ')}`] : [])).join(' / ')})` : '';
+      const text = (form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message) + sheetNote;
       // 온라인 서버는 engine(codex = OpenAI)·요약(sources)만 받고, 로컬 연결 서버는 model·원본 파일을 받는다
       const body = cloudEnabled
-        ? buildCloudChatBody({ chatId: chatId ?? undefined, engine: 'codex', message: text, form, sources: files.length ? await prepareCloudSources(files, consent).then((xs) => { keepSources(xs); return xs; }) : sources.current })
+        ? buildCloudChatBody({ chatId: chatId ?? undefined, engine: 'codex', message: text, form, sources: files.length ? await prepareCloudSources(files, consent, picks).then((xs) => {
+          keepSources(xs);
+          // 한도 때문에 뒤쪽 행을 못 담았으면 보낸 말의 파일 칩에 알린다 (AI도 요약에 적힌 안내를 보고 말해 준다)
+          if (xs.some(isCutSource)) setMsgs((ms) => ms.map((m, k) => (k === ms.length - 2 && m.files ? { ...m, files: m.files.map((n, j) => (xs[j] && isCutSource(xs[j]) ? `${n} · 일부 행만 담음` : n)) } : m)));
+          return xs;
+        }) : sources.current })
         : JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: text, form, files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) });
       if (ctl.signal.aborted) throw new DOMException('취소됨', 'AbortError');
-      setAttached([]); setConsent(false);
+      setAttached([]); setConsent(false); setSheetPicks(new Map());
       const res = await aiFetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: ctl.signal });
       await readNdjson(res, (event) => {
         const e = event as AiEvent;
@@ -309,7 +336,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
         else if (e.type === 'error') patchLast((m) => ({ ...m, error: e.text }));
       });
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') patchLast((m) => ({ ...m, error: err instanceof ServerMessageError ? err.message : `연결이 끊겼어요: ${(err as Error).message}` }));
+      if ((err as Error).name !== 'AbortError') patchLast((m) => ({ ...m, error: err instanceof ServerMessageError || err instanceof AttachmentError ? err.message : `연결이 끊겼어요: ${(err as Error).message}` }));
       else patchLast((m) => ({ ...m, error: '멈췄어요' }));
     } finally {
       patchLast((m) => ({ ...m, status: undefined, ...(m.text || m.form || m.error ? {} : { error: 'AI 답을 받지 못했어요. 같은 말을 한 번 더 보내 주세요.' }) }));
@@ -323,7 +350,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
     // 지금 대화는 [대화 목록]에 남긴다
     if (threadId && msgs.length) void saveThread({ threadId, chatId, msgs, aiVersion });
     draftSync.markCleared();
-    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); keepSources([]); setThreadId(null); setOpening('');
+    abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); setSheetPicks(new Map()); keepSources([]); setThreadId(null); setOpening('');
   };
 
   if (health === 'off' || health === 'nokey') {
@@ -340,7 +367,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
 
   const ok = health === 'ok';
   const empty = msgs.length === 0;
-  const canSend = (input.trim() || attached.length) && ok && draftSync.ready && !(cloudEnabled && attached.length > 0 && !consent);
+  const canSend = (input.trim() || attached.length) && ok && draftSync.ready && !(cloudEnabled && attached.length > 0 && !consent) && !(attached.length > 0 && pickBlocked);
   const pickFile = () => fileRef.current?.click();
   // 첨부 파일 칩 줄 + (온라인) 요약 전달 동의. 입력창 상자 안 맨 위에 둔다
   const attachBlock = (
@@ -351,6 +378,9 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
           {fileNote && <span className="text-xs text-err-ink">{fileNote}</span>}
         </div>
       )}
+      <SheetPicker files={attached} picks={sheetPicks} disabled={busy}
+        onChange={(f, picked) => { const p = sheetPicks.get(f); if (p?.status === 'ok') setPick(f, { ...p, picked }); }}
+        onUnlock={(f, password) => loadSheets(f, password)} />
       {cloudEnabled && attached.length > 0 && <label className="text-sm"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} disabled={busy} /> 원본은 브라우저에서만 분석하고 서버에 저장하지 않아요. 민감한 셀 값이 포함될 수 있는 요약 내용이 외부 AI로 전달되는 것에 동의해요.</label>}
     </>
   );
@@ -449,7 +479,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
                     className="flex h-[236px] w-full flex-col items-center justify-center gap-2 rounded-[14px] border-2 border-dashed border-[#e7b9b5] bg-[linear-gradient(180deg,#fffafa,#fff)] text-center hover:border-acc">
                     <span className="grid h-[46px] w-10 place-items-center rounded-[7px] bg-[#1e7b45] text-[11px] font-extrabold text-white shadow-[0_3px_8px_rgba(30,123,69,.25)]">XLSX</span>
                     <b className="text-[14px] text-ink">쓰던 엑셀을 여기에 끌어다 놓기</b>
-                    <span className="text-xs text-muted">또는 <u className="text-acc-ink underline-offset-[3px]">파일 고르기</u> · .xlsx 10MB까지, 5개까지</span>
+                    <span className="text-xs text-muted">또는 <u className="text-acc-ink underline-offset-[3px]">파일 고르기</u> · .xlsx·.xls {MAX_FILE_LABEL}까지, 5개까지</span>
                   </button>
                   {fileNote && <p className="m-0 mt-2 text-xs text-err-ink">{fileNote}</p>}
                   <div className="mt-3.5 flex items-center gap-2.5 rounded-[12px] border border-line bg-white px-3 py-2.5 text-[12.5px] text-sub">
