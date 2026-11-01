@@ -54,3 +54,13 @@ test('내 업무공간에서 지운 양식이 패널에 열려 있으면 닫는�
   rerender(<FormPanel incoming={{ schema: other, at: 2 }} />);       // 다른 양식은 다시 열린다
   expect(screen.queryByText('열린 양식이 없어요')).toBeNull();
 });
+
+test('[새 대화]처럼 대화가 비면(hanan-moa:close-form) 패널도 비운다', () => {
+  const schema = { ...newSchema('list', new Date('2026-10-22'), { formId: 'f-new', key: (() => { let n = 0; return () => `k${++n}`; })() }), title: '교육 명단' };
+  const { rerender } = render(<FormPanel incoming={{ schema, at: 1 }} />);
+  expect(screen.queryByText('열린 양식이 없어요')).toBeNull();
+  act(() => { window.dispatchEvent(new Event('hanan-moa:close-form')); });
+  expect(screen.getByText('열린 양식이 없어요')).toBeTruthy();
+  rerender(<FormPanel incoming={{ schema, at: 2 }} />);   // 다음 양식은 다시 열린다
+  expect(screen.queryByText('열린 양식이 없어요')).toBeNull();
+});

@@ -87,3 +87,39 @@ test('[대화 목록]에서 지우기: 한 번 더 확인한 뒤 목록에서 �
   await new Promise((r) => setTimeout(r, 900));   // 보관함 저장(0.8초 뒤)이 지운 대화를 되살리지 않는다
   expect((await listThreads()).list).toEqual([]);
 });
+
+test('[새 대화]·양식 없는 대화로 바꾸기: 오른쪽 설정 패널도 같이 비운다', async () => {
+  const closed: number[] = [];
+  const onClose = () => closed.push(1);
+  window.addEventListener('hanan-moa:close-form', onClose);
+  const opened: unknown[] = [];
+  const onOpen = (e: Event) => opened.push((e as CustomEvent).detail);
+  window.addEventListener('hanan-moa:open-form', onOpen);
+  try {
+    localStorage.setItem('hanan-moa:ai-chat', JSON.stringify({ chatId: null, threadId: 't-now', aiVersion: null, msgs: [{ role: 'user', text: '지금 하던 말' }, { role: 'ai', text: '지금 답', form: formX }] }));
+    await saveThread({ threadId: 't-talk', chatId: null, aiVersion: null, msgs: [{ role: 'user', text: '그냥 질문' }, { role: 'ai', text: '그냥 답' }] });
+    render(<AiPage />);
+    await screen.findByText('지금 하던 말');
+    expect(closed).toHaveLength(0);
+
+    // [새 대화] → 패널 비우기
+    fireEvent.click(screen.getByRole('button', { name: '새 대화' }));
+    await screen.findByText('무엇을 받고 싶으세요?');
+    expect(closed).toHaveLength(1);
+
+    // 양식이 없는 예전 대화로 바꿔도 비운 채로 (양식 있는 대화로 바꾸면 그 양식을 연다)
+    fireEvent.click(screen.getByRole('button', { name: '대화 목록' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /그냥 질문/ }));
+    await screen.findByText('그냥 답');
+    expect(closed).toHaveLength(2);
+    opened.length = 0;
+    fireEvent.click(screen.getByRole('button', { name: '대화 목록' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /지금 대화 양식/ }));
+    await screen.findByText('지금 하던 말');
+    expect(closed).toHaveLength(2);
+    await waitFor(() => expect(opened).toHaveLength(1));
+  } finally {
+    window.removeEventListener('hanan-moa:close-form', onClose);
+    window.removeEventListener('hanan-moa:open-form', onOpen);
+  }
+});
