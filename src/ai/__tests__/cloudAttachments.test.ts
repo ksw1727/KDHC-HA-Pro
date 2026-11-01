@@ -67,7 +67,8 @@ describe('cloud browser-only Excel summaries', () => {
     expect(src.text).not.toContain('한난1234');
     const local = await bytesForLocal(f);
     expect([local[0], local[1]]).toEqual([0x50, 0x4b]);
-  }, 20000);
+    // 암호 해제가 무거워 전체 실행에서는 ~29초 걸린다 (이 파일만 돌리면 ~10초)
+  }, 60000);
   it('shows attachment errors without the connection prefix', async () => {
     await expect(prepareCloudSources([file(new Uint8Array([1, 2, 3]))], true)).rejects.toBeInstanceOf(AttachmentError);
   });
