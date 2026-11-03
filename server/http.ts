@@ -69,7 +69,7 @@ export function handler(route:'health'|'chat'|'form'|'account'|'forget', deps:De
         // 남은 시간이 첫 시도에 걸린 시간보다 짧으면 다시 시도하지 않는다(시간 초과로 아무 답도 못 받는 것보다 낫다)
         if(attempt && Date.now()-started>limits.timeout*0.6) break;
         const retry=attempt?`\n이전 응답은 계약/내보내기/식별자 검사에 실패했다.${reasons.length?` 실패 이유: ${reasons.join(' / ')}.`:''} 같은 요구를 다시 검토하고 유효한 JSON으로 고쳐라. 확신 없으면 form:null로 설명하라.`:'';
-        try { const raw=tidyAggregations(await (deps.provider ?? callProvider)(input.engine,cfg,prompt+retry,controller.signal)); result=checkedResult(raw,previous,secrets,fresh); if(!result) reasons=rejectReasons(raw,previous,fresh); } catch(e) { if(controller.signal.aborted) break; if(e instanceof SafeError) throw e; }
+        try { const raw=tidyAggregations(await (deps.provider ?? callProvider)(input.engine,cfg,prompt+retry,controller.signal)); result=checkedResult(raw,previous,secrets,fresh); if(!result) { reasons=rejectReasons(raw,previous,fresh); console.error(`[moa-ai] reject attempt=${attempt} ms=${Date.now()-started} reasons=${reasons.map(r=>r.replace(/["'“”‘’「」][^"'“”‘’「」]*["'“”‘’「」]/g,'…').slice(0,120)).join(' | ')}`); } } catch(e) { console.error(`[moa-ai] attempt=${attempt} ms=${Date.now()-started} error=${e instanceof SafeError?'safe':(e as Error)?.name ?? 'unknown'}`); if(controller.signal.aborted) break; if(e instanceof SafeError) throw e; }
         if(result) break;
       }
       if(timedOut) throw new SafeError(504,'AI 답이 오래 걸려 멈췄어요. 같은 말을 한 번 더 보내거나, 요청을 조금 나눠 보내 주세요.');
