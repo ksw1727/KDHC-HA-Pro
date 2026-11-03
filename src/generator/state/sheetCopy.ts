@@ -1,5 +1,5 @@
 import ExcelJS from 'exceljs';
-import { snapshotSheet, type CollectSheet } from '@contract/collectSheet';
+import { MAX_SHEET_BYTES, sheetBytes, snapshotSheet, type CollectSheet } from '@contract/collectSheet';
 
 /** 이 엑셀(.xlsx 바이트)의 보이는 시트 이름들 */
 export async function visibleSheetNames(bytes: Uint8Array): Promise<string[]> {
@@ -14,5 +14,8 @@ export async function sheetCopyFromBytes(bytes: Uint8Array, fileName: string, sh
   await wb.xlsx.load(bytes as unknown as ArrayBuffer);
   const visible = wb.worksheets.filter((w) => w.state === 'visible');
   const ws = (sheetName && visible.find((w) => w.name === sheetName)) || visible[0];
-  return ws ? snapshotSheet(ws, fileName) : null;
+  if (!ws) return null;
+  const s = snapshotSheet(ws, fileName);
+  if (sheetBytes(s) > MAX_SHEET_BYTES) throw new Error(`"${ws.name}" 시트가 너무 커요(${Math.round(sheetBytes(s) / 1000)}KB, ${Math.round(MAX_SHEET_BYTES / 1000)}KB까지). 빈 행·열이나 서식을 줄여서 다시 골라 주세요`);
+  return s;
 }
