@@ -1,6 +1,6 @@
 // @vitest-environment node
 import ExcelJS from 'exceljs';
-import { dumpExcel, listSheets, slimWorkbook } from '../../../tools/excelDump';
+import { dumpExcel, listSheets, packBlanks, slimWorkbook } from '../../../tools/excelDump';
 
 /** 사람들이 쓰던 엑셀 양식 흉내: 머리글, 노란 빈칸, 선택 규칙, VLOOKUP·다른 시트 참조, 메모, 조건부 서식 */
 async function sample(): Promise<Uint8Array> {
@@ -31,7 +31,7 @@ describe('쓰던 엑셀 읽기 (moa read-excel)', () => {
     expect(text).toContain('## 시트 "교육신청"');
     expect(text).toContain('병합: A1:D1');
     expect(text).toContain('A1="동절기 안전교육 신청" [굵게]');
-    expect(text).toContain('A4="" [채움#FFF2CC,빈 칸]');
+    expect(text).toContain('A4~D4="" [채움#FFF2CC,빈 칸, 4칸]');
     expect(text).toContain('C4: list "사원,대리,과장"');
     expect(text).toContain('D6==SUM(D4:D5)');
     expect(text).toContain('(메모: 원 단위)');
@@ -109,4 +109,26 @@ describe('쓰던 엑셀 읽기 (moa read-excel)', () => {
     expect(text).toContain('=SUM(C2:C6001)');
     expect(findings.images).toBe(1);
   });
+
+  test('이어지는 빈 칸은 묶어 적는다: 계획·실적 표 94행 × 26열도 12,000자 안에 끝까지 담긴다', async () => {
+    expect(packBlanks(['H5="●"', 'I5="" [빈 칸]', 'J5="" [빈 칸]', 'K5="" [빈 칸]', 'L5="x"', 'M5="" [빈 칸]', 'N5="" [빈 칸]'])).toEqual(['H5="●"', 'I5~K5="" [빈 칸, 3칸]', 'L5="x"', 'M5="" [빈 칸]', 'N5="" [빈 칸]']);
+    expect(packBlanks(['A1="" [채움#FFFF00,빈 칸]', 'B1="" [빈 칸]', 'C1="" [빈 칸]', 'D1="" [빈 칸]'])).toEqual(['A1="" [채움#FFFF00,빈 칸]', 'B1~D1="" [빈 칸, 3칸]']);
+    // 「3. 안전보건경영시스템 성과측정 및 모니터링 양식」 모양: 항목마다 계획·실적 두 줄, 1~12월과 결과 칸은 테두리만 있는 빈 칸
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('모니터링');
+    ws.getCell('A1').value = '안전보건경영시스템 모니터링 및 성과측정';
+    const thin = { style: 'thin' as const };
+    for (let r = 5; r <= 94; r++) {
+      ws.getCell(r, 2).value = r % 2 ? `세부추진항목 ${r}` : null;
+      ws.getCell(r, 5).value = '산업안전부';
+      ws.getCell(r, 7).value = r % 2 ? '계획' : '실적';
+      for (let c = 1; c <= 26; c++) ws.getCell(r, c).border = { top: thin, left: thin, bottom: thin, right: thin };
+    }
+    const { text } = await dumpExcel(new Uint8Array(await wb.xlsx.writeBuffer()), { maxChars: 12000 });
+    expect(text.length).toBeLessThanOrEqual(12000);
+    expect(text).toContain('94행:');
+    expect(text).not.toContain('담지 못했어요');
+    expect(text).toContain('H5~Z5="" [빈 칸, 19칸]');
+  });
 });
+

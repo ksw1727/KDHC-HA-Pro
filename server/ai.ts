@@ -11,7 +11,7 @@ export class SafeError extends Error {
 export type Engine = 'claude' | 'codex';
 export interface Input { chatId?: string; engine: Engine; message: string; form?: FormSchema; sources?: {name: string; text: string}[] }
 export interface Turn { role: 'user' | 'assistant'; content: string }
-export const limits = { request: 240_000, form: 160_000, source: 12_000, sources: 5, message: 6_000, history: 60_000, output: 180_000, timeout: 55_000 };
+export const limits = { request: 480_000, form: 160_000, source: 30_000, sources: 5, message: 6_000, history: 60_000, output: 180_000, timeout: 55_000 };
 export const uuid = (x: unknown): x is string => typeof x === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(x);
 const object = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
 const bytes = (x: unknown) => Buffer.byteLength(JSON.stringify(x));
@@ -50,7 +50,7 @@ export function parseInput(x: unknown): Input {
   if (typeof x.message !== 'string' || !x.message.trim() || x.message.length > limits.message) throw new SafeError(400, '보낼 말은 1~6,000자로 입력해 주세요.');
   if (x.chatId !== undefined && !uuid(x.chatId)) throw new SafeError(400, '대화 번호가 올바르지 않아요.');
   if (x.form !== undefined && !validForm(x.form)) throw new SafeError(400, '양식 데이터가 올바르지 않아요.');
-  if (x.sources !== undefined && (!Array.isArray(x.sources) || x.sources.length > limits.sources || x.sources.some(s => !object(s) || Object.keys(s).some(k => !['name','text'].includes(k)) || typeof s.name !== 'string' || !s.name.trim() || s.name.length > 120 || typeof s.text !== 'string' || !s.text.trim() || s.text.length > limits.source))) throw new SafeError(400, '분석 자료는 최대 5개, 각각 12,000자까지 보내 주세요. 원본 파일은 보내지 마세요.');
+  if (x.sources !== undefined && (!Array.isArray(x.sources) || x.sources.length > limits.sources || x.sources.some(s => !object(s) || Object.keys(s).some(k => !['name','text'].includes(k)) || typeof s.name !== 'string' || !s.name.trim() || s.name.length > 120 || typeof s.text !== 'string' || !s.text.trim() || s.text.length > limits.source))) throw new SafeError(400, '분석 자료는 최대 5개, 각각 30,000자까지 보내 주세요. 원본 파일은 보내지 마세요.');
   return x as unknown as Input;
 }
 export interface ProviderConfig { key: string; model: string }

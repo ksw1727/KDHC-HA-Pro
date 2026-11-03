@@ -9,7 +9,7 @@ export interface CloudSource { name: string; text: string }
 /** 요약 한도 때문에 일부 행을 담지 못한 요약인지 (화면에 알린다) */
 export const isCutSource = (s: CloudSource) => s.text.includes('요약 한도 때문에');
 export class AttachmentError extends Error { override name = 'AttachmentError'; }
-export const MAX_CLOUD_SOURCE_CHARS = 12000;
+export const MAX_CLOUD_SOURCE_CHARS = 30000;   // 2026-11-03: 12,000 → 30,000 (94행 같은 큰 시트가 38행에서 잘리던 문제)
 /** 원본은 브라우저 안에서만 읽고 요약만 보내므로, 로컬 연결(원본 전송)보다 크게 받는다 */
 export const MAX_CLOUD_FILE = 50 * 1024 * 1024;
 const MB = 1024 * 1024;
@@ -89,6 +89,6 @@ export function buildCloudChatBody(payload: { chatId?: string; engine: 'claude' 
   if (payload.sources?.some((s) => s.text.length > MAX_CLOUD_SOURCE_CHARS)) throw new Error('요약이 너무 커 일부 확인이 필요해요. 소규모 양식으로 나눠 주세요.');
   // Allow-list the wire format. A caller can never accidentally forward File/base64 fields.
   const body = JSON.stringify({ chatId: payload.chatId, engine: payload.engine, message: payload.message, form: payload.form, sources: payload.sources?.map(({ name, text }) => ({ name, text })) });
-  if (new TextEncoder().encode(body).byteLength > 240_000) throw new Error('전송할 내용이 240KB를 넘어요. 첨부·양식·메시지를 줄여 주세요.');
+  if (new TextEncoder().encode(body).byteLength > 480_000) throw new Error('전송할 내용이 480KB를 넘어요. 첨부·양식·메시지를 줄여 주세요.');
   return body;
 }
