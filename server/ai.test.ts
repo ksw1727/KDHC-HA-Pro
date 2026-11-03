@@ -93,3 +93,15 @@ describe('대화 지우기 (/api/ai/forget)',()=>{
    expect(id).not.toBe(CHAT);expect(d.store.reserve).toHaveBeenCalledWith(USER,id,expect.any(String));
  });
 });
+
+describe('AI 답 손질: 선택지가 빈 목록 선택 칸', () => {
+  it('글자 칸으로 바꿔 내보내기 검사에 걸리지 않게 한다', () => {
+    const f = form();
+    const list = f.blocks.find((b) => b.kind === 'list') as Extract<typeof f.blocks[number], { kind: 'list' }>;
+    list.columns.push({ key: 'f_zz01', label: '세부 분류', type: 'select', required: false, options: [] });
+    const out = tidyAggregations({ text: 'ok', form: f }) as { form: typeof f };
+    const col = (out.form.blocks.find((b) => b.kind === 'list') as typeof list).columns.find((c) => c.key === 'f_zz01')!;
+    expect(col.type).toBe('text');
+    expect('options' in col).toBe(false);
+  });
+});
