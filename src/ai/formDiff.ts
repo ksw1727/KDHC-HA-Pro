@@ -49,6 +49,10 @@ export function describeChanges(before: FormSchema, after: FormSchema): string[]
   const order = (m: Map<string, Field>) => [...m.keys()].filter((k) => bf.has(k) && af.has(k)).join(',');
   if (!newF.length && !goneF.length && order(bf) !== order(af)) out.push('항목 순서를 바꿨어요');
 
+  // 시트 모으기형: 쓰던 엑셀 시트를 넣거나 바꾸거나 뺌
+  const sa = before.collect?.sheet, sb = after.collect?.sheet;
+  if (sb && (!sa || sa.name !== sb.name || sa.source !== sb.source)) out.push(`시작 모양을 쓰던 엑셀 시트 그대로로 했어요 (${sb.source ? `${sb.source} · ` : ''}"${sb.name}" 시트)`);
+  else if (sa && !sb) out.push('쓰던 엑셀 시트를 빼고 시작 모양을 바꿨어요');
   if (!out.length && JSON.stringify({ ...before, updatedAt: '' }) !== JSON.stringify({ ...after, updatedAt: '' })) out.push('그 밖의 설정을 바꿨어요 (표 모양·취합 방식 등)');
   return out;
 }

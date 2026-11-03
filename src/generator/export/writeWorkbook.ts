@@ -1,3 +1,4 @@
+import { applySheet } from '@contract/collectSheet';
 import ExcelJS from 'exceljs';
 import type { Field, FormSchema } from '@contract/schema';
 import { blockFields } from '@contract/schema';
@@ -98,7 +99,10 @@ export async function writeWorkbook(schema: FormSchema, opts: WriteOptions): Pro
   const fieldsByKey = new Map<string, Field>();
   for (const b of schema.blocks) for (const f of blockFields(b)) fieldsByKey.set(f.key, f);
   let lists: ExcelJS.Worksheet | undefined;
-  fillWorksheet(ws, model, fieldsByKey, () => (lists ??= wb.addWorksheet(LISTS_SHEET, { state: 'veryHidden' })));
+  // 시트 모으기형 + 쓰던 엑셀 시트: 그 시트를 값·서식·합친 칸·열 너비 그대로 (제목 줄·지사명 줄은 넣지 않는다. 지사는 메타·파일 속성에)
+  const sheet = collect ? schema.collect?.sheet : undefined;
+  if (sheet) applySheet(ws, sheet);
+  else fillWorksheet(ws, model, fieldsByKey, () => (lists ??= wb.addWorksheet(LISTS_SHEET, { state: 'veryHidden' })));
 
   if (!collect) await protect(ws);
 

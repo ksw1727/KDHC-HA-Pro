@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { sheetSize, type CollectSheet } from '@contract/collectSheet';
 import type { Builder } from '../state/useBuilder';
+import { sheetCopyFromBytes, visibleSheetNames } from '../state/sheetCopy';
 import { Button, Seg, cx } from '../ui/ui';
 import { parsePastedTable } from './parsePastedTable';
+import { openWorkbook } from '../../../tools/excelOpen';
 
 type Table = (string | number | null)[][];
 const DEFAULT_DESIGN: Table = [['항목', '내용', '비고'], [null, null, null], [null, null, null]];
@@ -63,17 +66,65 @@ function CollectDesigner({ table, onChange }: { table: Table; onChange: (t: Tabl
   );
 }
 
+/** 쓰던 엑셀 시트 그대로: 파일을 고르면 그 시트를 값·서식·합친 칸·열 너비 그대로 빈 양식으로 쓴다 */
+function SheetFromExcel({ sheet, onChange }: { sheet?: CollectSheet; onChange: (s: CollectSheet | undefined) => void }) {
+  const pick = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<{ name: string; bytes: Uint8Array; sheets: string[] } | null>(null);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = async (f: File) => {
+    setErr(''); setBusy(true);
+    try {
+      const o = await openWorkbook(new Uint8Array(await f.arrayBuffer()), f.name);
+      const sheets = await visibleSheetNames(o.bytes);
+      if (!sheets.length) throw new Error('보이는 시트가 없어요');
+      setFile({ name: f.name, bytes: o.bytes, sheets });
+      onChange((await sheetCopyFromBytes(o.bytes, f.name, sheets[0])) ?? undefined);
+    } catch (e) { setErr(`엑셀을 읽지 못했어요: ${(e as Error).message}`); } finally { setBusy(false); }
+  };
+  const size = sheet ? sheetSize(sheet) : null;
+  return (
+    <div className="flex flex-col gap-1.5 rounded-btn border border-line bg-white p-2.5 text-xs">
+      <input ref={pick} type="file" hidden accept=".xlsx,.xlsm,.xls" onChange={(e) => { const f = e.target.files?.[0]; if (f) void load(f); e.target.value = ''; }} />
+      {sheet && size ? (
+        <>
+          <div><b>{sheet.source ?? '엑셀'}</b> · "{sheet.name}" 시트</div>
+          <div className="text-sub">{size.rows}행 × {size.cols}열 · 합친 칸 {size.merges}개 · 서식·열 너비까지 그대로 보내요</div>
+        </>
+      ) : <div className="text-sub">쓰던 엑셀을 고르면 그 시트를 모양 그대로(합친 칸·서식·열 너비) 빈 양식으로 보내요.</div>}
+      {file && file.sheets.length > 1 && (
+        <label className="flex items-center gap-1.5">시트
+          <select aria-label="쓸 시트" value={sheet?.name ?? ''} onChange={async (e) => onChange((await sheetCopyFromBytes(file.bytes, file.name, e.target.value)) ?? undefined)}>
+            {file.sheets.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+      )}
+      <div className="flex gap-1.5">
+        <Button size="sm" disabled={busy} onClick={() => pick.current?.click()}>{busy ? '읽는 중…' : sheet ? '다른 엑셀로 바꾸기' : '엑셀 고르기'}</Button>
+      </div>
+      {err && <div className="text-err-ink">{err}</div>}
+    </div>
+  );
+}
+
 /** 시트 모으기형 설정 (02-generator.md 2.5) */
 export function CollectSettings({ b }: { b: Builder }) {
   const c = b.schema.collect ?? { scope: 'report' as const };
-  const designed = !!c.starter;
+  const mode = c.sheet ? 'sheet' : c.starter ? 'design' : 'blank';
+  const [want, setWant] = useState<'sheet' | null>(null);   // [쓰던 엑셀 시트 그대로]를 골랐지만 아직 파일을 안 고름
+  const shown = want ?? mode;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold text-sub">시트 시작 모양</span>
-        <Seg label="시트 시작 모양" value={designed ? 'design' : 'blank'} options={[['blank', '빈 시트로 보내기'], ['design', '제작한 양식으로 보내기']]}
-          onChange={(v) => b.act({ type: 'collect/set', patch: { starter: v === 'design' ? (c.starter?.length ? c.starter : DEFAULT_DESIGN) : undefined } })} />
-        {designed && <CollectDesigner table={c.starter!} onChange={(t) => b.act({ type: 'collect/set', patch: { starter: t } })} />}
+        <Seg label="시트 시작 모양" value={shown} options={[['blank', '빈 시트'], ['design', '직접 그리기'], ['sheet', '쓰던 엑셀 시트']]}
+          onChange={(v) => {
+            if (v === 'sheet') { setWant('sheet'); return; }
+            setWant(null);
+            b.act({ type: 'collect/set', patch: { sheet: undefined, starter: v === 'design' ? (c.starter?.length ? c.starter : DEFAULT_DESIGN) : undefined } });
+          }} />
+        {shown === 'design' && c.starter && <CollectDesigner table={c.starter} onChange={(t) => b.act({ type: 'collect/set', patch: { starter: t } })} />}
+        {shown === 'sheet' && <SheetFromExcel sheet={c.sheet} onChange={(sh) => { setWant(null); b.act({ type: 'collect/set', patch: { sheet: sh, starter: undefined } }); }} />}
       </div>
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold text-sub">취합할 때 모을 시트</span>

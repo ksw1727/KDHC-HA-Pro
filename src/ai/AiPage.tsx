@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
 import { deleteThread, findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
-import { AttachmentError, bytesForLocal, buildCloudChatBody, isCutSource, LockedFileError, MAX_CLOUD_FILE, prepareCloudSources, readSheetList, WrongPasswordError, type CloudSource } from './cloudAttachments';
+import { AttachmentError, bytesForLocal, buildCloudChatBody, isCutSource, LockedFileError, MAX_CLOUD_FILE, openAttachment, prepareCloudSources, readSheetList, WrongPasswordError, type CloudSource } from './cloudAttachments';
+import { sheetSize, withoutSheet, type CollectSheet } from '@contract/collectSheet';
+import { sheetCopyFromBytes } from '@gen/state/sheetCopy';
 import { defaultPick, isPartial, pickedSheets, SheetPicker, type SheetPick } from './SheetPicker';
 import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
@@ -37,7 +39,10 @@ interface Msg {
 }
 
 /** 양식 비교용 (빌더가 저장할 때마다 바뀌는 updatedAt은 빼고) */
-const sig = (s: FormSchema) => JSON.stringify({ ...s, updatedAt: '' });
+// 시트 모으기형의 원본 시트 사본은 AI에게 보내지 않으니 비교에서도 뺀다
+const sig = (s: FormSchema) => JSON.stringify({ ...withoutSheet(s), updatedAt: '' });
+/** AI에게 알릴 원본 시트 한 줄 */
+const sheetLine = (sh: CollectSheet) => { const z = sheetSize(sh); return `"${sh.name}" 시트(${z.rows}행 × ${z.cols}열, 합친 칸 ${z.merges}개)`; };
 
 /** 빈 화면 예시: 제목·한 줄 설명·구조를 보여 주고, 누르면 text가 입력창에 들어간다 */
 const EXAMPLES = [
@@ -261,7 +266,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   useEffect(() => {
     const apply = (s: FormSchema) => setMsgs((xs) => {
       const i = xs.map((m) => !!m.form).lastIndexOf(true);
-      if (i < 0 || xs[i].form!.formId !== s.formId || sig(xs[i].form!) === sig(s)) return xs;
+      // 원본 시트 사본만 바뀐 것도 카드에 반영해야 해서 사본까지 비교한다
+      if (i < 0 || xs[i].form!.formId !== s.formId || JSON.stringify({ ...xs[i].form!, updatedAt: '' }) === JSON.stringify({ ...s, updatedAt: '' })) return xs;
       return xs.map((m, k) => (k === i ? { ...m, ...checkLocal(s), edited: true, base: m.base ?? m.form } : m));
     });
     const on = (e: Event) => apply((e as CustomEvent<FormSchema>).detail);
@@ -330,16 +336,22 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       // 로컬 연결 서버는 원본 파일을 읽으므로, 일부 시트만 골랐으면 말로 알린다
       const sheetNote = !cloudEnabled && files.some((f) => isPartial(sheetPicks.get(f)))
         ? `\n(첨부 엑셀에서 이 시트만 보고 만들어 주세요: ${files.flatMap((f, i) => (isPartial(sheetPicks.get(f)) ? [`${f.name} → ${picks[i]!.join(', ')}`] : [])).join(' / ')})` : '';
-      const text = (form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message) + sheetNote;
+      // 시트 모으기형은 올린 엑셀 시트를 프로그램이 모양 그대로 빈 양식에 넣는다 (AI는 칸을 옮겨 적지 않음)
+      const fileSheet = files.length ? await openAttachment(files[0]).then((o) => sheetCopyFromBytes(o.bytes, files[0].name, picks[0]?.[0])).catch(() => null) : null;
+      const keptSheet = lastForm?.layout === 'collect' ? lastForm.collect?.sheet : undefined;
+      const sheetHint = fileSheet ? `\n(시트 모으기형으로 만들면 올린 엑셀의 ${sheetLine(fileSheet)}를 프로그램이 값·합친 칸·서식 그대로 빈 양식에 넣어요. 합친 칸·여러 단 머리글이 많아도 시트 모으기형은 만들 수 있으니 거절하지 말고, collect.starter는 비워 두세요.)`
+        : keptSheet ? `\n(이 양식은 원본 엑셀의 ${sheetLine(keptSheet)}를 그대로 빈 양식으로 써요. collect.starter는 비워 두세요.)` : '';
+      const text = (form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message) + sheetNote + sheetHint;
+      const formOut = form ? withoutSheet(form) : undefined;
       // 온라인 서버는 engine(codex = OpenAI)·요약(sources)만 받고, 로컬 연결 서버는 model·원본 파일을 받는다
       const body = cloudEnabled
-        ? buildCloudChatBody({ chatId: chatId ?? undefined, engine: 'codex', message: text, form, sources: files.length ? await prepareCloudSources(files, consent, picks).then((xs) => {
+        ? buildCloudChatBody({ chatId: chatId ?? undefined, engine: 'codex', message: text, form: formOut, sources: files.length ? await prepareCloudSources(files, consent, picks).then((xs) => {
           keepSources(xs);
           // 한도 때문에 뒤쪽 행을 못 담았으면 보낸 말의 파일 칩에 알린다 (AI도 요약에 적힌 안내를 보고 말해 준다)
           if (xs.some(isCutSource)) setMsgs((ms) => ms.map((m, k) => (k === ms.length - 2 && m.files ? { ...m, files: m.files.map((n, j) => (xs[j] && isCutSource(xs[j]) ? `${n} · 일부 행만 담음` : n)) } : m)));
           return xs;
         }) : sources.current })
-        : JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: text, form, files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) });
+        : JSON.stringify({ chatId: chatId ?? undefined, model: openaiModel, message: text, form: formOut, files: await Promise.all(files.map(async (f) => ({ name: f.name, base64: await toBase64(f) }))) });
       if (ctl.signal.aborted) throw new DOMException('취소됨', 'AbortError');
       setAttached([]); setConsent(false); setSheetPicks(new Map());
       const res = await aiFetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body, signal: ctl.signal });
@@ -351,6 +363,9 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
         else if (e.type === 'form') {
           const c = checkForm(e.schema);
           const fromAi = c.form;
+          // 시트 모으기형: 이번에 올린 엑셀 시트(없으면 지금 양식이 쓰던 시트)를 붙인다
+          const sheet = fileSheet ?? keptSheet;
+          if (c.form?.layout === 'collect' && sheet && !c.form.collect?.sheet) c.form = { ...c.form, collect: { scope: c.form.collect?.scope ?? 'report', sheet } };
           // 같은 대화에서 전혀 다른 양식을 새로 만들면 AI는 이전 양식 번호를 그대로 쓴다 → 새 번호를 줘서
           // 이전 양식의 내보내기 기록과 섞여 버전이 오르지 않게 한다 (다음 말에 새 번호 양식을 AI에게 넘긴다)
           if (c.form && lastForm && c.form.formId === lastForm.formId && !sameForm(lastForm, c.form)) {

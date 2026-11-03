@@ -1,6 +1,7 @@
 import { CONTRACT_VERSION } from './version';
 import { formulaErrors } from './formula/context';
 import { AGGREGATION_IDS, AGGREGATION_LABELS, availableAggregations, requiredAggregations, type AggregationId } from './aggregationIds';
+import type { CollectSheet } from './collectSheet';
 
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'memo' | 'pattern' | 'calc';
 
@@ -88,6 +89,7 @@ export interface FreeSpec {
 export interface CollectSpec {
   scope: 'report' | 'all';          // 취합 때 모을 시트. 'report'(기본) = 보고서 시트만, 'all' = 파일 안의 보이는 시트 전부
   starter?: (string | number | null)[][];   // 시트 시작 모양: 4행부터 넣을 기본 틀(엑셀에서 붙여넣은 표). 없으면 빈 시트
+  sheet?: CollectSheet;             // 쓰던 엑셀 시트를 그대로 빈 양식으로 (값·서식·합친 칸·열 너비). 있으면 starter와 제목 줄 대신 이 시트 하나로 보낸다
 }
 
 export interface FormSchema {
@@ -269,6 +271,9 @@ export function validateSchema(x: unknown): ValidateResult {
   if (s.layout === 'collect') {
     if (!s.collect || (s.collect.scope !== 'report' && s.collect.scope !== 'all')) errors.push('시트 모으기형은 collect 설정이 필요해요');
     if (s.org?.mode === 'input') errors.push('시트 모으기형은 지사명 입력 방식을 쓸 수 없어요');
+    const sh = s.collect?.sheet as unknown;
+    if (sh !== undefined && (!isObj(sh) || typeof sh.name !== 'string' || !sh.name.trim() || !Array.isArray(sh.cells) || !Array.isArray(sh.styles) || !Array.isArray(sh.merges) || !Array.isArray(sh.cols) || !Array.isArray(sh.rows)
+      || !(sh.cells as unknown[]).every((c) => Array.isArray(c) && typeof c[0] === 'string' && /^[A-Z]{1,3}\d{1,7}$/.test(c[0])))) errors.push('시트 모으기형의 원본 시트 사본이 올바르지 않아요');
   }
 
   if (!isObj(s.org) || !['preset', 'input', 'none'].includes(s.org.mode)) errors.push('org.mode가 올바르지 않아요');
