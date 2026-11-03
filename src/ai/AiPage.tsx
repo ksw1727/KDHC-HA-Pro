@@ -3,7 +3,7 @@ import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
 import { deleteThread, findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
 import { AttachmentError, bytesForLocal, buildCloudChatBody, isCutSource, LockedFileError, MAX_CLOUD_FILE, openAttachment, prepareCloudSources, readSheetList, WrongPasswordError, type CloudSource } from './cloudAttachments';
-import { sheetSize, withoutSheet, type CollectSheet } from '@contract/collectSheet';
+import { sheetSize, sheetStub, withoutSheet, type CollectSheet } from '@contract/collectSheet';
 import { sheetCopyFromBytes } from '@gen/state/sheetCopy';
 import { defaultPick, isPartial, pickedSheets, SheetPicker, type SheetPick } from './SheetPicker';
 import { readNdjson, requireOk, ServerMessageError } from './http';
@@ -41,6 +41,12 @@ interface Msg {
 /** 양식 비교용 (빌더가 저장할 때마다 바뀌는 updatedAt은 빼고) */
 // 시트 모으기형의 원본 시트 사본은 AI에게 보내지 않으니 비교에서도 뺀다
 const sig = (s: FormSchema) => JSON.stringify({ ...withoutSheet(s), updatedAt: '' });
+/** 저장용 대화: 원본 시트 사본(수십~수백 KB)은 마지막 양식 카드에만 두고, 지난 카드와 바꾸기 전 양식(base)은 이름만 남긴다 */
+const stubForm = (f?: FormSchema) => (f?.collect?.sheet?.cells.length ? { ...f, collect: { ...f.collect, sheet: sheetStub(f.collect.sheet) } } : f);
+function compactMsgs(xs: Msg[]): Msg[] {
+  const last = xs.map((m) => !!m.form).lastIndexOf(true);
+  return xs.map((m, i) => (m.form || m.base ? { ...m, ...(m.form ? { form: i === last ? m.form : stubForm(m.form) } : {}), ...(m.base ? { base: stubForm(m.base) } : {}) } : m));
+}
 /** AI에게 알릴 원본 시트 한 줄 */
 const sheetLine = (sh: CollectSheet) => { const z = sheetSize(sh); return `"${sh.name}" 시트(${z.rows}행 × ${z.cols}열, 합친 칸 ${z.merges}개)`; };
 
@@ -139,7 +145,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const keepSources = (xs: CloudSource[]) => { sources.current = xs; try { sessionStorage.setItem(scopedStorageKey(SOURCES_KEY), JSON.stringify(xs)); } catch { /* 보관 못 해도 됨 */ } };
   const end = useRef<HTMLDivElement>(null);
 
-  const draftSync = useCloudDraft({ chatId, msgs, aiVersion, ...(threadId ? { threadId } : {}) }, busy, (draft: Draft) => {
+  const stored = useMemo(() => compactMsgs(msgs), [msgs]);
+  const draftSync = useCloudDraft({ chatId, msgs: stored, aiVersion, ...(threadId ? { threadId } : {}) }, busy, (draft: Draft) => {
     setChatId(draft.chatId); setMsgs(draft.msgs as Msg[]); setAiVersion(draft.aiVersion); setThreadId(draft.threadId ?? null);
     if (!draft.msgs.length) keepSources([]);
     if (!(draft.msgs as Msg[]).some((m) => m.form)) closePanel();
@@ -163,11 +170,11 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   // ── 대화 보관함: 지금 대화를 남기고, 내 업무공간에서 연 양식의 대화로 바꾼다 ──
   useEffect(() => { if (msgs.length && !threadId) setThreadId(newThreadId()); }, [msgs.length, threadId]);
   const [archiveNote, setArchiveNote] = useState('');
-  const now = useRef({ threadId, chatId, msgs, aiVersion, busy }); now.current = { threadId, chatId, msgs, aiVersion, busy };
+  const now = useRef({ threadId, chatId, msgs: stored, aiVersion, busy }); now.current = { threadId, chatId, msgs: stored, aiVersion, busy };
   const canSwitch = !cloudEnabled || draftSync.ready;
   useEffect(() => {
     if (!threadId || !msgs.length || busy || !canSwitch) return;
-    const t = setTimeout(() => { void saveThread({ threadId, chatId, msgs, aiVersion }).then((e) => setArchiveNote(e ? '이 대화를 서버 대화 목록에 남기지 못했어요 (이 기기에는 남아 있어요).' : '')); }, 800);
+    const t = setTimeout(() => { void saveThread({ threadId, chatId, msgs: stored, aiVersion }).then((e) => setArchiveNote(e ? '이 대화를 서버 대화 목록에 남기지 못했어요 (이 기기에는 남아 있어요).' : '')); }, 800);
     return () => clearTimeout(t);
   }, [threadId, chatId, msgs, aiVersion, busy, canSwitch]);
   const [opening, setOpening] = useState('');   // 대화를 찾는 중 안내
@@ -337,7 +344,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       const sheetNote = !cloudEnabled && files.some((f) => isPartial(sheetPicks.get(f)))
         ? `\n(첨부 엑셀에서 이 시트만 보고 만들어 주세요: ${files.flatMap((f, i) => (isPartial(sheetPicks.get(f)) ? [`${f.name} → ${picks[i]!.join(', ')}`] : [])).join(' / ')})` : '';
       // 시트 모으기형은 올린 엑셀 시트를 프로그램이 모양 그대로 빈 양식에 넣는다 (AI는 칸을 옮겨 적지 않음)
-      const fileSheet = files.length ? await openAttachment(files[0]).then((o) => sheetCopyFromBytes(o.bytes, files[0].name, picks[0]?.[0])).catch(() => null) : null;
+      let sheetErr = '';
+      const fileSheet = files.length ? await openAttachment(files[0]).then((o) => sheetCopyFromBytes(o.bytes, files[0].name, picks[0]?.[0])).catch((e: Error) => { sheetErr = e.message; return null; }) : null;
       const keptSheet = lastForm?.layout === 'collect' ? lastForm.collect?.sheet : undefined;
       const sheetHint = fileSheet ? `\n(시트 모으기형으로 만들면 올린 엑셀의 ${sheetLine(fileSheet)}를 프로그램이 값·합친 칸·서식 그대로 빈 양식에 넣어요. 합친 칸·여러 단 머리글이 많아도 시트 모으기형은 만들 수 있으니 거절하지 말고, collect.starter는 비워 두세요.)`
         : keptSheet ? `\n(이 양식은 원본 엑셀의 ${sheetLine(keptSheet)}를 그대로 빈 양식으로 써요. collect.starter는 비워 두세요.)` : '';
@@ -361,11 +369,12 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
         else if (e.type === 'status') patchLast((m) => ({ ...m, status: e.text }));
         else if (e.type === 'text') patchLast((m) => ({ ...m, text: m.text ? `${m.text}\n\n${e.text}` : e.text }));
         else if (e.type === 'form') {
-          const c = checkForm(e.schema);
+          const c: Pick<Msg, 'form' | 'problems' | 'badForm' | 'error'> = checkForm(e.schema);
           const fromAi = c.form;
           // 시트 모으기형: 이번에 올린 엑셀 시트(없으면 지금 양식이 쓰던 시트)를 붙인다
           const sheet = fileSheet ?? keptSheet;
           if (c.form?.layout === 'collect' && sheet && !c.form.collect?.sheet) c.form = { ...c.form, collect: { scope: c.form.collect?.scope ?? 'report', sheet } };
+          if (c.form?.layout === 'collect' && sheetErr) c.error = `올린 엑셀 시트를 빈 양식에 그대로 넣지 못했어요: ${sheetErr}`;
           // 같은 대화에서 전혀 다른 양식을 새로 만들면 AI는 이전 양식 번호를 그대로 쓴다 → 새 번호를 줘서
           // 이전 양식의 내보내기 기록과 섞여 버전이 오르지 않게 한다 (다음 말에 새 번호 양식을 AI에게 넘긴다)
           if (c.form && lastForm && c.form.formId === lastForm.formId && !sameForm(lastForm, c.form)) {
@@ -389,7 +398,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const reset = () => {
     if (busy || (cloudEnabled && !draftSync.ready)) return;
     // 지금 대화는 [대화 목록]에 남긴다
-    if (threadId && msgs.length) void saveThread({ threadId, chatId, msgs, aiVersion });
+    if (threadId && msgs.length) void saveThread({ threadId, chatId, msgs: stored, aiVersion });
     draftSync.markCleared();
     abort.current?.abort(); setChatId(null); setMsgs([]); setInput(''); setAiVersion(null); setAttached([]); setSheetPicks(new Map()); keepSources([]); setThreadId(null); setOpening('');
     closePanel();   // 오른쪽 설정 패널도 같이 비운다

@@ -149,6 +149,15 @@ export function sheetText(v: SheetValue): string | number | undefined {
   return v.rt.map((x) => x.text).join('');
 }
 
+/** 사본 크기 한도: 양식은 서버에 512KB까지 저장되고 내보낸 기록과 함께 두 벌 들어가므로 그 아래로 */
+export const MAX_SHEET_BYTES = 200_000;
+export const sheetBytes = (s: CollectSheet) => new TextEncoder().encode(JSON.stringify(s)).byteLength;
+
+/** 저장 공간을 아끼려고 내용을 비운 사본 (지난 대화 카드·바꾸기 전 양식용). 이름·파일만 남는다 */
+export function sheetStub(s: CollectSheet): CollectSheet {
+  return { name: s.name, ...(s.source ? { source: s.source } : {}), cells: [], styles: [], merges: [], cols: [], rows: [] };
+}
+
 /** AI에게 보낼 때 사본을 떼어 낸 양식 + 사본 */
 export function withoutSheet<T extends { collect?: { sheet?: CollectSheet } }>(s: T): T {
   if (!s.collect?.sheet) return s;

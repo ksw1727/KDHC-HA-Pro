@@ -69,3 +69,17 @@ describe('시트 모으기형: 쓰던 엑셀 시트 그대로', () => {
     expect(ws.getCell('B60').value).toBe('60행');
   });
 });
+
+describe('시트 사본 저장 크기', () => {
+  test('지난 카드용 빈 사본은 이름만 남고, 너무 큰 시트는 고를 때 막는다', async () => {
+    const { sheetStub, sheetBytes, MAX_SHEET_BYTES } = await import('../collectSheet');
+    const snap = snapshotSheet(sheet(), '원본.xlsx');
+    expect(sheetStub(snap)).toEqual({ name: '모니터링', source: '원본.xlsx', cells: [], styles: [], merges: [], cols: [], rows: [] });
+    expect(sheetBytes(snap)).toBeLessThan(MAX_SHEET_BYTES);
+    const { sheetCopyFromBytes } = await import('@gen/state/sheetCopy');
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('큰 시트');
+    for (let r = 1; r <= 3000; r++) for (let c = 1; c <= 10; c++) ws.getCell(r, c).value = `값 ${r}-${c} 긴 글자 채우기`;
+    await expect(sheetCopyFromBytes(new Uint8Array(await wb.xlsx.writeBuffer() as ArrayBuffer), 'big.xlsx')).rejects.toThrow('너무 커요');
+  });
+});
