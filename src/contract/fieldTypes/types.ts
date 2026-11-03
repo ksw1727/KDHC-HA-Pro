@@ -4,7 +4,9 @@ import type { CellValue } from '../meta';
 
 export type IssueCode =
   | 'REQUIRED_EMPTY' | 'TOO_LONG' | 'NOT_NUMBER' | 'NOT_DATE' | 'OUT_OF_RANGE'
-  | 'NOT_IN_OPTIONS' | 'BAD_PATTERN' | 'FORMULA_ERROR';
+  | 'NOT_IN_OPTIONS' | 'BAD_PATTERN' | 'FORMULA_ERROR'
+  // 취합 값 정리에서 짐작한 날짜·시간 (2026-11-03): 기간을 시작일로, 요일과 날짜가 다름, 오전·오후를 짐작한 시간
+  | 'DATE_RANGE' | 'WEEKDAY_MISMATCH' | 'NOT_TIME';
 
 export interface NormalizeResult {
   status: 'ok' | 'auto' | 'proposal' | 'invalid';
