@@ -2,7 +2,7 @@
  * AI 연결 서버 (AI로 만들기). 브라우저는 명령어를 실행할 수 없어서, 개발 서버(vite)에 붙어
  * OpenAI Agents SDK(openaiAgent.ts)로 AI를 부르고, 결과를 한 줄씩(NDJSON) 화면으로 보낸다.
  *
- *   GET  /api/ai/health          OpenAI 키가 있는지 (+ 모델 목록)
+ *   GET  /api/ai/health          OpenAI 키가 있는지, 올라마 모델이 있는지 (+ 모델 목록)
  *   POST /api/ai/chat            { chatId?, model?, message, form?, files? } → NDJSON 이벤트
  *   GET  /api/ai/form?chatId=…   그 대화의 AI 작업 폴더에 있는 form.json (빌더에서 고친 것과 비교용)
  *
@@ -15,7 +15,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin } from 'vite';
-import { OPENAI_MODELS, runOpenAiAgent } from './openaiAgent';
+import { OPENAI_MODELS, isOpenAiModel, ollamaModels, openAiKey, runOpenAiAgent } from './openaiAgent';
 import { PROMPT_VERSIONS, type PromptVersion } from './prompts';
 
 export type AiEvent =
@@ -77,7 +77,9 @@ export function aiBridge(root: string): Plugin {
   const handle = async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     if (req.url === '/api/ai/health' && req.method === 'GET') {
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ ok: true, openai: !!process.env.OPENAI_API_KEY, openaiModels: OPENAI_MODELS }));
+      // OpenAI 키가 없어도 올라마 모델이 있으면 AI로 만들기를 쓸 수 있다
+      const key = !!openAiKey();
+      res.end(JSON.stringify({ ok: true, openai: key, openaiModels: key ? OPENAI_MODELS : [], localModels: await ollamaModels() }));
       return;
     }
     if (req.url?.startsWith('/api/ai/form?') && req.method === 'GET') {
@@ -93,8 +95,9 @@ export function aiBridge(root: string): Plugin {
     const send = (e: AiEvent) => { res.write(JSON.stringify(e) + '\n'); };
     try {
       const { chatId = randomUUID(), model, message, form, files = [] } = (await body(req)) as { chatId?: string; model?: string; message?: unknown; form?: unknown; files?: { name: string; base64: string }[] };
-      if (!process.env.OPENAI_API_KEY) throw new Error('.env.local에 OPENAI_API_KEY가 없어요');
-      if (model && !(OPENAI_MODELS as readonly string[]).includes(model)) throw new Error(`쓸 수 없는 모델이에요: ${model}`);
+      const local = !isOpenAiModel(model);
+      if (local && !(await ollamaModels()).includes(model!)) throw new Error(`쓸 수 없는 모델이에요: ${model} (올라마에 받아 둔 모델이 아니거나 올라마가 꺼져 있어요)`);
+      if (!local && !openAiKey()) throw new Error('.env.local에 OPENAI_API_KEY가 없어요. 올라마 모델을 고르면 키 없이 쓸 수 있어요');
       if (typeof message !== 'string' || !message.trim()) throw new Error('보낼 말이 비어 있어요');
       moa ??= buildMoa(root);
       const ws = workspace(chatId);
@@ -109,13 +112,13 @@ export function aiBridge(root: string): Plugin {
           try { send({ type: 'form', schema: JSON.parse(readFileSync(formPath, 'utf8')) }); } catch { send({ type: 'error', text: 'AI가 만든 양식 파일을 읽지 못했어요' }); }
         }
       };
-      send({ type: 'status', text: `${model ?? OPENAI_MODELS[0]}가 생각하는 중` });
+      send({ type: 'status', text: `${model ?? OPENAI_MODELS[0]}가 생각하는 중${local ? ' (이 컴퓨터의 올라마라 1~3분 걸릴 수 있어요)' : ''}` });
       const stop = new AbortController();
       res.on('close', () => stop.abort());
       try {
         await runOpenAiAgent({ ws, moa: await moa, root, message: prompt, model, prompt: OPENAI_PROMPT, signal: stop.signal, onEvent: (e) => send(e.type === 'status' ? { type: 'status', text: e.text } : e) });
       } catch (e) {
-        if (!stop.signal.aborted) send({ type: 'error', text: `OpenAI가 멈췄어요: ${(e as Error).message}` });
+        if (!stop.signal.aborted) send({ type: 'error', text: `${local ? '올라마' : 'OpenAI'}가 멈췄어요: ${(e as Error).message}` });
       }
       sendForm();
       send({ type: 'done' });

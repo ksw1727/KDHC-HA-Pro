@@ -89,6 +89,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   // 로컬: tools/ai/bridge.ts(OpenAI SDK, 모델 선택). 온라인: server/ai.ts(관리자 공용 OpenAI)
   const [health, setHealth] = useState<'checking' | 'off' | 'nokey' | 'ok'>('checking');
   const [models, setModels] = useState<string[]>([]);
+  const [localModels, setLocalModels] = useState<string[]>([]);   // 로컬 실행 전용: 이 컴퓨터의 올라마 모델 (키 없이 씀). 온라인 배포에서는 늘 비어 있다
   const [model, setModel] = useState<string>(() => { try { return localStorage.getItem(scopedStorageKey(MODEL_KEY)) ?? ''; } catch { return ''; } });
   const [saved] = useState(loadChat);
   const [chatId, setChatId] = useState<string | null>(saved.chatId);
@@ -141,11 +142,17 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   useEffect(() => {
     aiFetch('/api/ai/health').then(requireOk).then((r) => r.json()).then((j) => {
       if (cloudEnabled) setHealth(j.engines?.codex === true ? 'ok' : 'nokey');
-      else { setHealth(j.openai ? 'ok' : 'nokey'); setModels(Array.isArray(j.openaiModels) ? j.openaiModels : []); }
+      else {
+        // OpenAI 키가 없어도 올라마 모델이 있으면 쓸 수 있다
+        const open = j.openai && Array.isArray(j.openaiModels) ? (j.openaiModels as string[]) : [];
+        const local = Array.isArray(j.localModels) ? (j.localModels as string[]) : [];
+        setHealth(open.length || local.length ? 'ok' : 'nokey'); setModels([...open, ...local]); setLocalModels(local);
+      }
     }).catch((error: Error) => { setHealthError(error.message); setHealth('off'); });
   }, []);
   useEffect(() => { try { if (model) localStorage.setItem(scopedStorageKey(MODEL_KEY), model); } catch { /* 저장 못 해도 됨 */ } }, [model]);
   const openaiModel = models.includes(model) ? model : models[0];
+  const onLocal = !cloudEnabled && localModels.includes(openaiModel ?? '');
   useEffect(() => { end.current?.scrollIntoView({ block: 'end' }); }, [msgs]);
 
   // ── 대화 보관함: 지금 대화를 남기고, 내 업무공간에서 연 양식의 대화로 바꾼다 ──
@@ -378,8 +385,8 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       <div className="mx-auto flex max-w-[640px] flex-col gap-3 p-6">
         <h1 className="m-0 text-xl font-bold">AI로 만들기</h1>
         <div className="rounded-card border border-line bg-panel p-4 text-sub">
-          <p className="m-0 mb-2 font-semibold text-ink">{cloudEnabled ? (health === 'nokey' ? '관리자 AI 설정이 아직 없어요' : healthError || '클라우드 AI 연결을 확인하지 못했어요') : health === 'off' ? 'AI 연결 서버가 꺼져 있어요' : 'OpenAI API 키가 없어요'}</p>
-          <p className="m-0">{cloudEnabled ? <>{health === 'nokey' ? 'AI 키 또는 모델이 설정되지 않아 비용이 발생하는 AI 기능은 사용할 수 없어요. ' : '로그인 상태를 확인하고 다시 접속해 주세요. 계속되면 관리자에게 문의해 주세요. '}양식 설정 패널·취합하기는 그대로 사용할 수 있어요.</> : <>AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 오른쪽 위 [양식 설정 패널] 스위치와 [취합하기]는 지금도 그대로 쓸 수 있어요.</>}</p>
+          <p className="m-0 mb-2 font-semibold text-ink">{cloudEnabled ? (health === 'nokey' ? '관리자 AI 설정이 아직 없어요' : healthError || '클라우드 AI 연결을 확인하지 못했어요') : health === 'off' ? 'AI 연결 서버가 꺼져 있어요' : 'OpenAI API 키도, 올라마 모델도 없어요'}</p>
+          <p className="m-0">{cloudEnabled ? <>{health === 'nokey' ? 'AI 키 또는 모델이 설정되지 않아 비용이 발생하는 AI 기능은 사용할 수 없어요. ' : '로그인 상태를 확인하고 다시 접속해 주세요. 계속되면 관리자에게 문의해 주세요. '}양식 설정 패널·취합하기는 그대로 사용할 수 있어요.</> : <>AI로 만들기는 OpenAI API(<code>.env.local</code>의 <code>OPENAI_API_KEY</code>)나, 키가 없으면 이 컴퓨터의 올라마(Ollama)에 받아 둔 모델(예: <code>ollama pull gemma4:26b</code>)로 돌아가요. 프로그램 폴더에서 <code>npm run dev</code>로 켠 화면(예: localhost:5173)에서 써 주세요. 오른쪽 위 [양식 설정 패널] 스위치와 [취합하기]는 지금도 그대로 쓸 수 있어요.</>}</p>
         </div>
       </div>
     );
@@ -423,7 +430,7 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       </div>
     </div>
   );
-  const foot = <p className="m-0 text-center text-xs text-muted">보낸 말은 OpenAI{!cloudEnabled && openaiModel ? ` ${openaiModel}` : ''}로 전달돼요 · {cloudEnabled ? '엑셀은 원본 대신 동의한 요약만 보내요' : '회신 파일 내용은 보내지 않아요'}</p>;
+  const foot = <p className="m-0 text-center text-xs text-muted">{onLocal ? `보낸 말은 이 컴퓨터의 올라마 ${openaiModel}로 처리해요 (밖으로 나가지 않아요)` : `보낸 말은 OpenAI${!cloudEnabled && openaiModel ? ` ${openaiModel}` : ''}로 전달돼요`} · {cloudEnabled ? '엑셀은 원본 대신 동의한 요약만 보내요' : '회신 파일 내용은 보내지 않아요'}</p>;
 
   return (
     <div className="mx-auto flex h-full max-w-[1080px] flex-col gap-2 px-4 pb-3 pt-3"
@@ -434,9 +441,9 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       {/* 머리줄: [대화 목록]은 흰 테두리 + 대화 수, [새 대화]는 초록 채움 */}
       <div className="flex flex-wrap items-center justify-end gap-2">
         {!cloudEnabled && models.length > 0 && (
-          <select aria-label="OpenAI 모델" className="mr-auto rounded-box border border-line bg-white px-2 py-1 text-[13px]" value={openaiModel} disabled={busy}
+          <select aria-label="AI 모델" className="mr-auto rounded-box border border-line bg-white px-2 py-1 text-[13px]" value={openaiModel} disabled={busy}
             onChange={(e) => setModel(e.target.value)}>
-            {models.map((m) => <option key={m} value={m}>{m}</option>)}
+            {models.map((m) => <option key={m} value={m}>{localModels.includes(m) ? `${m} · 이 컴퓨터(올라마)` : m}</option>)}
           </select>
         )}
         <div className="relative">

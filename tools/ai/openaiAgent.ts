@@ -4,16 +4,40 @@
  * 대화 기록은 대화 폴더 openai-history.json에 두고 이어서 말할 때 붙여 보낸다.
  *
  * 시스템 프롬프트는 버전(A·B·C)으로 고른다 (tools/ai/prompts.ts, 비교 시험은 tools/ai/eval).
+ *
+ * 키가 없어도 이 컴퓨터의 올라마(Ollama)에 받아 둔 모델로 돌릴 수 있다. 올라마는 OpenAI와 같은 모양의
+ * 주소(/v1/responses)를 열어 두므로 같은 SDK로 주소만 바꿔 부른다. 주소는 OLLAMA_BASE_URL(기본 http://127.0.0.1:11434).
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { Agent, run, tool, setTracingDisabled, type AgentInputItem } from '@openai/agents';
+import { Agent, OpenAIProvider, Runner, run, tool, setTracingDisabled, type AgentInputItem } from '@openai/agents';
 import { z } from 'zod';
 import { buildPrompt, type PromptVersion } from './prompts';
 
 export const OPENAI_MODELS = ['gpt-6.1-sol', 'gpt-6-luna'] as const;
 export type OpenAiModel = (typeof OPENAI_MODELS)[number];
+
+/** OpenAI 키 (공백만 있으면 없는 것으로 본다) */
+export const openAiKey = () => process.env.OPENAI_API_KEY?.trim() || '';
+/** 올라마 주소. 끝의 / 와 /v1 은 떼어 둔다 */
+export const ollamaBase = () => (process.env.OLLAMA_BASE_URL?.trim() || 'http://127.0.0.1:11434').replace(/\/+$/, '').replace(/\/v1$/, '');
+
+/**
+ * 올라마에 받아 둔 모델 중 도구를 쓸 수 있는 것 (AI로 만들기는 moa 도구를 불러야 해서).
+ * 올라마가 꺼져 있거나 없으면 빈 목록. MOA_OLLAMA_MODELS(쉼표)로 보여 줄 모델을 좁힐 수 있다.
+ */
+export async function ollamaModels(fetcher: typeof fetch = fetch): Promise<string[]> {
+  try {
+    const r = await fetcher(`${ollamaBase()}/api/tags`, { signal: AbortSignal.timeout(1500) });
+    if (!r.ok) return [];
+    const j = (await r.json()) as { models?: { name?: string; capabilities?: string[] }[] };
+    const names = (j.models ?? []).filter((m) => typeof m.name === 'string' && (!m.capabilities || m.capabilities.includes('tools'))).map((m) => m.name!);
+    const only = (process.env.MOA_OLLAMA_MODELS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    return only.length ? names.filter((n) => only.includes(n)) : names;
+  } catch { return []; }
+}
+export const isOpenAiModel = (m?: string) => !m || (OPENAI_MODELS as readonly string[]).includes(m);
 
 export type AgentEvent =
   | { type: 'status'; text: string; tool?: string }
@@ -89,7 +113,10 @@ function statusOf(name: string, args: string): string {
 }
 
 export async function runOpenAiAgent(o: AgentRun): Promise<AgentResult> {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY가 없어요. 프로그램 폴더의 .env.local에 넣어 주세요.');
+  const local = !isOpenAiModel(o.model);
+  if (!local && !openAiKey()) throw new Error('OPENAI_API_KEY가 없어요. 프로그램 폴더의 .env.local에 넣거나, 올라마 모델을 골라 주세요.');
+  // 올라마 모델: 같은 SDK로 주소만 올라마로 (키는 확인하지 않아서 아무 글자나)
+  const runner = local ? new Runner({ modelProvider: new OpenAIProvider({ apiKey: 'ollama', baseURL: `${ollamaBase()}/v1`, useResponses: true }) }) : null;
   const agent = new Agent({
     name: '한난MOA 양식 도우미',
     instructions: buildPrompt(o.root, o.prompt ?? 'B'),
@@ -101,7 +128,9 @@ export async function runOpenAiAgent(o: AgentRun): Promise<AgentResult> {
   let history: AgentInputItem[] = [];
   try { history = JSON.parse(readFileSync(histPath, 'utf8')); } catch { /* 새 대화 */ }
 
-  const stream = await run(agent, [...history, { role: 'user', content: o.message }], { stream: true, maxTurns: 30, signal: o.signal });
+  const input: AgentInputItem[] = [...history, { role: 'user', content: o.message }];
+  const options = { stream: true as const, maxTurns: 30, signal: o.signal };
+  const stream = runner ? await runner.run(agent, input, options) : await run(agent, input, options);
   stream.completed.catch(() => { /* 아래 await에서 받는다 */ });
   let toolCalls = 0;
   for await (const ev of stream) {
