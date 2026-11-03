@@ -9,7 +9,6 @@ import { WorkspacePage } from '../workspace/WorkspacePage';
 import type { FormSchema } from '@contract/schema';
 import { AppHeader, type Tab } from './AppHeader';
 
-const PANEL_KEY = 'hanan-moa:builder-panel';   // 양식 설정 패널을 켜 두었는지 (새로고침해도 그대로)
 const WIDTH_KEY = 'hanan-moa:settings-panel-width';
 /** 패널은 340px 이상, AI 대화는 480px 이상 남긴다 */
 const clampWidth = (w: number) => Math.round(Math.max(340, Math.min(w, window.innerWidth - 480)));
@@ -24,8 +23,9 @@ function Workspace() {
   const [admin, setAdmin] = useState(false);
   useEffect(() => { let alive = true; void probeAdmin().then((ok) => { if (alive) setAdmin(ok); }); return () => { alive = false; }; }, []);
   const [formId, setFormId] = useState<string>();
-  const [panel, setPanel] = useState(() => { try { return localStorage.getItem(PANEL_KEY) !== '0'; } catch { return true; } });
-  useEffect(() => { try { localStorage.setItem(PANEL_KEY, panel ? '1' : '0'); } catch { /* 저장 못 해도 됨 */ } }, [panel]);
+  // 양식 설정 패널: 처음 들어오면 늘 꺼진 상태(대화만 보이게). 새로고침해도 꺼진 상태로 시작하고,
+  // 스위치를 켜거나 양식을 열거나 칸을 고를 때만 켠다
+  const [panel, setPanel] = useState(false);
   // 패널 너비: 왼쪽 경계를 끌어서 바꾼다 (null이면 기본 너비)
   const [width, setWidth] = useState<number | null>(() => { try { return Number(localStorage.getItem(WIDTH_KEY)) || null; } catch { return null; } });
   useEffect(() => { try { if (width) localStorage.setItem(WIDTH_KEY, String(width)); else localStorage.removeItem(WIDTH_KEY); } catch { /* 저장 못 해도 됨 */ } }, [width]);
