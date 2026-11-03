@@ -79,7 +79,7 @@ function SheetFromExcel({ sheet, onChange }: { sheet?: CollectSheet; onChange: (
       const sheets = await visibleSheetNames(o.bytes);
       if (!sheets.length) throw new Error('보이는 시트가 없어요');
       setFile({ name: f.name, bytes: o.bytes, sheets });
-      onChange((await sheetCopyFromBytes(o.bytes, f.name, sheets[0])) ?? undefined);
+      onChange((await sheetCopyFromBytes(o.bytes, f.name)) ?? undefined);   // 시트를 안 고르면 작성 시트로 보이는 시트
     } catch (e) { setErr(`엑셀을 읽지 못했어요: ${(e as Error).message}`); } finally { setBusy(false); }
   };
   const size = sheet ? sheetSize(sheet) : null;

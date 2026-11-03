@@ -1,6 +1,7 @@
 // @vitest-environment node
 import ExcelJS from 'exceljs';
-import { dumpExcel, listSheets, packBlanks, slimWorkbook } from '../../../tools/excelDump';
+import { dumpExcel, listSheets, packBlanks, sheetClues, sheetRole, slimWorkbook } from '../../../tools/excelDump';
+import { defaultSheet } from '@gen/state/sheetCopy';
 
 /** 사람들이 쓰던 엑셀 양식 흉내: 머리글, 노란 빈칸, 선택 규칙, VLOOKUP·다른 시트 참조, 메모, 조건부 서식 */
 async function sample(): Promise<Uint8Array> {
@@ -129,6 +130,22 @@ describe('쓰던 엑셀 읽기 (moa read-excel)', () => {
     expect(text).toContain('94행:');
     expect(text).not.toContain('담지 못했어요');
     expect(text).toContain('H5~Z5="" [빈 칸, 19칸]');
+  });
+
+  test('취합 의도 단서: 참고/작성 시트, 제출처 자리표시, 번호 줄, 예시 값', () => {
+    expect([sheetRole('<참고> 평가 방법'), sheetRole('<작성> 위험성평가 실시표(사무업무)'), sheetRole('Sheet1')]).toEqual(['reference', 'input', null]);
+    expect(defaultSheet([{ name: '<참고> 평가 방법' }, { name: '<참고> 기준' }, { name: '<작성> 실시표' }])?.name).toBe('<작성> 실시표');
+    expect(defaultSheet([{ name: '<참고> 평가 방법' }, { name: 'Sheet2' }])?.name).toBe('Sheet2');
+    const ws = new ExcelJS.Workbook().addWorksheet('수기관리 시 작성양식(OO부)');
+    ws.getCell('A18').value = '순번';
+    [1, 2, 3, 4].forEach((n, i) => { ws.getCell(20 + i, 1).value = n; });
+    ws.getCell('C20').value = 'OO 공사';
+    [1, 2, 3].forEach((n, i) => { ws.getCell(28 + i, 1).value = String(n); });
+    const c = sheetClues(ws).join(' / ');
+    expect(c).toContain('"OO부"는 제출처 자리표시');
+    expect(c).toContain('A열 20~23행에 번호 1~4');
+    expect(c).toContain('A열 28~30행에 번호 1~3');
+    expect(c).toContain('C20 "OO 공사"');
   });
 });
 
