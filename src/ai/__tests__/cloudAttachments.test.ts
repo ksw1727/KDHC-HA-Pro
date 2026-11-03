@@ -91,6 +91,6 @@ describe('cloud browser-only Excel summaries', () => {
   it('applies character, form-byte, and total UTF-8 byte limits', () => {
     expect(() => buildCloudChatBody({ engine: 'claude', message: 'x'.repeat(6001) })).toThrow('6,000');
     expect(() => buildCloudChatBody({ engine: 'claude', message: 'a', form: { text: '한'.repeat(54000) } })).toThrow('160KB');
-    expect(() => buildCloudChatBody({ engine: 'claude', message: '한'.repeat(6000), form: { text: 'a'.repeat(159000) }, sources: Array.from({ length: 5 }, () => ({ name: 'a', text: '한'.repeat(12000) })) })).toThrow('240KB');
+    expect(() => buildCloudChatBody({ engine: 'claude', message: '한'.repeat(6000), form: { text: 'a'.repeat(159000) }, sources: Array.from({ length: 5 }, () => ({ name: 'a', text: '한'.repeat(30000) })) })).toThrow('480KB');
   });
 });

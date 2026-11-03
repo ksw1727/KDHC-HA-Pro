@@ -125,9 +125,27 @@ const LEVELS: Level[] = [
 ];
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…(${s.length}자)` : s);
 
+/**
+ * 한 줄에서 이어지는 빈 칸을 묶는다: `I5="" [빈 칸] | J5="" [빈 칸] | … Z5` → `I5~Z5="" [빈 칸, 18칸]`.
+ * 계획·실적 표처럼 빈 입력 칸이 많은 양식은 요약의 대부분이 빈 칸이라, 이것만으로 몇 배 짧아진다.
+ * 표시(굵게·채움 등)가 같은 빈 칸끼리만 묶는다. 3칸 이상일 때만.
+ */
+export function packBlanks(cells: string[]): string[] {
+  const out: string[] = [];
+  const blank = (c: string) => /^([A-Z]{1,3}\d+)="" \[([^\]]*빈 칸[^\]]*)\]$/.exec(c);
+  for (let i = 0; i < cells.length;) {
+    const a = blank(cells[i]);
+    let j = i + 1;
+    if (a) while (j < cells.length && blank(cells[j])?.[2] === a[2]) j++;
+    if (a && j - i >= 3) { out.push(`${a[1]}~${blank(cells[j - 1])![1]}="" [${a[2]}, ${j - i}칸]`); i = j; }
+    else { out.push(cells[i]); i++; }
+  }
+  return out;
+}
+
 function renderSheet(d: SheetDump, lv: Level): { lines: string[]; skipped: number } {
   const lines = [...d.head];
-  const row = (x: RowLine) => `${x.r}행: ${x.cells.slice(0, lv.cellMax).map((c) => clip(c, lv.textMax + 12)).join(' | ')}${x.cells.length > lv.cellMax ? ` | … 외 ${x.cells.length - lv.cellMax}칸` : ''}`;
+  const row = (x: RowLine) => { const cs = packBlanks(x.cells); return `${x.r}행: ${cs.slice(0, lv.cellMax).map((c) => clip(c, lv.textMax + 12)).join(' | ')}${cs.length > lv.cellMax ? ` | … 외 ${cs.length - lv.cellMax}칸` : ''}`; };
   let skipped = 0;
   for (let i = 0; i < d.rows.length;) {
     let j = i + 1;
@@ -238,7 +256,7 @@ export async function dumpExcel(bytes: Uint8Array, opts: number | DumpOptions = 
     others.length ? `사용자가 고른 시트만 담았어요: ${picked.map((ws) => `"${ws.name}"`).join(', ')} (담지 않은 시트 ${others.length}장: ${others.slice(0, 20).map((ws) => `"${ws.name}"`).join(', ')}${others.length > 20 ? ' …' : ''})` : '',
     f.crossSheetFormulas.length ? `다른 시트를 참조하는 수식: ${f.crossSheetFormulas.slice(0, 10).join(', ')}${f.crossSheetFormulas.length > 10 ? ' …' : ''}` : '',
     f.unknownFunctions.length ? `한난MOA 계산식에 없는 함수: ${f.unknownFunctions.join(', ')}` : '',
-    `칸 표기: 주소="값" [굵게, 채움#색, 빈 칸(테두리만), 잠금 해제] (메모)`,
+    `칸 표기: 주소="값" [굵게, 채움#색, 빈 칸(테두리만), 잠금 해제] (메모). 이어지는 빈 칸은 I5~Z5="" [빈 칸, 18칸]처럼 묶어 적어요(그 사이 모든 칸이 같은 빈 칸)`,
   ].filter(Boolean);
 
   // 옛 방식: 줄 수로만 자른다

@@ -54,7 +54,7 @@ describe('cloud AI fail closed',()=>{
    expect(checkedResult(fixed,null,[])).not.toBeNull();
    expect(tidyAggregations({text:'x',form:null})).toEqual({text:'x',form:null});});
  it('uses fixed endpoints and suppresses provider error payload',async()=>{const fetcher=vi.fn(async()=>new Response('raw secret upstream',{status:400})) as unknown as typeof fetch;await expect(callProvider('codex',{key:'fake',model:'explicit'},'{}',new AbortController().signal,fetcher)).rejects.toThrow('인공지능 연결');expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('https://api.openai.com/v1/responses');});
- it('rejects unsupported source payload without storing it',()=>{expect(()=>parseInput({engine:'codex',message:'x',sources:[{name:'a',text:'x'.repeat(12001)}]})).toThrow();});
+ it('rejects unsupported source payload without storing it',()=>{expect(()=>parseInput({engine:'codex',message:'x',sources:[{name:'a',text:'x'.repeat(30001)}]})).toThrow();});
  it('aborts provider when HTTP response is disconnected',async()=>{
    const d=setup();let started!:()=>void;const ready=new Promise<void>(r=>started=r);let didAbort=false;
    d.provider.mockImplementation(async (_engine,_cfg,_prompt,signal)=>{started();await new Promise<void>(resolve=>{signal.addEventListener('abort',()=>{didAbort=true;resolve();},{once:true});});throw new Error('abort');});
