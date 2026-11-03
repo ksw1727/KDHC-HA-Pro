@@ -60,6 +60,43 @@ describe('③ 값 정리 (01-contract.md 5절 표)', () => {
     expect(run('2026-01-01', f('d', '참가일', { type: 'date', minDate: 'today' }))).toMatchObject({ status: 'invalid', issue: 'OUT_OF_RANGE' });
   });
 
+  test('date 강화: 요일·기간·시각 붙은 날짜·전각 숫자·연도 두 자리', () => {
+    const d = f('d', '워크샵 일자', { type: 'date' });
+    expect(run('12월 4일(금)', d)).toMatchObject({ status: 'auto', value: '2026-12-04' });
+    expect(run('2026년 12월 4일 금요일', d)).toMatchObject({ status: 'auto', value: '2026-12-04' });
+    expect(run('2026.12.04(목)', d)).toMatchObject({ status: 'proposal', proposal: '2026-12-04', issue: 'WEEKDAY_MISMATCH' });   // 12/4는 금요일
+    expect(run('12/3~12/4', d)).toMatchObject({ status: 'proposal', proposal: '2026-12-03', issue: 'DATE_RANGE' });
+    expect(run('12월 3일부터 4일까지', d)).toMatchObject({ status: 'proposal', proposal: '2026-12-03', issue: 'DATE_RANGE' });
+    expect(run('2026-12-04 14:00', d)).toMatchObject({ status: 'proposal', proposal: '2026-12-04' });
+    expect(run('２０２６．１２．０４', d)).toMatchObject({ status: 'auto', value: '2026-12-04' });
+    expect(run('261208', d)).toMatchObject({ status: 'proposal', proposal: '2026-12-08' });
+    expect(run('12월', f('m', '기준월', { type: 'date', dateFormat: 'yyyy-mm' }))).toMatchObject({ status: 'auto', value: '2026-12' });
+    expect(run('다음주', d)).toMatchObject({ status: 'invalid', issue: 'NOT_DATE' });
+  });
+
+  test('시간 칸(이름에 시간·시각): 13:00 / 13:00~18:00 으로 맞춘다', () => {
+    const t = f('t', '시간');
+    expect(run('오후 1시~6시', t)).toMatchObject({ status: 'auto', value: '13:00~18:00' });
+    expect(run('PM 2~6', t)).toMatchObject({ status: 'auto', value: '14:00~18:00' });
+    expect(run('9~18', t)).toMatchObject({ status: 'auto', value: '09:00~18:00' });
+    expect(run('9:30-17:30', t)).toMatchObject({ status: 'auto', value: '09:30~17:30' });
+    expect(run('오후 1시부터 5시까지', t)).toMatchObject({ status: 'auto', value: '13:00~17:00' });
+    expect(run('오전 10시~오후 3시', t)).toMatchObject({ status: 'auto', value: '10:00~15:00' });
+    expect(run('09시~익일15시', t)).toMatchObject({ status: 'auto', value: '09:00~익일 15:00' });
+    expect(run('9시 반~12시', t)).toMatchObject({ status: 'auto', value: '09:30~12:00' });
+    expect(run('10:00~익일 12:00 (1박 2일)', t)).toMatchObject({ status: 'ok', value: '10:00~익일 12:00 (1박 2일)' });
+    expect(run('2pm', t)).toMatchObject({ status: 'auto', value: '14:00' });
+    expect(run(new Date(Date.UTC(1899, 11, 30, 13, 30)), t)).toMatchObject({ status: 'auto', value: '13:30' });   // 엑셀 시각 칸
+    // 오전·오후를 짐작한 것은 확인할 칸으로
+    expect(run('1시~6시', t)).toMatchObject({ status: 'proposal', proposal: '13:00~18:00', issue: 'NOT_TIME' });
+    expect(run('10~2', t)).toMatchObject({ status: 'proposal', proposal: '10:00~14:00', issue: 'NOT_TIME' });
+    // 기간·못 읽는 글·시간 칸이 아닌 칸은 그대로
+    expect(run('3시간', t)).toMatchObject({ status: 'ok', value: '3시간' });
+    expect(run('종일', t)).toMatchObject({ status: 'ok', value: '종일' });
+    expect(run('9~18', f('s', '교육 소요 시간'))).toMatchObject({ status: 'ok', value: '9~18' });
+    expect(run('9~18', f('a', '대상 연령'))).toMatchObject({ status: 'ok', value: '9~18' });
+  });
+
   test('select', () => {
     const s = f('s', '직급', { type: 'select', options: ['사원', '대리', 'Manager'] });
     expect(run('대리', s)).toEqual({ status: 'ok', value: '대리' });

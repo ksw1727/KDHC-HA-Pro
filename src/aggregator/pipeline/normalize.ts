@@ -2,6 +2,7 @@ import type { CellValue } from '@contract/meta';
 import type { Field, FieldType } from '@contract/schema';
 import { NUMBER_LIMIT, PATTERN_INFO, resolveDate, type IssueCode, type NormalizeResult } from '@contract/fieldTypes';
 import { isBlank, normLabel, similar } from './cellValue';
+import { excelTime, isTimeField, standardTime } from './timeText';
 
 /**
  * ③ 값 정리 — 01-contract.md 5절 표 그대로.
@@ -28,10 +29,25 @@ function rawText(raw: unknown): CellValue {
 
 /* ── text · memo ── */
 function text(raw: unknown, field: Field): NormalizeResult {
+  if (isTimeField(field)) { const t = time(raw); if (t) return t; }
   const original = raw instanceof Date ? ymd(raw) : String(raw);
   const v = original.trim();
   if (field.maxLength && [...v].length > field.maxLength) return invalid(v, 'TOO_LONG');
   return typeof raw === 'string' && v === raw ? ok(v) : auto(v);
+}
+
+/* ── 시간 (이름에 시간·시각이 들어간 글자 칸): 13:00 / 13:00~18:00 으로 맞춘다 ── */
+function time(raw: unknown): NormalizeResult | null {
+  if (raw instanceof Date) { const v = excelTime(raw); return v ? auto(v) : null; }   // 엑셀이 시각으로 저장한 칸
+  if (typeof raw === 'number') {
+    if (raw > 0 && raw < 1) { const min = Math.round(raw * 1440); return auto(`${pad(Math.floor(min / 60) % 24)}:${pad(min % 60)}`); }   // 엑셀 시각 숫자(0.5 = 12:00)
+    return null;
+  }
+  const s = String(raw).trim();
+  const fix = standardTime(s);
+  if (!fix) return null;
+  if (fix.value === s) return ok(s);
+  return fix.guessed ? proposal(raw, fix.value, 'NOT_TIME') : auto(fix.value);
 }
 
 /* ── number ── */
@@ -93,37 +109,66 @@ function validYmd(y: number, m: number, d: number): boolean {
   return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
 }
 
+/** 날짜 글자 하나 → 연·월·일. 연도 두 자리처럼 짐작한 것은 guessed */
+function dateText(s: string, ctx: Ctx, fmt: string): { y?: number; m?: number; d?: number; guessed: boolean } | null {
+  let r: RegExpExecArray | null;
+  if ((r = /^(\d{4}) ?[.\-/년] ?(\d{1,2}) ?[.\-/월] ?(\d{1,2}) ?일?\.?$/.exec(s))) return { y: +r[1], m: +r[2], d: +r[3], guessed: false };
+  if ((r = /^(\d{4})(\d{2})(\d{2})$/.exec(s))) return { y: +r[1], m: +r[2], d: +r[3], guessed: false };
+  if ((r = /^(\d{4}) ?[.\-/년] ?(\d{1,2}) ?월?\.?$/.exec(s))) return { y: +r[1], m: +r[2], guessed: false };
+  // 연도 두 자리("26년 12월", "26.12.5", "26-12-05", "261205"): 2000년대로 짐작해 수정안으로
+  if ((r = /^(\d{2}) ?[.\-/년] ?(\d{1,2}) ?[.\-/월] ?(\d{1,2}) ?일?\.?$/.exec(s))) return { y: 2000 + +r[1], m: +r[2], d: +r[3], guessed: true };
+  if ((r = /^(\d{2})(\d{2})(\d{2})$/.exec(s))) return { y: 2000 + +r[1], m: +r[2], d: +r[3], guessed: true };
+  if ((r = /^(\d{2}) ?년 ?(\d{1,2}) ?월?\.?$/.exec(s))) return { y: 2000 + +r[1], m: +r[2], guessed: true };
+  if ((r = /^(\d{1,2}) ?[./월] ?(\d{1,2}) ?일?\.?$/.exec(s))) return { y: ctx.year, m: +r[1], d: +r[2], guessed: false };
+  if ((r = /^(\d{1,2}) ?월$/.exec(s)) && fmt === 'yyyy-mm') return { y: ctx.year, m: +r[1], guessed: false };
+  if ((r = /^(\d{4}) ?년?$/.exec(s))) return { y: +r[1], guessed: false };
+  if ((r = /^(\d{2}) ?년?$/.exec(s)) && fmt === 'yyyy') return { y: 2000 + +r[1], guessed: true };
+  return null;
+}
+const WEEKDAYS = '일월화수목금토';
+/** 끝에 붙은 요일: "(금)", "(금요일)", " 금요일" */
+function cutWeekday(s: string): { s: string; wd?: number } {
+  const w = /\s*(?:\(\s*([월화수목금토일])(?:요일)?\s*\)|\s([월화수목금토일])요일)\.?$/.exec(s);
+  return w && w.index > 0 ? { s: s.slice(0, w.index).trim(), wd: WEEKDAYS.indexOf(w[1] ?? w[2]) } : { s };
+}
+/** 날짜 뒤에 붙은 시각: "2026-12-04 14:00", "12/4 오후 2시" */
+const TIME_TAIL = /\s+(?:(?:오전|오후|am|pm)\s*)?\d{1,2}(?::\d{2}(?::\d{2})?|\s*시(?:\s*\d{1,2}\s*분)?)\s*(?:am|pm)?$/i;
+
 function date(raw: unknown, field: Field, ctx: Ctx): NormalizeResult {
   const fmt = field.dateFormat ?? 'yyyy-mm-dd';
   let y: number | undefined, m: number | undefined, d: number | undefined;
   let guessed = false;   // 연도 두 자리처럼 짐작한 것 → 수정안
+  let why: IssueCode = 'NOT_DATE';
+  let weekday: number | undefined;
   if (raw instanceof Date) { y = raw.getUTCFullYear(); m = raw.getUTCMonth() + 1; d = raw.getUTCDate(); }
   else if (typeof raw === 'number') {
     if (Number.isInteger(raw) && raw >= 1900 && raw <= 9999) y = raw;
     else if (Number.isInteger(raw) && raw >= 0 && raw < 100 && fmt === 'yyyy') { y = 2000 + raw; guessed = true; }
     else if (raw > 20000 && raw < 80000) { const t = excelSerial(Math.floor(raw)); y = t.getUTCFullYear(); m = t.getUTCMonth() + 1; d = t.getUTCDate(); }
   } else {
-    const s = String(raw).trim().replace(/\s+/g, ' ');
-    let r: RegExpExecArray | null;
-    if ((r = /^(\d{4}) ?[.\-/년] ?(\d{1,2}) ?[.\-/월] ?(\d{1,2}) ?일?\.?$/.exec(s))) [y, m, d] = [+r[1], +r[2], +r[3]];
-    else if ((r = /^(\d{4})(\d{2})(\d{2})$/.exec(s))) [y, m, d] = [+r[1], +r[2], +r[3]];
-    else if ((r = /^(\d{4}) ?[.\-/년] ?(\d{1,2}) ?월?\.?$/.exec(s))) [y, m] = [+r[1], +r[2]];
-    // 연도 두 자리("26년 12월", "26.12.5", "26-12-05"): 2000년대로 짐작해 수정안으로
-    else if ((r = /^(\d{2}) ?[.\-/년] ?(\d{1,2}) ?[.\-/월] ?(\d{1,2}) ?일?\.?$/.exec(s))) { [y, m, d] = [2000 + +r[1], +r[2], +r[3]]; guessed = true; }
-    else if ((r = /^(\d{2}) ?년 ?(\d{1,2}) ?월?\.?$/.exec(s))) { [y, m] = [2000 + +r[1], +r[2]]; guessed = true; }
-    else if ((r = /^(\d{1,2}) ?[./월] ?(\d{1,2}) ?일?$/.exec(s))) [y, m, d] = [ctx.year, +r[1], +r[2]];
-    else if ((r = /^(\d{4}) ?년?$/.exec(s))) y = +r[1];
-    else if ((r = /^(\d{2}) ?년?$/.exec(s)) && fmt === 'yyyy') { y = 2000 + +r[1]; guessed = true; }
+    // 전각 숫자·기호(２０２６．１２．０４)는 보통 글자로
+    let s = String(raw).normalize('NFKC').trim().replace(/\s+/g, ' ');
+    // 기간("12/3~12/4", "12월 3일부터 4일까지"): 날짜 칸에는 하루만 넣을 수 있어 시작일을 수정안으로
+    const range = s.replace(/\s*까지$/, '').split(/\s*(?:~|∼|〜|부터)\s*/);
+    if (range.length === 2 && range[0] && range[1]) { s = range[0]; why = 'DATE_RANGE'; guessed = true; }
+    const cut = cutWeekday(s);
+    s = cut.s; weekday = cut.wd;
+    let got = dateText(s, ctx, fmt);
+    // 시각이 붙은 날짜: 날짜만 수정안으로 (시각은 날짜 칸에 넣지 못함)
+    if (!got && TIME_TAIL.test(s)) { const c2 = cutWeekday(s.replace(TIME_TAIL, '').trim()); got = dateText(c2.s, ctx, fmt); weekday ??= c2.wd; if (got) guessed = true; }
+    if (got) { ({ y, m, d } = got); guessed ||= got.guessed; }
   }
   if (y === undefined) return invalid(raw, 'NOT_DATE');
   if (m !== undefined && (m < 1 || m > 12 || (d !== undefined && !validYmd(y, m, d)))) return invalid(raw, 'NOT_DATE');
+  // 적은 요일과 날짜가 다르면 어느 쪽이 맞는지 몰라 수정안으로
+  if (weekday !== undefined && m !== undefined && d !== undefined && new Date(Date.UTC(y, m - 1, d)).getUTCDay() !== weekday) { guessed = true; if (why === 'NOT_DATE') why = 'WEEKDAY_MISMATCH'; }
 
   let value: string;
   if (fmt === 'yyyy') value = String(y);
   else if (fmt === 'yyyy-mm') { if (m === undefined) return invalid(raw, 'NOT_DATE'); value = `${y}-${pad(m)}`; }
   else { if (m === undefined || d === undefined) return invalid(raw, 'NOT_DATE'); value = `${y}-${pad(m)}-${pad(d)}`; }
 
-  if (guessed) return proposal(raw, value, 'NOT_DATE');
+  if (guessed) return proposal(raw, value, why);
   const lo = resolveDate(field.minDate, ctx.today);
   const hi = resolveDate(field.maxDate, ctx.today);
   const at = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
@@ -204,5 +249,8 @@ export function issueMessage(code: IssueCode, field: Field): string {
     case 'NOT_IN_OPTIONS': return `선택 목록에 없는 값이에요 (${(field.options ?? []).slice(0, 5).join(', ')})`;
     case 'BAD_PATTERN': return `${field.pattern ? PATTERN_INFO[field.pattern].label : ''} 형식이 아니에요`;
     case 'FORMULA_ERROR': return '수식 오류 값(#REF! 등)이에요';
+    case 'DATE_RANGE': return '기간이 적혀 있어요. 날짜 칸에는 하루만 넣을 수 있어 시작일로 고쳤어요';
+    case 'WEEKDAY_MISMATCH': return '적힌 요일과 날짜가 맞지 않아요';
+    case 'NOT_TIME': return '오전·오후가 분명하지 않아 짐작해서 고쳤어요';
   }
 }
