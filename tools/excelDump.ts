@@ -163,6 +163,46 @@ function renderSheet(d: SheetDump, lv: Level): { lines: string[]; skipped: numbe
   return { lines, skipped };
 }
 
+/** 시트가 참고 자료인지 작성 칸인지 (이름으로) */
+export function sheetRole(name: string): 'reference' | 'input' | null {
+  if (/참고|작성\s*방법|작성\s*요령|안내|설명|예시|기준|분류|코드|목록표/.test(name)) return 'reference';
+  if (/작성|입력|양식|서식|실시표|현황|보고/.test(name)) return 'input';
+  return null;
+}
+
+/**
+ * 양식 의도를 읽는 데 쓰는 단서 (AI에게 요약과 함께): 번호 1·2·3…이 이어지는 줄(입력 줄 후보), 예시로 보이는 값,
+ * 제출처 자리표시(OO부 등), 참고 시트 여부. 판단은 AI가 하고, 여기서는 사실만 적는다.
+ */
+export function sheetClues(ws: ExcelJS.Worksheet): string[] {
+  const out: string[] = [];
+  const role = sheetRole(ws.name);
+  if (role === 'reference') out.push('참고 자료 시트로 보여요(이름에 참고·작성방법·기준·분류 등). 작성자가 채우는 칸이 아니면 양식 항목으로 옮기지 말고 작성 안내(help·guide)에만 쓰세요.');
+  if (role === 'input') out.push('작성 시트로 보여요(이름에 작성·실시표·현황 등).');
+  const ph = /(OO|○○|◯◯|00)\s*(부|팀|지사|사업소|처|실|센터)/.exec(ws.name);
+  if (ph) out.push(`시트 이름의 "${ph[0]}"는 제출처 자리표시로 보여요 → ${ph[2] === '부' || ph[2] === '팀' || ph[2] === '실' ? '부서' : ph[2]}마다 같은 양식을 받아 모으는 양식일 수 있어요.`);
+  // 번호 열: 위아래로 1,2,3…이 이어지는 칸 (A~E열)
+  const num = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && /^\s*\d{1,4}\s*$/.test(v) ? Number(v) : NaN);
+  for (let c = 1; c <= Math.min(5, ws.columnCount); c++) {
+    let start = 0, prev = 0, len = 0;
+    const flush = (end: number) => { if (len >= 3) out.push(`${colName(c)}열 ${start}~${end}행에 번호 1~${len}이 이어져요 → 같은 칸 구성의 입력 줄(목록) 후보. 머리글은 ${start - 1}행 근처예요.`); };
+    for (let r = 1; r <= ws.rowCount + 1; r++) {
+      const v = r <= ws.rowCount ? num(ws.getCell(r, c).value) : NaN;
+      if (v === 1) { flush(r - 1); start = r; prev = 1; len = 1; }
+      else if (len && v === prev + 1) { prev = v; len++; }
+      else { flush(r - 1); len = 0; }
+    }
+  }
+  // 예시로 보이는 값
+  const ex: string[] = [];
+  ws.eachRow({ includeEmpty: false }, (row) => row.eachCell({ includeEmpty: false }, (cell) => {
+    const v = typeof cell.value === 'string' ? cell.value : '';
+    if (ex.length < 6 && /(^|\s)(OO|○○|◯◯)|홍길동|김OO|예시|^예\)/.test(v)) ex.push(`${cell.address} "${v.slice(0, 20)}"`);
+  }));
+  if (ex.length) out.push(`예시로 보이는 값: ${ex.join(', ')} → 이 값이 든 줄은 작성 예시예요. 항목 이름·형식·선택지만 참고하고 고정 값으로 넣지 마세요(목록의 exampleRow로는 써도 돼요).`);
+  return out;
+}
+
 export async function dumpExcel(bytes: Uint8Array, opts: number | DumpOptions = 400): Promise<{ text: string; findings: ExcelFindings }> {
   const o: DumpOptions = typeof opts === 'number' ? { maxLines: opts } : opts;
   const maxLines = o.maxChars ? Infinity : (o.maxLines ?? 400);
@@ -198,6 +238,8 @@ export async function dumpExcel(bytes: Uint8Array, opts: number | DumpOptions = 
     if (trimmed.has(ws.name)) head.push(`행이 많아(약 ${trimmed.get(ws.name)!.toLocaleString()}행) 앞 ${HEAD_ROWS.toLocaleString()}행과 끝 ${TAIL_ROWS}행만 읽었어요. 가운데 행은 같은 구성의 자료로 보고 건너뛰었어요.`);
     if (cf) head.push(`조건부 서식: ${cf}개`);
     if (imgs) head.push(`그림·도형: ${imgs}개`);
+    const hints = sheetClues(ws);
+    if (hints.length) head.push(`단서: ${hints.join(' / ')}`);
     const dv = (ws as unknown as { dataValidations?: { model?: Record<string, ExcelJS.DataValidation> } }).dataValidations?.model ?? {};
     const dvs = Object.entries(dv);
     if (dvs.length) {

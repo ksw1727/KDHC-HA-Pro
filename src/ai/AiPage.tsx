@@ -4,7 +4,7 @@ import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
 import { deleteThread, findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
 import { AttachmentError, bytesForLocal, buildCloudChatBody, isCutSource, LockedFileError, MAX_CLOUD_FILE, openAttachment, prepareCloudSources, readSheetList, WrongPasswordError, type CloudSource } from './cloudAttachments';
 import { sheetSize, sheetStub, withoutSheet, type CollectSheet } from '@contract/collectSheet';
-import { sheetCopyFromBytes } from '@gen/state/sheetCopy';
+import { defaultSheet, sheetCopyFromBytes } from '@gen/state/sheetCopy';
 import { defaultPick, isPartial, pickedSheets, SheetPicker, type SheetPick } from './SheetPicker';
 import { readNdjson, requireOk, ServerMessageError } from './http';
 import { LAYOUT_LABELS, orgLabel, validateSchema, type FormSchema } from '@contract/schema';
@@ -345,9 +345,12 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
         ? `\n(첨부 엑셀에서 이 시트만 보고 만들어 주세요: ${files.flatMap((f, i) => (isPartial(sheetPicks.get(f)) ? [`${f.name} → ${picks[i]!.join(', ')}`] : [])).join(' / ')})` : '';
       // 시트 모으기형은 올린 엑셀 시트를 프로그램이 모양 그대로 빈 양식에 넣는다 (AI는 칸을 옮겨 적지 않음)
       let sheetErr = '';
-      const fileSheet = files.length ? await openAttachment(files[0]).then((o) => sheetCopyFromBytes(o.bytes, files[0].name, picks[0]?.[0])).catch((e: Error) => { sheetErr = e.message; return null; }) : null;
+      // 일부 시트만 골랐으면 그중에서, 아니면 작성 시트로 보이는 시트 (참고 시트가 앞에 있어도)
+      const pickName = files.length && isPartial(sheetPicks.get(files[0])) ? defaultSheet((picks[0] ?? []).map((name) => ({ name })))?.name : undefined;
+      const fileSheet = files.length ? await openAttachment(files[0]).then((o) => sheetCopyFromBytes(o.bytes, files[0].name, pickName)).catch((e: Error) => { sheetErr = e.message; return null; }) : null;
       const keptSheet = lastForm?.layout === 'collect' ? lastForm.collect?.sheet : undefined;
-      const sheetHint = fileSheet ? `\n(시트 모으기형으로 만들면 올린 엑셀의 ${sheetLine(fileSheet)}를 프로그램이 값·합친 칸·서식 그대로 빈 양식에 넣어요. 합친 칸·여러 단 머리글이 많아도 시트 모으기형은 만들 수 있으니 거절하지 말고, collect.starter는 비워 두세요.)`
+      // 구조는 AI가 취합 의도로 정한다. 시트 모으기형을 고를 때만 쓰는 안내라고 분명히 적는다 (예전 문구는 모두 시트 모으기형으로 끌려갔다)
+      const sheetHint = fileSheet ? `\n(참고: 구조는 취합 의도로 정하세요. 시트 모으기형으로 정할 때만, 프로그램이 ${sheetLine(fileSheet)}를 값·합친 칸·서식 그대로 빈 양식에 넣으니 collect.starter는 비워 두세요.)`
         : keptSheet ? `\n(이 양식은 원본 엑셀의 ${sheetLine(keptSheet)}를 그대로 빈 양식으로 써요. collect.starter는 비워 두세요.)` : '';
       const text = (form ? `(${lastMsg?.opened && !edited ? '사용자가 양식을 직접 열었어요' : '사용자가 빌더에서 form.json을 직접 고쳤어요'}. 지금 form.json에서 이어서 해 주세요.${changes.length ? ` 고친 내용: ${changes.join(' / ')}` : ''})\n${message}` : message) + sheetNote + sheetHint;
       const formOut = form ? withoutSheet(form) : undefined;
