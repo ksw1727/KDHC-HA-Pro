@@ -137,7 +137,7 @@ export function AggPanel({ b, onGoto }: { b: Builder; onGoto?: (c: AggCheck) => 
         );
       })}
       <div className="flex items-center gap-2">
-        <p className="m-0 flex-1 text-xs text-muted">취합할 때 다시 고를 수 있어요. 오류·파일 목록은 검토 파일에 따로 들어가요.</p>
+        <p className="m-0 flex-1 text-xs text-muted">취합할 때 다시 고를 수 있어요. 오류·파일 목록 같은 검토 사항은 검토 파일의 시트 하나에 모아 들어가요.</p>
         {!trouble && <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>접기</Button>}
       </div>
     </div>

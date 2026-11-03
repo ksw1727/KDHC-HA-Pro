@@ -6,7 +6,7 @@ import { readMeta } from '@contract/metaIO';
 import type { FormSchema } from '@contract/schema';
 import { analyze, patchCopies } from '../pipeline/run';
 import { resolve } from '../pipeline/resolve';
-import { writeResult } from '../pipeline/write';
+import { preview, writeResult } from '../pipeline/write';
 import { emptyDecisions, type Decisions, type LoadedFile } from '../pipeline/types';
 import { firstRow, listCol, makeFile, NOW } from './makeFile';
 import { otherOrgCells } from '../AggregatePage';
@@ -25,6 +25,23 @@ async function runAll(files: LoadedFile[], d: Decisions = emptyDecisions(), meth
 }
 
 const sheetNames = (wb: ExcelJS.Workbook) => wb.worksheets.filter((w) => w.state === 'visible').map((w) => w.name);
+
+/** 검토 사항 시트의 단락 제목들 (「■ 오류 (2건)」 → '오류') */
+const sectionTitles = (wb: ExcelJS.Workbook) => {
+  const out: string[] = [];
+  wb.getWorksheet('검토 사항')!.eachRow((row) => { const m = /^■ (.+) \(\d+건\)$/.exec(String(row.getCell(1).value ?? '')); if (m) out.push(m[1]); });
+  return out;
+};
+/** 검토 사항 시트의 한 단락: 머리글과 내용 줄 (0부터 세는 칸) */
+const section = (wb: ExcelJS.Workbook, title: string) => {
+  const ws = wb.getWorksheet('검토 사항')!;
+  let r = 1;
+  while (r <= ws.rowCount && !String(ws.getCell(r, 1).value ?? '').startsWith(`■ ${title} (`)) r++;
+  if (r > ws.rowCount) throw new Error(`단락 없음: ${title}`);
+  const count = Number(/\((\d+)건\)/.exec(String(ws.getCell(r, 1).value))![1]);
+  const vals = (n: number) => (ws.getRow(n).values as unknown[]).slice(1);
+  return { head: vals(r + 1), rows: Array.from({ length: count }, (_, i) => vals(r + 2 + i)) };
+};
 
 /** 목록형: 이름(필수) · 직급 · 수량 */
 const list: FormSchema = {
@@ -79,7 +96,7 @@ describe('목록형 전체 흐름', () => {
       await makeFile(list, '부산_옛.xlsx', { orgName: '부산', savedAt: new Date('2026-10-12T00:00:00Z'), fill: put([{ name: '박', qty: 1 }]) }),
       await makeFile(list, '부산_새.xlsx', { orgName: '부산', savedAt: new Date('2026-10-14T00:00:00Z'), fill: put([{ name: '최', qty: 2 }, { rank: '사원', qty: 3 }]) }),
     ];
-    const { res, out, wb, rb } = await runAll(files, emptyDecisions(), ['same-frame', 'submission-status']);
+    const { a, res, out, wb, rb } = await runAll(files, emptyDecisions(), ['same-frame', 'submission-status']);
 
     expect(res.files.find((s) => s.fileName === '부산_옛.xlsx')?.status).toBe('duplicate');
     expect(res.missingOrgs).toEqual(['대구']);
@@ -88,16 +105,21 @@ describe('목록형 전체 흐름', () => {
     expect(out.verify.ok).toBe(true);
     expect(out.verify.lines.find((l) => l.check === '숫자 합계 · 수량')?.detail).toContain('같은 틀 시트 1015');
 
-    // 결과 파일: 취합한 표 + 고른 시트만, 자동 칸은 제출처만 / 검토 파일: 출처·상태가 붙은 표 + 오류·파일목록·검산·판단 기록
+    // 결과 파일: 취합한 표 + 고른 시트만, 자동 칸은 제출처만 / 검토 파일: 같은 틀 표(출처·원본 줄·상태 칸 없이) + 검토 사항 시트 하나
     expect(sheetNames(wb)).toEqual([wb.worksheets[0].name, '제출 현황']);
-    expect(sheetNames(rb)).toEqual([wb.worksheets[0].name, '오류', '파일목록', '검산', '판단 기록', '자동 정리']);
+    expect(sheetNames(rb)).toEqual([wb.worksheets[0].name, '검토 사항']);
+    expect(sectionTitles(rb)).toEqual(['검산', '오류', '파일목록', '자동 정리', '판단 기록']);
     // 자동으로 고친 값은 원래 값과 함께 검토 파일에 남는다
-    const fixedRows = rb.getWorksheet('자동 정리')!.getSheetValues().slice(2).map((r) => (r as unknown[]).slice(1, 7));
+    const fixedRows = section(rb, '자동 정리').rows.map((r) => r.slice(0, 6));
     expect(fixedRows).toContainEqual(['서울', '서울.xlsx', expect.any(String), '수량', '1,000개', 1000]);
     expect(out.review?.fileName).toMatch(/_검토_/);
     const headers = (b: ExcelJS.Workbook) => b.worksheets[0].getSheetValues().flat().filter((v) => v === '출처 파일' || v === '원본 줄' || v === '상태' || v === '지사');
     expect(headers(wb)).toEqual(['지사']);
-    expect(headers(rb)).toEqual(['지사', '출처 파일', '원본 줄', '상태']);
+    expect(headers(rb)).toEqual(['지사']);
+    // 화면 미리보기도 같은 모양: 출처 파일·원본 줄·상태 칸 없이, 검산 결과는 내려받은 파일과 같다
+    const pv = preview(a.base!.schema, res, NOW);
+    expect(pv.frame!.model.cells.filter((c) => c.role === 'auto-header').map((c) => c.value)).toEqual(['지사']);
+    expect(pv.verify.ok).toBe(out.verify.ok);
     const meta = await readMeta(wb);
     expect(meta.status === 'ok' && meta.meta.kind).toBe('aggregate');
     // 같은 틀 시트: 서울 2줄 + 부산 2줄, '약 10' 칸은 10. 원래 값 메모는 검토 파일에만
@@ -152,9 +174,8 @@ describe('목록형 전체 흐름', () => {
     expect(out.out.verify.ok).toBe(true);
     expect(out.out.verify.lines[0].detail).toContain('숨긴 줄 제외 1');
     expect(out.out.verify.lines.find((l) => l.check === '숫자 합계 · 수량')?.detail).toContain('숨긴 줄 제외로 -20');
-    const fl = out.rb.getWorksheet('파일목록')!;
-    const head = (fl.getRow(1).values as unknown[]).slice(1);
-    expect((fl.getRow(2).values as unknown[]).slice(1)[head.indexOf('숨긴 줄 제외')]).toBe(1);
+    const fl = section(out.rb, '파일목록');
+    expect(fl.rows[0][fl.head.indexOf('숨긴 줄 제외')]).toBe(1);
     expect(out.res.log.find((l) => l.what === '숨긴 곳')).toMatchObject({ choice: '빼기', defaulted: false });
   });
 
@@ -240,7 +261,7 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
     const blank = res.files.find((f) => f.fileName === '이름없음.xlsx')!;
     expect([blank.needsOrgLink, blank.orgBlank, blank.label]).toEqual([true, true, '이름없음.xlsx']);
     expect(res.files.find((f) => f.fileName === '서울.xlsx')!.needsOrgLink).toBe(false);
-    const errs = rb.getWorksheet('오류')!.getSheetValues().slice(2).map((r) => (r as unknown[])[6]);
+    const errs = section(rb, '오류').rows.map((r) => r[5]);
     expect(errs).toContain('지사명이 비어 있어 파일 이름으로 넣었어요');
     const d = { ...emptyDecisions(), orgLink: { [blank.fileId]: '부산' } };
     expect((await runAll(files, d)).res.included.map((s) => s.label)).toEqual(['부산', '서울']);
@@ -322,7 +343,8 @@ describe('표형 · 빈칸채우기형 · 시트 모으기형', () => {
       await makeFile(c, '일반.xlsx', { dropMeta: true, dropProps: true }),
     ], emptyDecisions(), c.aggregations);
     expect(res.files.find((s) => s.fileName === '일반.xlsx')?.status).toBe('other-form');
-    expect(sheetNames(wb)).toEqual(['목차', '서울', '제출 현황', '파일목록', '판단 기록']);
+    expect(sheetNames(wb)).toEqual(['목차', '서울', '제출 현황', '검토 사항']);
+    expect(sectionTitles(wb)).toEqual(['파일목록', '판단 기록']);
     const seoul = wb.getWorksheet('서울')!;
     expect(seoul.getCell('A6').value).toBe('이상 없음');
     expect(seoul.getCell('C6').isMerged).toBe(true);

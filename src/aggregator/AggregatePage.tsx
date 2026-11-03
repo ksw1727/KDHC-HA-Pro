@@ -193,7 +193,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
       const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       download(out.fileName, out.bytes, XLSX);
       const names = [out.fileName];
-      if (out.review) { download(out.review.fileName, out.review.bytes, XLSX); names.push(`${out.review.fileName} (검토용: 출처·오류·검산)`); }
+      if (out.review) { download(out.review.fileName, out.review.bytes, XLSX); names.push(`${out.review.fileName} (검토용: 검토 사항 시트에 검산·오류·파일목록·판단 기록)`); }
       if (wantCopies && manualCount && loaded) {
         const c = await patchCopies(res, loaded.files, withProposals, at, schema.title);
         if (c?.count) { download(c.fileName, c.bytes, 'application/zip'); names.push(`${c.fileName} (회신 파일 ${c.count}개)`); }
@@ -289,7 +289,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
       </Fold>
 
       {!collect && autoRows.length > 0 && (
-        <Fold title="자동으로 처리한 것" summary={`${autoRows.length}건 · 검토 파일 "자동 정리" 시트에도 남아요`}>
+        <Fold title="자동으로 처리한 것" summary={`${autoRows.length}건 · 검토 파일 "검토 사항" 시트에도 남아요`}>
           <ul className="m-0 pl-5">{autoRows.slice(0, 200).map((a, k) => <li key={k} className="py-0.5"><b>{a.who}</b> · {a.where} <Val kind="in">{show(a.from)}</Val> → <Val kind="fix">{show(a.to)}</Val></li>)}</ul>
           {autoRows.length > 200 && <p className="m-0 text-xs text-sub">… {autoRows.length - 200}건 더</p>}
         </Fold>
@@ -302,7 +302,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
       )}
 
       <Card title="결과 받기">
-        <p className="m-0 mb-2 text-xs text-sub">{collect ? '항상 들어가는 시트: 파일목록 · 판단 기록 (그림이 빠진 시트가 있으면 오류 시트에 안내)' : `파일 두 개를 받아요. 결과 파일: 취합한 표와 고른 시트. 검토 파일: 출처 파일·원본 줄·상태가 붙은 표와 오류 · 파일목록 · 검산 · 판단 기록${noteCount ? ` · 메모(작성자가 단 엑셀 메모 ${noteCount}개)` : ''}`}</p>
+        <p className="m-0 mb-2 text-xs text-sub">{collect ? '항상 들어가는 시트: 검토 사항 (파일목록 · 판단 기록, 그림이 빠진 시트가 있으면 오류도 함께)' : `파일 두 개를 받아요. 결과 파일: 취합한 표와 고른 시트. 검토 파일: 확인할 칸 표시가 남은 표와 검토 사항 시트 하나(검산 · 오류 · 파일목록 · 판단 기록${noteCount ? ` · 메모(작성자가 단 엑셀 메모 ${noteCount}개)` : ''})`}</p>
         <details className="mb-1"><summary className="cursor-pointer text-[13px] text-pri-ink">결과 파일에 넣을 시트: {available.filter((m) => required.includes(m) || methods.includes(m)).map((m) => (collect && m === 'collect-sheets' ? `목차 + ${L}별 시트` : m === 'spread' ? `${spreadName(schema)} 펼치기` : AGGREGATION_LABELS[m])).join(' · ')} (바꾸기)</summary>
         <div className="mt-2 flex flex-wrap gap-4">
           {available.map((m) => {

@@ -105,14 +105,18 @@ export interface ResultInput {
 
 export interface ResultFile {
   fileName: string; bytes: Uint8Array; verify: VerifyResult;
-  review?: { fileName: string; bytes: Uint8Array };   // 검토 파일 (시트 모으기형이 아닐 때): 출처·상태가 붙은 같은 틀 시트 + 오류·파일목록·검산·판단 기록·메모
+  review?: { fileName: string; bytes: Uint8Array };   // 검토 파일 (시트 모으기형이 아닐 때): 표시·메모가 붙은 같은 틀 시트 + 검토 사항 시트 하나
 }
 
-/** 검토 화면용: 같은 틀 시트를 만들어 검산까지 (내려받기 전) */
+/**
+ * 검토 화면용: 같은 틀 시트를 만들어 검산까지 (내려받기 전).
+ * 화면 표는 검토 파일과 같이 표시는 남기고 출처 파일·원본 줄·상태 칸은 뺀다. 검산은 내려받을 때와 같이 출처가 다 붙은 시트로 한다.
+ */
 export function preview(schema: FormSchema, res: Resolved, now: Date): { frame?: SameFrame; verify: VerifyResult } {
   if (schema.layout === 'collect') return { verify: verify(schema, res) };
-  const frame = buildSameFrame(schema, res, '', now);
-  return { frame, verify: verify(schema, res, frame.model) };
+  const full = buildSameFrame(schema, res, '', now);
+  const frame = buildSameFrame(schema, res, '', now, false, false);
+  return { frame, verify: verify(schema, res, full.model) };
 }
 
 const newBook = (now: Date) => {
@@ -126,8 +130,8 @@ const newBook = (now: Date) => {
 /**
  * 취합 결과. 시트 모으기형이 아니면 파일 두 개:
  * - 결과 파일: 같은 틀 시트(자동 칸은 제출처만, 값만) + 고른 방식(펼치기·제출 현황) + 다시 취합용 숨김 시트
- * - 검토 파일: 같은 틀 시트(출처 파일·원본 줄·상태, 표시·메모) + 오류·파일목록·검산·판단 기록·메모·추가 칸
- * 시트 모으기형은 지금처럼 한 파일(목차·제출처별 시트·제출 현황·파일목록·판단 기록).
+ * - 검토 파일: 같은 틀 시트(표시·메모) + 검토 사항 시트 하나(검산·오류·파일목록·자동 정리·메모·추가 칸·판단 기록을 위에서 아래로)
+ * 시트 모으기형은 한 파일(목차·제출처별 시트·제출 현황·검토 사항).
  */
 export async function writeResult({ schema, res, methods, workbooks, now }: ResultInput): Promise<ResultFile> {
   const wb = newBook(now);
@@ -146,9 +150,9 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
     vr = verify(schema, res);
     writeCollectSheets(wb, schema, res, workbooks, name, now, true);
     if (chosen.includes('submission-status') && schema.org.mode !== 'none') writeTable(wb.addWorksheet(name('제출 현황')), statusTable(schema, res));
-    writeReviewSheets(wb, name, schema, res, vr, fieldOf);
+    writeReviewSheet(wb.addWorksheet(name(REVIEW_SHEET)), schema, res, vr, fieldOf, `취합일 ${day} · ${whoLine(schema, res)}`);
   } else {
-    // 검산은 출처가 다 붙은 같은 틀 시트로 한다
+    // 검산은 출처가 다 붙은 같은 틀 시트로 한다 (화면 미리보기 검산과 같은 방식)
     const first = buildSameFrame(schema, res, '', now);
     vr = verify(schema, res, first.model);
 
@@ -165,11 +169,13 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
     const rb = newBook(now);
     const rname = sheetNamer();
     const errors = res.valueIssues.filter((i) => i.choice === '적혀 있던 값 그대로').length + res.crossIssues.length;
-    const frame = buildSameFrame(schema, res, `취합일 ${day} · 파일 ${res.included.length}개 · 오류 ${errors} · 검산 ${vr.ok ? '일치' : '불일치'}`, now);
+    const info = `취합일 ${day} · 파일 ${res.included.length}개 · 오류 ${errors} · 검산 ${vr.ok ? '일치' : '불일치'}`;
+    // 검토 파일의 같은 틀 시트: 표시·메모는 남기고 출처 파일·원본 줄·상태 칸은 넣지 않는다 (그 내용은 검토 사항 시트에)
+    const frame = buildSameFrame(schema, res, info, now, false, false);
     const ws = rb.addWorksheet(rname(frame.model.sheetName));
     writeModel(ws, frame.model, fieldOf);
     copyAuthorNotes(ws, schema, res, frame);
-    writeReviewSheets(rb, rname, schema, res, vr, fieldOf);
+    writeReviewSheet(rb.addWorksheet(rname(REVIEW_SHEET)), schema, res, vr, fieldOf, info);
     review = { fileName: `${title}_검토_${stamp(now)}.xlsx`, bytes: new Uint8Array(await rb.xlsx.writeBuffer()) };
   }
 
@@ -189,8 +195,18 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
   return { fileName: `${title}_취합_${stamp(now)}.xlsx`, bytes, verify: vr, ...(review ? { review } : {}) };
 }
 
-/** 오류 · 파일목록 · 검산 · 판단 기록 · 메모 · 추가 칸 */
-function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, schema: FormSchema, res: Resolved, vr: VerifyResult, fieldOf: Map<string, Field>) {
+/** 검토 사항 시트 이름. 시트 모으기형은 결과 파일 안에, 그 밖은 검토 파일 안에 하나만 둔다 */
+export const REVIEW_SHEET = '검토 사항';
+/** 검토 사항 시트의 단락 제목 앞 표시 (단락을 찾을 때도 쓴다) */
+export const SECTION_MARK = '■ ';
+
+interface Section { title: string; table: Table; always: boolean; empty?: string }
+
+/**
+ * 검토 사항 시트 하나에 검산 · 오류 · 파일목록 · 자동 정리 · 메모 · 추가 칸 · 판단 기록을 위에서 아래로 쌓는다.
+ * 단락마다 「■ 제목 (n건)」 줄 → 머리글 줄 → 내용. 항상 넣는 단락은 내용이 없으면 「없음」 한 줄.
+ */
+function writeReviewSheet(ws: ExcelJS.Worksheet, schema: FormSchema, res: Resolved, vr: VerifyResult, fieldOf: Map<string, Field>, info: string) {
   const collect = schema.layout === 'collect';
   // 제출처를 식별하지 않는 양식(none)은 한 줄 = 응답 파일이라 머리글도 '파일'
   const lbl = unitLabel(schema);
@@ -203,21 +219,76 @@ function writeReviewSheets(wb: ExcelJS.Workbook, name: (s: string) => string, sc
     ...infoIssues.map((i) => [labelOf(i.fileId), nameOf(i.fileId), i.location, '', '', i.message, '자동']),
     ...res.files.filter((f) => f.orgBlank && f.status === 'included').map((f) => [f.label, f.fileName, `${lbl}명 칸`, '', '', `${lbl}명이 비어 있어 파일 이름으로 넣었어요`, '그대로']),
   ];
-  if (!collect || errRows.length) writeTable(wb.addWorksheet(name('오류')), table('오류', [lbl, '파일명', '위치', '항목', '입력값', '내용', '처리'], errRows));
 
-  writeTable(wb.addWorksheet(name('파일목록')), fileListTable(schema, res));
-  if (!collect) writeTable(wb.addWorksheet(name('검산')), table('검산', ['검사', '내용', '결과'], vr.lines.map((l) => [l.check, l.detail, l.ok ? '일치' : '불일치'])));
-  writeTable(wb.addWorksheet(name('판단 기록')), table('판단 기록', ['항목', '대상', '결정', '기본값 적용'], res.log.map((l) => [l.what, l.target, l.choice, l.defaulted ? '예' : ''])));
-
+  const sections: Section[] = [];
+  if (!collect) sections.push({ title: '검산', always: true, table: table('검산', ['검사', '내용', '결과'], vr.lines.map((l) => [l.check, l.detail, l.ok ? '일치' : '불일치'])) });
+  sections.push({ title: '오류', always: !collect, empty: '오류 없음', table: table('오류', [lbl, '파일명', '위치', '항목', '입력값', '내용', '처리'], errRows) });
+  sections.push({ title: '파일목록', always: true, table: fileListTable(schema, res) });
   if (!collect) {
     // 프로그램이 알아서 고친 값 (1,200 → 1200, 01012345678 → 010-1234-5678 등): 원래 값과 고친 값
     const fixed = res.included.flatMap((s) => s.autoFixed.filter((a) => s.marks.get(slotId(a.slot))?.mark === 'auto-fixed').map((a) => [s.label, s.sourceFile, a.address, fieldOf.get(a.slot.key)?.label ?? '', show(a.from), typeof a.to === 'number' ? a.to : show(a.to)]));
-    if (fixed.length) writeTable(wb.addWorksheet(name('자동 정리')), table('자동 정리', [lbl, '파일명', '위치', '항목', '원래 값', '고친 값'], fixed));
+    sections.push({ title: '자동 정리', always: false, table: table('자동 정리', [lbl, '파일명', '위치', '항목', '원래 값', '고친 값'], fixed) });
     const notes = res.included.flatMap((s) => s.read.authorNotes.map((n) => [s.label, s.sourceFile, n.address, n.fieldKey ? fieldOf.get(n.fieldKey)?.label ?? '' : '', n.sourceRow ?? null, n.text]));
-    if (notes.length) writeTable(wb.addWorksheet(name('메모')), table('메모', [lbl, '파일명', '위치', '항목', '원본 줄', '메모 내용'], notes));
+    sections.push({ title: '메모', always: false, table: table('메모', [lbl, '파일명', '위치', '항목', '원본 줄', '메모 내용'], notes) });
     const extra = res.included.flatMap((s) => [...s.read.extraColumns.filter((e) => !s.droppedExtra.includes(e.header)), ...s.extraFromAlias].flatMap((e) => e.values.map((v) => [s.label, s.sourceFile, v.sourceRow, e.header, show(v.value)])));
-    if (extra.length) writeTable(wb.addWorksheet(name('추가 칸')), table('추가 칸', [lbl, '파일명', '원본 줄', '칸 이름', '값'], extra));
+    sections.push({ title: '추가 칸', always: false, table: table('추가 칸', [lbl, '파일명', '원본 줄', '칸 이름', '값'], extra) });
   }
+  sections.push({ title: '판단 기록', always: true, empty: '결정한 것 없음', table: table('판단 기록', ['항목', '대상', '결정', '기본값 적용'], res.log.map((l) => [l.what, l.target, l.choice, l.defaulted ? '예' : ''])) });
+  const shown = sections.filter((x) => x.always || x.table.rows.length);
+
+  const FONT = { name: '맑은 고딕', size: 10 };
+  const side = { style: 'thin' as const, color: { argb: argb(BORDER_COLOR) } };
+  const box = { top: side, left: side, bottom: side, right: side };
+  ws.getCell('A1').value = `${schema.title} — 검토 사항`;
+  ws.getCell('A1').font = { ...FONT, bold: true, size: 14 };
+  ws.getCell('A2').value = info;
+  ws.getCell('A2').font = { ...FONT, color: { argb: argb('#555555') } };
+  ws.getCell('A3').value = `담은 내용: ${shown.map((x) => `${x.title} ${x.table.rows.length}`).join(' · ')}`;
+  ws.getCell('A3').font = { ...FONT, color: { argb: argb('#555555') } };
+
+  const widths: number[] = [];
+  const fit = (i: number, v: unknown, k = 1.6) => { widths[i] = Math.max(widths[i] ?? 8, Math.min(50, Math.ceil(String(v ?? '').length * k) + 2)); };
+  let r = 5;
+  for (const sec of shown) {
+    const t = sec.table;
+    const titleCell = ws.getCell(r, 1);
+    titleCell.value = `${SECTION_MARK}${sec.title} (${t.rows.length}건)`;
+    titleCell.font = { ...FONT, bold: true, size: 11, color: { argb: argb('#1F5132') } };
+    r++;
+    const head = ws.getRow(r);
+    t.columns.forEach((c, i) => {
+      const cell = head.getCell(i + 1);
+      cell.value = c.header;
+      cell.font = { ...FONT, bold: true };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb('#EEF2F7') } };
+      cell.border = box;
+      cell.alignment = { vertical: 'middle' };
+      fit(i, c.header, 2);
+    });
+    r++;
+    if (!t.rows.length) {
+      ws.getCell(r, 1).value = sec.empty ?? '없음';
+      ws.getCell(r, 1).font = { ...FONT, color: { argb: argb('#888888') } };
+      r++;
+    }
+    for (const row of t.rows) {
+      const line = ws.getRow(r);
+      row.forEach((v, i) => {
+        const cell = line.getCell(i + 1);
+        cell.value = excelValue(v, t.columns[i]?.field);
+        cell.font = FONT;
+        cell.border = box;
+        cell.alignment = { vertical: 'middle', wrapText: typeof v === 'string' && v.length > 50 };
+        fit(i, v);
+      });
+      // 검산에서 안 맞은 줄은 눈에 띄게
+      if (sec.title === '검산' && row[2] === '불일치') line.eachCell((c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb('#FDE2E1') } }; });
+      r++;
+    }
+    r++;   // 단락 사이 한 줄
+  }
+  widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+  ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 }
 
 /** 작성자가 단 엑셀 메모를 같은 틀 시트의 같은 칸에 옮긴다 (우리 [자동] 메모가 있으면 그 위에) */
