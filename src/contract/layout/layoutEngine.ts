@@ -8,6 +8,7 @@ import { computeGrid, computeListRow, computeMatrix, computeSpareRow } from '../
 import { gridNames, TOTAL_COL_NAME, TOTAL_ROW_NAME } from '../formula/context';
 import { addr, colLetter, parseAddr, range } from './address';
 import { freeRegions, freeSize, freeTop } from '../free';
+import { sheetText } from '../collectSheet';
 import type { AggregateFill, LayoutInput, MatrixRows, ModelCell, SheetModel } from './sheetModel';
 
 /**
@@ -719,6 +720,27 @@ class Layouter {
 
   private runCollect(): SheetModel {
     const { schema } = this;
+    // 쓰던 엑셀 시트를 그대로: 제목 줄·지사명 줄 없이 그 시트 모양 그대로 (미리보기용 모델. 내보내기는 시트 사본을 그대로 쓴다)
+    const sh = schema.collect?.sheet;
+    if (sh) {
+      const border = (n?: number) => { const st = n === undefined ? undefined : sh.styles[n] as { border?: Record<string, unknown> } | undefined; return !!st?.border && Object.keys(st.border).length > 0; };
+      const cells: ModelCell[] = [];
+      for (const [address, v, n] of sh.cells) {
+        const value = sheetText(v);
+        if (value !== undefined && value !== '') cells.push({ address, value, role: 'label', wrap: typeof value === 'string' && value.includes('\n') });
+        else if (border(n)) cells.push({ address, role: 'fixed' });
+      }
+      const width = Math.max(sh.cols.length, ...cells.map((c) => parseAddr(c.address).col));
+      return {
+        sheetName: sh.name,
+        columns: Array.from({ length: width }, (_, i) => ({ width: sh.cols[i] ?? 9 })),
+        cells: cells.sort(cellOrder),
+        merges: [...sh.merges],
+        validations: [],
+        printArea: '',
+        cellMap: { printArea: '', blocks: {} },
+      };
+    }
     const last = this.lastCol;
     this.put({ address: 'A1', value: schema.title, role: 'title' });
     this.merge(1, 1, last);

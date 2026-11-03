@@ -35,7 +35,7 @@ test('시트 모으기형: 제작한 양식으로 보내기 → 표 그리기, �
   fireEvent.click(screen.getByRole('radio', { name: /시트 모으기형/ }));
   fireEvent.click(screen.getByRole('button', { name: /시트 모으기형으로 바꾸기/ }));
   fireEvent.click(screen.getByRole('button', { name: /시트 시작 모양/ }));
-  fireEvent.click(screen.getByRole('radio', { name: '제작한 양식으로 보내기' }));
+  fireEvent.click(screen.getByRole('radio', { name: '직접 그리기' }));
   fireEvent.change(screen.getByLabelText('2행 1열'), { target: { value: '소화기' } });
   const grid = screen.getByRole('grid', { name: '엑셀 미리보기' });
   expect(within(grid).getByText('항목')).toBeTruthy();
