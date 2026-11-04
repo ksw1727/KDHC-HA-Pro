@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type TextareaHTMLAttributes } from 'react';
 import { cloudEnabled, cloudFetch, scopedStorageKey } from '../cloud';
 import { loadDraft, useCloudDraft, type Draft } from './useCloudDraft';
 import { deleteThread, findThreadForForm, listThreads, loadThread, newThreadId, recoverFromServerChat, saveThread, type ThreadSummary } from './threads';
@@ -95,6 +95,33 @@ const closePanel = () => window.dispatchEvent(new Event('hanan-moa:close-form'))
 
 /** AI로 만들기: 하고 싶은 말을 하면 AI(OpenAI SDK)가 이 프로그램 규칙대로 양식을 만든다 (tools/ai/bridge.ts).
  *  panelOpen: 오른쪽 설정 패널이 켜져 있으면 마지막 양식 카드가 패널과 연결돼, 고칠 때마다 미리보기가 바로 바뀐다 */
+/** 쓰는 만큼 늘어나는 입력칸: minRows줄에서 시작해 8줄까지는 다 보이고, 넘으면 안에서 스크롤 */
+const COMPOSER_MAX_ROWS = 8;
+function GrowingTextarea({ minRows, value, ...p }: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'rows' | 'value'> & { minRows: number; value: string }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const fit = () => {
+    const el = ref.current;
+    if (!el) return;
+    const line = parseFloat(getComputedStyle(el).lineHeight) || 24;
+    const max = line * COMPOSER_MAX_ROWS;
+    el.style.height = 'auto';
+    const full = el.scrollHeight;
+    el.style.height = `${Math.min(Math.max(full, line * minRows), max)}px`;
+    el.style.overflowY = full > max + 1 ? 'auto' : 'hidden';
+  };
+  useLayoutEffect(fit, [value, minRows]);
+  // 창 너비가 바뀌면 줄넘김이 달라지니 다시 맞춘다 (높이 변화로는 다시 부르지 않게 너비만 본다)
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let width = el.clientWidth;
+    const ro = new ResizeObserver(() => { if (el.clientWidth !== width) { width = el.clientWidth; fit(); } });
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  return <textarea ref={ref} rows={minRows} value={value} {...p} />;
+}
+
 export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
   const [healthError, setHealthError] = useState('');
   // 로컬: tools/ai/bridge.ts(OpenAI SDK, 모델 선택). 온라인: server/ai.ts(관리자 공용 OpenAI)
@@ -438,18 +465,21 @@ export function AiPage({ panelOpen = false }: { panelOpen?: boolean } = {}) {
       {cloudEnabled && attached.length > 0 && <label className="text-sm"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} disabled={busy} /> 원본은 브라우저에서만 분석하고 서버에 저장하지 않아요. 민감한 셀 값이 포함될 수 있는 요약 내용이 외부 AI로 전달되는 것에 동의해요.</label>}
     </>
   );
-  /** 입력창: 글 입력칸 + [엑셀 올리기] + 둥근 보내기 버튼을 한 상자에 */
+  /** 입력창: 글 입력칸 + [엑셀 올리기] + 둥근 보내기 버튼을 한 상자에. 여러 줄이면 왼쪽 아래에 줄 수 */
+  const inputLines = input ? input.split('\n').length : 0;
+  const KBD = 'mr-1 rounded border border-b-2 border-line-strong bg-white px-1 font-sans text-[10.5px] font-semibold text-sub';
   const composer = (placeholder: string, opts: { attach?: boolean; rows?: number } = {}) => (
     <div className="flex flex-col gap-2 rounded-[16px] border border-line-strong bg-white px-3.5 pb-2.5 pt-3 text-left shadow-[0_2px_10px_rgba(20,30,20,.06)] focus-within:border-pri-line focus-within:shadow-[0_0_0_4px_var(--color-pri-bg)]">
       {attachBlock}
-      <textarea aria-label="AI에게 보낼 말" rows={opts.rows ?? 2} value={input} disabled={health === 'checking'} placeholder={placeholder}
+      <GrowingTextarea aria-label="AI에게 보낼 말" minRows={opts.rows ?? 2} value={input} disabled={health === 'checking'} placeholder={placeholder}
         className="w-full resize-none border-0 bg-transparent p-0 text-[14.5px] leading-relaxed text-ink outline-none placeholder:text-muted"
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
       <div className="flex items-center gap-2">
+        {inputLines > 1 && <span className="text-xs text-muted"><b className="font-semibold text-pri-ink">{inputLines}</b>줄</span>}
         {opts.attach !== false && <Button size="sm" disabled={busy || health === 'checking'} onClick={pickFile} title="쓰던 엑셀 양식 올리기" className="inline-flex items-center gap-1"><Icon name="clip" />엑셀 올리기</Button>}
         <span className="flex-1" />
-        <span className="text-xs text-muted max-sm:hidden"><kbd className="mr-1 rounded border border-b-2 border-line-strong bg-white px-1 font-sans text-[10.5px] font-semibold text-sub">Enter</kbd>보내기</span>
+        <span className="text-xs text-muted max-sm:hidden"><kbd className={KBD}>Enter</kbd>보내기 · <kbd className={KBD}>Shift</kbd>+<kbd className={KBD}>Enter</kbd>줄 바꿈</span>
         {busy
           ? <button type="button" aria-label="멈추기" onClick={() => abort.current?.abort()} className="grid size-9 place-items-center rounded-full border border-line-strong bg-white text-ink hover:bg-panel"><span className="size-3 rounded-[2px] bg-ink" /></button>
           : <button type="button" aria-label="보내기" disabled={!canSend} onClick={() => void send()}
