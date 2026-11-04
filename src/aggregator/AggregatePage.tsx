@@ -37,13 +37,20 @@ const Val = ({ kind, children }: { kind: 'in' | 'fix'; children: ReactNode }) =>
 );
 const show = (v: unknown) => (v === null || v === undefined || v === '' ? '(빈칸)' : v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === 'object' ? JSON.stringify(v) : String(v));
 
-function download(name: string, bytes: Uint8Array, type: string) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
+/** 결과 파일 하나 (완료 화면에서 다시 받을 수 있게 내용을 들고 있는다) */
+type OutFile = { name: string; bytes: Uint8Array; type: string; note?: string };
+
+function download(f: OutFile) {
+  const url = URL.createObjectURL(new Blob([f.bytes as BlobPart], { type: f.type }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = name;
+  a.download = f.name;
+  a.style.display = 'none';
+  document.body.appendChild(a);   // 문서에 붙여야 받기가 되는 브라우저가 있다
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  a.remove();
+  // 브라우저가 '여러 파일 다운로드' 허용을 묻는 동안 주소가 사라지면 받기가 실패한다 → 넉넉히 둔다
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 /** 양식 만들기에서 넘어온 양식 (브라우저에 저장된 것). 실패하면 없음 */
@@ -76,7 +83,7 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const [wantCopies, setWantCopies] = useState(true);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ files: string[]; message: string } | null>(null);
+  const [done, setDone] = useState<{ files: OutFile[]; notes: string[]; message: string } | null>(null);
   const [error, setError] = useState('');
   const [card, setCard] = useState<CardId | null>(null);
   const [org, setOrg] = useState<string | null>(null);     // 제출 카드에서 고른 파일 (그 파일 줄만 모으기)
@@ -126,8 +133,22 @@ export function AggregatePage({ formId }: { formId?: string }) {
       <div className="mx-auto max-w-[900px] p-5">
         <Banner tone="ok"><b className="text-[15px]">{done.message}</b></Banner>
         <Card title="내려받은 파일">
-          <ul className="m-0 list-disc pl-5">{done.files.map((f) => <li key={f}>{f}</li>)}</ul>
+          <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+            {done.files.map((f) => (
+              <li key={f.name} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-0 flex-1 break-all">{f.name}{f.note && <span className="text-sub"> ({f.note})</span>}</span>
+                <Btn sm onClick={() => download(f)}>다시 받기</Btn>
+              </li>
+            ))}
+          </ul>
+          {done.notes.length > 0 && <ul className="m-0 mt-2 list-disc pl-5 text-[12.5px] text-warn-ink">{done.notes.map((n) => <li key={n}>{n}</li>)}</ul>}
           <p className="text-sub">다운로드 폴더에 저장됐어요. 취합본을 나중에 다시 넣으면 다른 취합본과 합칠 수 있어요.</p>
+          {done.files.length > 1 && (
+            <p className="text-[12.5px] text-sub">
+              파일이 다 안 보이면 브라우저가 여러 파일 받기를 막은 거예요. 받지 못한 파일의 [다시 받기]를 누르거나,
+              주소창 오른쪽의 다운로드 차단 표시를 눌러 이 사이트를 허용해 주세요.
+            </p>
+          )}
           <Btn onClick={() => setStage('review')}>검토 화면으로 돌아가기</Btn>
         </Card>
       </div>
@@ -158,7 +179,8 @@ export function AggregatePage({ formId }: { formId?: string }) {
   const visibleIssues = allValueIssues.filter((i) => rowOut(i) || res.valueIssues.some((v) => v.id === i.id));
   const pending = visibleIssues.filter((i) => !rowOut(i) && !d.cellFix[i.id]).length + res.questions.filter((q) => d.answers[q.id] === undefined).length
     + res.files.filter((f) => f.orgBlank && f.needsOrgLink && f.status === 'included').length;   // 제출처 이름이 빈 파일
-  const manualCount = Object.values(d.cellFix).filter((x) => x?.mode === 'manual').length;
+  // 지금 결과에 실제로 들어가는 직접 고침만 센다 (고친 뒤 그 줄·파일을 뺐으면 사본에 쓸 것이 없다)
+  const manualCount = res.valueIssues.filter((i) => i.choice === '직접 고침').length;
   const autoCount = res.included.reduce((s, x) => s + x.autoFixed.length, 0);
   const noteCount = res.included.reduce((s, x) => s + x.read.authorNotes.length, 0);
   const excluded = res.files.filter((f) => f.status !== 'included' && f.status !== 'duplicate').length;
@@ -187,20 +209,24 @@ export function AggregatePage({ formId }: { formId?: string }) {
       const workbooks = new Map(analysis.identified.filter((f) => f.workbook).map((f) => [f.file.id, f.workbook!]));
       const out = await writeResult({ schema, res, methods, workbooks, now: at });
       const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      download(out.fileName, out.bytes, XLSX);
-      const names = [out.fileName];
-      if (out.review) { download(out.review.fileName, out.review.bytes, XLSX); names.push(`${out.review.fileName} (검토용: 검토 사항 시트에 검산·오류·파일목록·판단 기록)`); }
+      // 파일을 모두 만든 뒤 한꺼번에 내려받는다. 수정본만 몇 초 늦게 따로 받기를 시작하면
+      // 브라우저의 '여러 파일 다운로드' 확인과 어긋나서 그 파일만 막히는 일이 있었다
+      const files: OutFile[] = [{ name: out.fileName, bytes: out.bytes, type: XLSX }];
+      const notes: string[] = [];
+      if (out.review) files.push({ name: out.review.fileName, bytes: out.review.bytes, type: XLSX, note: '검토용: 검토 사항 시트에 검산·오류·파일목록·판단 기록' });
       if (wantCopies && manualCount && loaded) {
         const c = await patchCopies(res, loaded.files, withProposals, at, schema.title);
-        if (c?.count) { download(c.fileName, c.bytes, 'application/zip'); names.push(`${c.fileName} (회신 파일 ${c.count}개)`); }
-        for (const k of c?.skipped ?? []) names.push(`수정본 사본 없음: ${k.fileName} — ${k.reason}`);
+        if (c?.count) files.push({ name: c.fileName, bytes: c.bytes, type: 'application/zip', note: `회신 파일 ${c.count}개` });
+        for (const k of c?.skipped ?? []) notes.push(`수정본 사본 없음: ${k.fileName} — ${k.reason}`);
+        if (!c?.count && !c?.skipped.length) notes.push('수정본 사본 없음: 원본에 고쳐 쓸 칸을 찾지 못했어요');
       }
+      for (const f of files) download(f);
       const rows = res.included.reduce((s, x) => s + x.rows.length + (x.gridSpareRows?.length ?? 0), 0);
       const who = schema.org.mode === 'none' ? `파일 ${res.included.length}개` : `${L} ${res.included.length}곳`;
       const hasList = schema.blocks.some((b) => b.kind === 'list');
       const spare = schema.blocks.some((b) => b.kind === 'grid' && b.spareRows > 0);
       const what = collect ? '의 시트를 모았어요' : hasList ? `, 행 ${rows}개를 취합했어요` : spare && rows ? `을 취합했어요 (여유 줄 ${rows}줄)` : '을 취합했어요';
-      setDone({ files: names, message: `${who}${what} · 검산 ${out.verify.ok ? '일치' : '불일치 — 받은 파일의 검산 시트를 확인해 주세요'}` });
+      setDone({ files, notes, message: `${who}${what} · 검산 ${out.verify.ok ? '일치' : '불일치 — 받은 파일의 검산 시트를 확인해 주세요'}` });
       // 내 업무공간의 취합 이력: 요약만 남긴다 (결과 파일은 저장하지 않음)
       recordAggregation({
         formId: schema.formId, formVersion: schema.formVersion, title: schema.title, layout: schema.layout,
