@@ -2,30 +2,37 @@
 
 | 파일 | 내용 |
 |---|---|
-| `한난MOA_발표본_R42.html` | 발표본 (18장, 소개영상 2분 10초 + 발표 약 8분) |
-| `한난MOA_발표본_R42_평가해석본.html` | 장마다 발표 멘트, 평가 항목, 예상 질문 |
+| `한난MOA_발표본_R47_발표자모드.html` | 발표본 18장 + 발표자 모드 (소개영상 2분 10초 + 발표 약 8분) |
+| `한난MOA_발표본_R45_평가해석본.html` | 장마다 발표 멘트, 평가 항목, 예상 질문 (발표본과 내용 같음) |
 
-## 소개영상 준비 (발표 전에 꼭)
+## 소개영상
 
-영상(116MB)은 GitHub 한 파일 한도(100MB)를 넘어서 저장소에 넣지 않았습니다.
-릴리스 [`intro-video-v9`](https://github.com/ksw1727/KDHC-HA-Pro/releases/tag/intro-video-v9)에 있습니다.
+1장 영상은 두 곳 중 먼저 되는 쪽을 씁니다.
 
-1. [hanmoa_intro_v9.mp4](https://github.com/ksw1727/KDHC-HA-Pro/releases/download/intro-video-v9/hanmoa_intro_v9.mp4)를 받습니다.
-   (sha256 `10b3c6e75eec9c8142acfb970c781fb709565fbf3abbbb2ab0a3f617a9331db0`)
-2. 이름을 `한난MOA_소개영상_v9.mp4`로 바꿔 발표본 HTML과 **같은 폴더**에 둡니다.
+1. HTML과 **같은 폴더**의 `한난MOA_소개영상_v9.mp4` (인터넷 없이 재생, 발표장 권장)
+2. 없으면 릴리스 [`intro-video-v9`](https://github.com/ksw1727/KDHC-HA-Pro/releases/tag/intro-video-v9)의 `hanmoa_intro_v9.mp4`를 인터넷으로 바로 재생
+
+영상(116MB)은 GitHub 한 파일 한도(100MB)를 넘어서 저장소에는 넣지 않았습니다.
+발표장 인터넷이 불안하면 미리 받아 두세요.
 
 ```sh
 cd docs/presentation
 curl -L -o 한난MOA_소개영상_v9.mp4 \
   https://github.com/ksw1727/KDHC-HA-Pro/releases/download/intro-video-v9/hanmoa_intro_v9.mp4
+# sha256 10b3c6e75eec9c8142acfb970c781fb709565fbf3abbbb2ab0a3f617a9331db0
 ```
 
-## 발표 단축키
+## 발표자 모드
+
+슬라이드 창에서 **P**(또는 오른쪽 아래 [발표자 모드 열기])를 누르면 발표자 창이 따로 뜹니다.
+발표자 창에는 현재 장, 다음 장 미리보기, 대본, 타이머가 있고, 여기서 넘기면 슬라이드 창도 같이 넘어갑니다.
+팝업이 막히면 이 파일의 팝업을 허용하세요. 슬라이드 창은 청중 화면(프로젝터)으로 옮겨 **F**로 전체 화면.
 
 | 키 | 동작 |
 |---|---|
-| → / ← | 다음 / 이전 (장 안의 단계도 하나씩) |
-| N | 발표자 메모 보기·숨기기 |
+| → / ← / Space | 다음 / 이전 (장 안의 단계도 하나씩) |
+| P / N | 발표자 창 열기 |
+| V | 1장 영상 재생·일시정지 |
 | F | 전체 화면 |
 | A | 지금 장의 내용 한 번에 모두 보이기 |
-| P | 1장 영상 재생·일시정지 |
+| Home / End | 처음 / 마지막 장 |

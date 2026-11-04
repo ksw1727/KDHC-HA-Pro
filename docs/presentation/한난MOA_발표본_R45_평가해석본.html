@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>한난MOA 발표본 R42 · 평가요소 해석본</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700&display=swap"><style>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>한난MOA 발표본 R45 · 평가요소 해석본</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700&display=swap"><style>
 :root{
   --pri:#37913f; --pri-ink:#245f2b; --pri-bg:#e5f2e1; --pri-line:#bfdcb7; --brand-green:#37a137; --brand-red:#ed1c29;
   --acc:#e0605a; --acc-ink:#b8403a; --acc-bg:#fde9e7;
@@ -1150,6 +1150,14 @@ h2 em{font-style:normal;color:var(--pri)}
 .slide[data-title="한 문장이면 양식이"] .mk2 .lb>span,.slide[data-title="한 문장이면 양식이"] .mk2 .lb>em{grid-column:2}
 
 .slide[data-title="한 문장이면 양식이"] .mk2{margin-top:22px}
+
+/* ---- R43: 16장 클라우드 열 붉은 강조 ---- */
+.cmp th.cl{background:#c8584a;color:#fff}
+.cmp th.cl small{opacity:.85}
+.cmp th.cl .est{display:inline-block;margin-top:8px;font-size:15px;font-weight:900;color:#c8584a;background:#fff;border-radius:999px;padding:3px 12px}
+.cmp td.cl{background:#fdf2ef;color:#a5433a;font-weight:900}
+.cmp td.cl .sub{color:#c07a70}
+.lanband span{white-space:nowrap}
 html,body{overflow:auto!important;height:auto!important;background:#eef1ec!important}
 body{padding:0 0 80px}
 .wrapd{max-width:1560px;margin:0 auto;padding:56px 40px}
@@ -1183,8 +1191,8 @@ h3.sec{font-size:26px;font-weight:900;margin:44px 0 14px}
 details{margin-top:12px;font-size:14px}summary{cursor:pointer;color:var(--pri-ink);font-weight:800}.nt{margin-top:8px;white-space:pre-wrap;color:var(--sub);line-height:1.6}
 .lg{display:flex;gap:16px;font-size:14px;color:var(--sub);margin-top:14px}
 </style></head><body><div class="wrapd">
-<div class="top"><h1>한난MOA 발표본 R42 · <em>평가요소 해석본</em></h1>
-<p>발표본 R42(18장)이 평가표 7개 항목(내부위원 50점, 외부위원 50점)을 어디에서 채우는지 정리했습니다. 흐름은 영상 → 왜 취합인가 → 시행착오 → 동작 방식(유저 플로우) → 기술 스택 → 결과물 → 확장성 → 마치며입니다.<br>시간: 영상 2분 10초 + 발표 약 8분 15초 · 평가표 항목명과 배점 기준(세부 문장 미반영).<br><small style="color:var(--muted)">공사 AX 근거: 한국지역난방공사 보도자료 "인공지능 전환(AX) 로드맵 발표"(2025.08.25), 전기신문 "AX위원회 출범"(2026.09.18), 뉴스토마토 "중장기 경영전략 고도화"(2026.11.02), 한난 홈페이지 경영목표(2031). AI 비교: 앱 비교 시험 장치, OpenAI 2026.10.22 · Gemma 4 31B 2026.11.03.</small></p></div>
+<div class="top"><h1>한난MOA 발표본 R45 · <em>평가요소 해석본</em></h1>
+<p>발표본 R45(18장)이 평가표 7개 항목(내부위원 50점, 외부위원 50점)을 어디에서 채우는지 정리했습니다. 흐름은 영상 → 왜 취합인가 → 시행착오 → 동작 방식(유저 플로우) → 기술 스택 → 결과물 → 확장성 → 마치며입니다.<br>시간: 영상 2분 10초 + 발표 약 8분 15초 · 평가표 항목명과 배점 기준(세부 문장 미반영).<br><small style="color:var(--muted)">공사 AX 근거: 한국지역난방공사 보도자료 "인공지능 전환(AX) 로드맵 발표"(2025.08.25), 전기신문 "AX위원회 출범"(2026.09.18), 뉴스토마토 "중장기 경영전략 고도화"(2026.11.02), 한난 홈페이지 경영목표(2031). AI 비교: 앱 비교 시험 장치, OpenAI 2026.10.22 · Gemma 4 31B 2026.11.03.</small></p></div>
 <div class="ccs"><div class="cc in"><div class="ch"><span>내부</span><b>현업 적합성</b><i>15점</i></div><p>문제 장면과 검토 시간(3~4장), 사용자 관성(5장), 유저 플로우(7장), As is→To be(12장)</p><small>해당 장: 1, 3, 4, 5, 7, 10, 12</small></div><div class="cc in"><div class="ch"><span>내부</span><b>조직 기여도</b><i>15점</i></div><p>과제 선정 기준 3가지·146개 부서(4장), As is→To be(12장), 실측 기반 연간 1,647시간 대체(13장)</p><small>해당 장: 2, 4, 12, 13, 17</small></div><div class="cc in"><div class="ch"><span>내부</span><b>확장성</b><i>10점</i></div><p>교체 가능한 AI 연결(8장), 사내망 Gemma 4 31B(16장), 전사 로드맵(17장)</p><small>해당 장: 8, 13, 16, 17</small></div><div class="cc in"><div class="ch"><span>내부</span><b>결과물 발표</b><i>10점</i></div><p>영상 → 왜 취합 → 시행착오 → 동작 방식(플로우) → 기술 스택 → 결과물 → 확장 → 마치며</p><small>해당 장: 1, 2, 4, 5, 7, 15, 18</small></div><div class="cc ex"><div class="ch"><span>외부</span><b>구현 완성도</b><i>25점</i></div><p>유저 플로우(7장), 기능별 구조(8장), 실제 화면(10·11장), 시험 569개(9·14장), 운영 중 서비스로 시연</p><small>해당 장: 7, 8, 9, 10, 11, 14</small></div><div class="cc ex"><div class="ch"><span>외부</span><b>기술적 타당성</b><i>15점</i></div><p>범위 결정(5장), AI 생성·규칙 취합 분리(6장), 기능별 도구·언어 배치 구조도(8장), 한계 명시(15장), 모델 교체(16장)</p><small>해당 장: 5, 6, 8, 9, 14, 15, 16</small></div><div class="cc ex"><div class="ch"><span>외부</span><b>구현 난이도</b><i>10점</i></div><p>비정형 엑셀과 3번의 실패(5장), 숨긴 설계도·검사기 안의 AI·9단계 검산(9장), 1초 취합(11장)</p><small>해당 장: 5, 9, 11</small></div></div>
 <h3 class="sec">장별 평가 항목 지도</h3><table class="mx"><tr><th>장</th><th><span>내부</span>현업 적합성<i>15</i></th><th><span>내부</span>조직 기여도<i>15</i></th><th><span>내부</span>확장성<i>10</i></th><th><span>내부</span>결과물 발표<i>10</i></th><th><span>외부</span>구현 완성도<i>25</i></th><th><span>외부</span>기술적 타당성<i>15</i></th><th><span>외부</span>구현 난이도<i>10</i></th></tr><tr><td><b>1</b> 영상</td><td>●</td><td></td><td></td><td>●</td><td></td><td></td><td></td></tr><tr><td><b>2</b> 표지</td><td></td><td>●</td><td></td><td>●</td><td></td><td></td><td></td></tr><tr><td><b>3</b> 이 파일들, 익숙하시죠?</td><td>●</td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td><b>4</b> 왜 취합인가</td><td>●</td><td>●</td><td></td><td>●</td><td></td><td></td><td></td></tr><tr><td><b>5</b> 시행착오</td><td>●</td><td></td><td></td><td>●</td><td></td><td>●</td><td>●</td></tr><tr><td><b>6</b> 한난MOA는 이렇게 일합니다</td><td></td><td></td><td></td><td></td><td></td><td>●</td><td></td></tr><tr><td><b>7</b> 유저 플로우</td><td>●</td><td></td><td></td><td>●</td><td>●</td><td></td><td></td></tr><tr><td><b>8</b> 아키텍처</td><td></td><td></td><td>●</td><td></td><td>●</td><td>●</td><td></td></tr><tr><td><b>9</b> 구현 난이도</td><td></td><td></td><td></td><td></td><td>●</td><td>●</td><td>●</td></tr><tr><td><b>10</b> 한 문장이면 양식이</td><td>●</td><td></td><td></td><td></td><td>●</td><td></td><td></td></tr><tr><td><b>11</b> 19개소 파일 1초 안에</td><td></td><td></td><td></td><td></td><td>●</td><td></td><td>●</td></tr><tr><td><b>12</b> 무엇이 달라지나</td><td>●</td><td>●</td><td></td><td></td><td></td><td></td><td></td></tr><tr><td><b>13</b> DX에서 AX로</td><td></td><td>●</td><td>●</td><td></td><td></td><td></td><td></td></tr><tr><td><b>14</b> 믿고 맡길 수 있는 이유</td><td></td><td></td><td></td><td></td><td>●</td><td>●</td><td></td></tr><tr><td><b>15</b> 모든 양식을 받아주지는 못합니다</td><td></td><td></td><td></td><td>●</td><td></td><td>●</td><td></td></tr><tr><td><b>16</b> 사내망으로 옮기면</td><td></td><td></td><td>●</td><td></td><td></td><td>●</td><td></td></tr><tr><td><b>17</b> 전사로, 그리고 더 깊게</td><td></td><td>●</td><td>●</td><td></td><td></td><td></td><td></td></tr><tr><td><b>18</b> 마치며</td><td></td><td></td><td></td><td>●</td><td></td><td></td><td></td></tr><tr class="sum"><td>장 수</td><td>7</td><td>5</td><td>4</td><td>7</td><td>6</td><td>7</td><td>3</td></tr></table>
 <div class="lg"><span><b style="color:var(--pri-ink)">초록</b> 내부위원 항목</span><span><b style="color:#2a4f8f">파랑</b> 외부위원 항목</span><span>● 그 장이 겨냥한 항목</span></div>
@@ -1423,36 +1431,36 @@ details{margin-top:12px;font-size:14px}summary{cursor:pointer;color:var(--pri-in
       <ul><li>매크로로 돌아가는 양식</li><li>시트끼리 값을 주고받는 양식</li><li>서술·그림 보고서</li><li>제출처마다 칸 위치가 다른 양식</li></ul></div>
   </div>
   
-<div class="foot"><span class="brand"><i>한난</i>MOA</span><span>15 / 18</span></div></section></div><div class="pn"><div class="no">15<span>모든 양식을 받아주지는 못합니다</span><em>0:20</em></div><div class="role">정직 · 한계와 거절</div><div class="tags"><span class="tg ex">기술적 타당성</span><span class="tg in">결과물 발표</span></div><p>못 하는 양식(매크로, 시트 간 참조, 서술형, 칸 위치가 다른 양식)을 먼저 밝힙니다. &quot;한번 되면 틀리지 않는다&quot;는 결론과 신뢰를 함께 얻습니다.</p><details><summary>발표 멘트</summary><div class="nt">솔직히, 모든 양식을 받아 주지는 못합니다. 매크로 양식이나 서술형 보고서는 &quot;못 한다&quot;고 분명히 답합니다. 억지로 만들어 취합이 틀어지는 것보다 낫기 때문입니다.
+<div class="foot"><span class="brand"><i>한난</i>MOA</span><span>15 / 18</span></div></section></div><div class="pn"><div class="no">15<span>모든 양식을 받아주지는 못합니다</span><em>0:20</em></div><div class="role">정직 · 한계와 거절</div><div class="tags"><span class="tg ex">기술적 타당성</span><span class="tg in">결과물 발표</span></div><p>못 하는 양식(매크로, 시트 간 참조, 서술형, 칸 위치가 다른 양식)을 먼저 밝힙니다. &quot;한번 되면 틀리지 않는다&quot;는 결론과 신뢰를 함께 얻습니다.</p><details><summary>발표 멘트</summary><div class="nt">그러나, 모든 양식을 받아 주지는 못합니다. 매크로 양식이나 서술형 보고서는 &quot;못 한다&quot;고 분명히 답합니다. 억지로 만들어 취합이 틀어지는 것보다 낫기 때문입니다.
 대신 되는 것은, 한번 되면 틀리지 않습니다. 세 번의 실패에서 얻은 결론입니다.</div></details></div></div>
 <div class="row"><div class="thumb"><section class="slide on light" data-title="사내망으로 옮기면">
   <div class="kicker"><b>06</b>확장성 · 사내망 이전</div>
-  <h2>사내망으로 옮겨도, <em>AI는 사내 PC 안에서</em></h2>
+  <h2>사내망으로 옮겨도, <em>AI는 개인 PC 안에서</em></h2>
   <div class="lan">
     <div class="card route f">
       <h4>지금 · 인터넷</h4>
       <div class="ln2"><div class="b">담당자 화면</div><span class="ar">→</span><div class="b">한난MOA 서버</div><span class="ar">→</span><div class="b out"><small>외부</small>OpenAI</div></div>
       <div class="wall"><i>사내망</i></div>
       <h4>이전 후 · 사내망</h4>
-      <div class="ln2"><div class="b">담당자 화면</div><span class="ar">→</span><div class="b">사내 서버</div><span class="ar">→</span><div class="b in"><small>사내 PC</small>Gemma 4 31B</div></div>
+      <div class="ln2"><div class="b">담당자 화면</div><span class="ar">→</span><div class="b">사내 서버</div><span class="ar">→</span><div class="b in"><small>개인 PC</small>Gemma 4 31B</div></div>
       <div class="chg">같은 SDK, <b>모델만 사내 AI로</b></div>
     </div>
     <div class="f">
       <table class="cmp">
-        <tr><th></th><th>OpenAI<small>지금 · gpt-6-luna·6.1-sol</small></th><th>Gemma 4 31B<small>클라우드 · GPU 서버</small></th><th class="me">Gemma 4 31B<small>사내 PC · 로컬</small></th></tr>
-        <tr><td>양식 정확도</td><td><span class="big">98.6~100</span><span class="sub">각 8회</span></td><td><span class="big">100</span><span class="sub">만점 8회 중 8회</span></td><td class="me"><span class="big">100</span><span class="sub">만점 4회 중 4회</span></td></tr>
-        <tr><td>양식 하나 만드는 시간</td><td>평균 14~26초</td><td>평균 약 14초</td><td class="me">평균 약 3분 30초</td></tr>
-        <tr><td>부를 때마다 비용</td><td>유료 (토큰당)</td><td>클라우드 요금</td><td class="me">0원</td></tr>
-        <tr><td>대화가 나가는 곳</td><td class="bad">외부 서버</td><td class="bad">외부 서버</td><td class="me">사내 PC 밖으로 안 나감</td></tr>
+        <tr><th></th><th>OpenAI<small>지금 · gpt-6-luna·6.1-sol</small></th><th class="cl">Gemma 4 31B<small>클라우드 · GPU 서버</small><span class="est">사내 서버 수준 예상</span></th><th class="me">Gemma 4 31B<small>개인 PC · 로컬</small></th></tr>
+        <tr><td>양식 정확도</td><td><span class="big">98.6~100</span><span class="sub">각 8회</span></td><td class="cl"><span class="big">100</span><span class="sub">만점 8회 중 8회</span></td><td class="me"><span class="big">100</span><span class="sub">만점 4회 중 4회</span></td></tr>
+        <tr><td>양식 하나 만드는 시간</td><td>평균 14~26초</td><td class="cl">평균 약 14초</td><td class="me">평균 약 3분 30초</td></tr>
+        <tr><td>부를 때마다 비용</td><td>유료 (토큰당)</td><td class="cl">클라우드 요금</td><td class="me">0원</td></tr>
+        <tr><td>대화가 나가는 곳</td><td class="bad">외부 서버</td><td class="cl bad">외부 서버</td><td class="me">개인 PC 밖으로 안 나감</td></tr>
       </table>
     </div>
   </div>
-  <div class="lanband f"><span class="k">같은 모델, 정확도 100점</span><span>속도 차이는 장비 차이 (PC 3분 30초 · GPU 14초)</span><span class="k g">사내 PC면 비용 0원 · 외부 전송 0건</span></div>
+  <div class="lanband f"><span class="k">같은 모델, 정확도 100점</span><span>속도 차이는 장비 차이 · 개인 PC vs 클라우드 PC</span><span class="k g">개인 PC면 비용 0원 · 외부 전송 0건</span></div>
   
-<div class="foot"><span class="brand"><i>한난</i>MOA</span><span>16 / 18</span></div></section></div><div class="pn"><div class="no">16<span>사내망으로 옮기면</span><em>0:35</em></div><div class="role">확장 · 사내망 이전</div><div class="tags"><span class="tg in">확장성</span><span class="tg ex">기술적 타당성</span></div><p>OpenAI Agents SDK 표준 방식이라 같은 SDK로 모델만 바꿉니다. Gemma 4 31B로 같은 시험을 돌린 결과 사내 PC(Mac mini M6 32GB) 100점·약 3분 30초, GPU 클라우드 100점·약 14초. 같은 모델이라 정확도는 같고 속도는 장비 차이라는 점이 이식성과 기술 선택의 타당성입니다.</p><div class="qa"><b>예상 질문</b>사내 PC는 너무 느리지 않나요? → 같은 모델을 GPU에서 돌리면 14초입니다. 사내 GPU 서버를 두면 속도도 따라오고, 그 전에는 PC로도 정확도는 같습니다.</div><details><summary>발표 멘트</summary><div class="nt">사내망으로 옮기면 외부 AI를 쓸 수 없습니다. 그래서 사내 PC의 로컬 AI, Gemma 4 31B로 돌려 봤습니다.
+<div class="foot"><span class="brand"><i>한난</i>MOA</span><span>16 / 18</span></div></section></div><div class="pn"><div class="no">16<span>사내망으로 옮기면</span><em>0:35</em></div><div class="role">확장 · 사내망 이전</div><div class="tags"><span class="tg in">확장성</span><span class="tg ex">기술적 타당성</span></div><p>OpenAI Agents SDK 표준 방식이라 같은 SDK로 모델만 바꿉니다. Gemma 4 31B로 같은 시험을 돌린 결과 개인 PC(Mac mini M6 32GB) 100점·약 3분 30초, 클라우드 PC(GPU) 100점·약 14초. 클라우드 열은 붉은색으로 강조하고 &quot;사내 서버 수준 예상&quot;을 붙였습니다. 같은 모델이라 정확도는 같고 속도는 장비 차이(개인 PC vs 클라우드 PC)라는 점이 이식성과 기술 선택의 타당성입니다.</p><div class="qa"><b>예상 질문</b>개인 PC는 너무 느리지 않나요? → 같은 모델을 클라우드 PC(GPU)에서 돌리면 14초입니다. 사내 서버도 이 수준이 될 것으로 예상하고, 그 전에는 개인 PC로도 정확도는 같습니다.</div><details><summary>발표 멘트</summary><div class="nt">사내망으로 옮기면 외부 AI를 쓸 수 없습니다. 그래서 개인 PC의 로컬 AI, Gemma 4 31B로 돌려 봤습니다.
 (왼쪽) 한난MOA의 AI 연결은 OpenAI Agents SDK라는 표준 방식이라, 같은 SDK 그대로 연결할 모델만 사내 AI로 바꾸면 됩니다. 취합은 원래 AI를 쓰지 않아 그대로 돌아갑니다.
-(오른쪽) 같은 양식 요청 네 가지를 기계 채점했더니 Gemma 4 31B도 100점입니다. 다른 점은 속도뿐입니다. 사내 PC 한 대로는 양식 하나에 약 3분 30초, 같은 모델을 GPU 클라우드에서 돌리면 14초로 OpenAI와 비슷합니다.
-(→) 사내 PC면 비용 0원, 대화가 사내 밖으로 나가지 않고, 사내 GPU 서버를 두면 속도도 따라옵니다.</div></details></div></div>
+(오른쪽) 같은 양식 요청 네 가지를 기계 채점했더니 Gemma 4 31B도 100점입니다. 다른 점은 속도뿐입니다. 개인 PC 한 대로는 양식 하나에 약 3분 30초, 같은 모델을 클라우드 PC에서 돌리면 14초로 OpenAI와 비슷합니다. 사내 서버도 이 클라우드 수준이 될 것으로 예상합니다.
+(→) 속도 차이는 장비 차이입니다. 개인 PC로도 비용 0원, 대화는 밖으로 나가지 않습니다. 사내 서버를 사용하면 속도도 올라갈 것으로 예상합니다.</div></details></div></div>
 <div class="row"><div class="thumb"><section class="slide on light v17a" data-title="전사로, 그리고 더 깊게">
   <div class="kicker"><b>06</b>확장성 · 전사로</div>
   <h2>한 부서의 도구가 아니라, <em>전사의 취합 방식</em>으로</h2>
@@ -1464,7 +1472,7 @@ details{margin-top:12px;font-size:14px}summary{cursor:pointer;color:var(--pri-in
   <div class="end17 f">취합을 바꾸면, 한 해 <em>206일</em>이 돌아옵니다</div>
   
 <div class="foot"><span class="brand"><i>한난</i>MOA</span><span>17 / 18</span></div></section></div><div class="pn"><div class="no">17<span>전사로, 그리고 더 깊게</span><em>0:25</em></div><div class="role">확장 · 전사 로드맵</div><div class="tags"><span class="tg in">확장성</span><span class="tg in">조직 기여도</span></div><p>지금 바로(모든 부서, 다단계, 빈칸 채우기) → 다음(사내망) → 고도화(한글(HWP) 양식 취합, 안 낸 곳 자동 알림, 사내 포털 연결). 취합에서 시작해 반복 업무를 DX에서 AX로 옮기는 출발점이라는 메시지로 닫습니다. 지금 바로 → 다음 → 고도화를 화살표로 잇습니다. 마지막 한 줄 &quot;취합을 바꾸면, 한 해 206일이 돌아옵니다&quot;로 13장의 1,647시간(약 206인일)을 다시 짚으며 발표를 맺고 18장으로 넘어갑니다.</p><details><summary>발표 멘트</summary><div class="nt">한난MOA는 특정 부서용이 아닙니다. 지금 바로 취합하는 모든 부서가 쓸 수 있고, 다단계 취합과 빈칸 채우기까지 됩니다.
-다음은 사내망 이전입니다. 그 뒤에는 기능을 넓힙니다. 공문서에 많은 한글 양식도 취합하고, 안 낸 곳에는 자동으로 알림을 보내고, 사내 포털과 연결하겠습니다. 취합에서 시작해 반복 업무를 하나씩 DX에서 AX로 옮기는 출발점이 되겠습니다.
+다음은 사내망 이전입니다. 그 뒤에는 기능을 확장할 수 있습니다. 한글 양식도 취합하고, 안 낸 곳에는 자동으로 알림을 보내고, 사내 포털과 연결할 수 있습니다. 취합에서 시작해 반복 업무를 하나씩 DX에서 AX로 옮기는 출발점이 되겠습니다.
 (→ 한 줄) 취합을 바꾸면, 한 해 206일이 돌아옵니다.</div></details></div></div>
 <div class="row"><div class="thumb"><section class="slide on dark" data-title="마치며">
   <div class="kicker"><b>07</b>마치며</div>
@@ -1473,7 +1481,7 @@ details{margin-top:12px;font-size:14px}summary{cursor:pointer;color:var(--pri-in
   <div class="f" style="position:absolute;left:136px;top:815px;font-size:28px;font-weight:600;color:#9fe09a;letter-spacing:.04em">훈민정음 어제 서문, 1446</div>
   <div class="f" style="position:absolute;right:132px;bottom:90px;display:flex;align-items:center;gap:26px"><span class="badge" style="width:110px;height:110px;font-size:38px;border-radius:30px">MOA</span><span style="font-size:60px;font-weight:900;letter-spacing:-.02em">감사합니다</span></div>
   
-<div class="foot"><span class="brand"><i>한난</i>MOA</span><span>18 / 18</span></div></section></div><div class="pn"><div class="no">18<span>마치며</span><em>0:25</em></div><div class="role">마치며 · 메시지</div><div class="tags"><span class="tg in">결과물 발표</span></div><p>훈민정음 어제 서문 &quot;사람마다 쉽게 익혀 나날이 쓰는 데 편리하게&quot;. &quot;모두가, 배우지 않고, 쓰는&quot; 개발 철학을 한 문장으로 남기고 시연으로 넘어갑니다.</p><details><summary>발표 멘트</summary><div class="nt">(한자가 보인 상태에서) 580년 전 세종대왕은 글자를 만들며 이렇게 적었습니다. (→) &quot;사람마다 쉽게 익혀 나날이 쓰는 데 편리하게 하고자 할 뿐이다.&quot; (→) 훈민정음 어제 서문입니다. 한난MOA도 같은 마음으로 만들었습니다. 모두의 매일을 조금씩 편하게. (→) 감사합니다. 이어서 시연으로 보여 드리겠습니다.</div></details></div></div>
+<div class="foot"><span class="brand"><i>한난</i>MOA</span><span>18 / 18</span></div></section></div><div class="pn"><div class="no">18<span>마치며</span><em>0:25</em></div><div class="role">마치며 · 메시지</div><div class="tags"><span class="tg in">결과물 발표</span></div><p>훈민정음 어제 서문 &quot;사람마다 쉽게 익혀 나날이 쓰는 데 편리하게&quot;. &quot;모두가, 배우지 않고, 쓰는&quot; 개발 철학을 한 문장으로 남기고 시연으로 넘어갑니다.</p><details><summary>발표 멘트</summary><div class="nt">(한자가 보인 상태에서) 580년 전 세종대왕은 글자를 만들며 이렇게 적었습니다. (→) &quot;사람마다 쉽게 익혀 나날이 쓰는 데 편리하게 하고자 할 뿐이다.&quot; (→) 훈민정음 어제 서문입니다. 세종대왕께서 한글을 창제하실 때의 마음가짐이자 철학이었다고 합니다. 한글 창제와 같은 거창한 일은 아니었지만, 그 철학을 공유하고 같은 마음가짐으로 개발에 임했던 것 같습니다. 모두의 매일을 조금씩 편하게. (→) 감사합니다. 이어서 시연으로 보여 드리겠습니다.</div></details></div></div>
 
 <h3 class="sec">앞으로 채울 자리</h3><div class="pn"><p>① <b>4장 파일당 1~5분</b>: 아직 가정입니다. 13장 실측(건당 42분)과 맞춰 바꿀지 정합니다.<br>② <b>테스트 직원 피드백</b>: 한 줄 인용을 3장 또는 12장에 넣으면 현업 적합성 근거가 강해집니다.<br>③ <b>Gemma 4 31B 사내 PC 재측정</b>: 양식 4종 각 1회라, 시간이 되면 반복 측정으로 확정합니다.</p></div>
 </div></body></html>
