@@ -19,7 +19,7 @@ const STATUS: Record<AggCheck['status'], { icon: string; text: string; cls: stri
 };
 
 /** 고른 취합 방식을 한 문장으로: "한 표로 모으고, 지사마다 한 줄로도 펼치고, 제출 현황도 만들어요" */
-export function aggSentence(ids: AggregationId[], label: string): string {
+function aggSentence(ids: AggregationId[], label: string): string {
   const parts = [
     ids.includes('same-frame') && '한 표로 모으고',
     ids.includes('spread') && `${label}마다 한 줄로도 펼치고`,
@@ -33,14 +33,14 @@ export function aggSentence(ids: AggregationId[], label: string): string {
 }
 
 /** 취합본 열 순서에서 제출처 칸 자리: 0 = 맨 앞(번호 다음), n = 맨 뒤(항목 다 지난 뒤) */
-export function orgSlot(b: ListBlock): number {
+function orgSlot(b: ListBlock): number {
   if (b.orgAfter === undefined) return b.columns.length;
   if (b.orgAfter === '') return 0;
   const i = b.columns.findIndex((c) => c.key === b.orgAfter);
   return i < 0 ? b.columns.length : i + 1;
 }
 const slotPatch = (b: ListBlock, p: number) => ({ orgAfter: p <= 0 ? '' : p >= b.columns.length ? null : b.columns[p - 1].key });
-export const orgPlaceText = (b: ListBlock): string => {
+const orgPlaceText = (b: ListBlock): string => {
   const p = orgSlot(b);
   return p === 0 ? '맨 앞' : p >= b.columns.length ? '맨 뒤' : `${b.columns[p - 1].label} 다음`;
 };

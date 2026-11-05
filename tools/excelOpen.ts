@@ -36,14 +36,6 @@ function cfbStream(X: Xlsx, cfb: unknown, name: string): Uint8Array | null {
   const e = X.CFB.find(cfb, name) as { content?: ArrayLike<number> } | null;
   return e?.content ? Uint8Array.from(e.content as ArrayLike<number>) : null;
 }
-
-/** 열기 암호가 걸린 .xlsx인지 (CFB 안에 EncryptedPackage가 있으면) */
-export async function isEncryptedOoxml(bytes: Uint8Array): Promise<boolean> {
-  if (!isCfb(bytes)) return false;
-  const X = await loadXlsx();
-  return !!cfbStream(X, X.CFB.read(bytes, { type: 'array' }), 'EncryptedPackage');
-}
-
 export async function openWorkbook(bytes: Uint8Array, _name: string, password?: string): Promise<OpenedWorkbook> {
   if (isZip(bytes)) return { bytes, notes: [] }; // .xlsx·.xlsm (확장자만 .xls인 .xlsx도)
   if (!isCfb(bytes)) throw new Error('엑셀 파일이 아니거나 손상된 파일이에요');
@@ -109,7 +101,7 @@ function params(tag: string): KeyParams {
   return { salt: b64(a('saltValue')), blockSize: Number(a('blockSize')), keyBits: Number(a('keyBits')), hashSize: Number(a('hashSize')), hash };
 }
 
-export async function decryptAgile(info: Uint8Array, pkg: Uint8Array, password: string): Promise<Uint8Array> {
+async function decryptAgile(info: Uint8Array, pkg: Uint8Array, password: string): Promise<Uint8Array> {
   const major = info[0] | (info[1] << 8); const minor = info[2] | (info[3] << 8);
   if (!(major === 4 && minor === 4)) throw new WrongPasswordError('예전 암호 방식(Excel 2007)이라 이 화면에서 풀 수 없어요. 엑셀에서 암호를 지우고 저장해 주세요.');
   const xml = new TextDecoder().decode(info.subarray(8));

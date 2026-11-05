@@ -12,7 +12,7 @@ const FORMAT_PROPS: Record<FieldType, (keyof Field)[]> = {
 };
 const ALL_FORMAT_PROPS = [...new Set(Object.values(FORMAT_PROPS).flat())];
 
-export function typeDefaults(type: FieldType): Partial<Field> {
+function typeDefaults(type: FieldType): Partial<Field> {
   switch (type) {
     case 'number': return { thousands: true, decimals: 0 };
     case 'date': return { dateFormat: 'yyyy-mm-dd' };

@@ -16,7 +16,7 @@ const RESEND_SEC = 60;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Neon 인증 오류를 쉬운 한국어로 */
-export function loginMessage(error: unknown): string {
+function loginMessage(error: unknown): string {
   const e = (error ?? {}) as { code?: string; message?: string; status?: number };
   const code = String(e.code ?? '').toUpperCase(); const msg = String(e.message ?? '');
   if (code.includes('INVALID_EMAIL_OR_PASSWORD') || /invalid email or password/i.test(msg) || e.status === 401) return '아이디 또는 비밀번호가 맞지 않아요.';

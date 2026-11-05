@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { cloudFetch, nativeAuth } from '../cloud';
 
-export interface Me { email: string; name: string; emailVerified: boolean; hasPassword: boolean; isAdmin: boolean }
+interface Me { email: string; name: string; emailVerified: boolean; hasPassword: boolean; isAdmin: boolean }
 
 const MIN_PW = 8;
 

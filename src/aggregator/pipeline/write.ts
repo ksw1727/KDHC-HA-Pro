@@ -26,7 +26,7 @@ const whoLine = (schema: FormSchema, res: Resolved) =>
     : `${orgLabel(schema)} ${res.included.length}곳${res.missingOrgs.length ? ` (미제출 ${res.missingOrgs.length}곳)` : ''}`;
 
 /** 엑셀 시트 이름 규칙: 31자, 금지 문자 → _, ' → ’(sheetNameOf와 같은 이유), 같은 이름이면 (2) */
-export function sheetNamer() {
+function sheetNamer() {
   const used = new Set<string>();
   return (name: string) => {
     const base = (name.replace(FORBIDDEN, '_').replace(/'/g, '’').trim() || '시트').slice(0, 31);
@@ -95,7 +95,7 @@ function writeTable(ws: ExcelJS.Worksheet, t: Table) {
 const table = (name: string, headers: string[], rows: CellValue[][]): Table => ({ name, columns: headers.map((header) => ({ header })), rows });
 const show = (v: unknown) => (v === null || v === undefined ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === 'object' ? JSON.stringify(v) : String(v));
 
-export interface ResultInput {
+interface ResultInput {
   schema: FormSchema;
   res: Resolved;
   methods: AggregationId[];
@@ -103,7 +103,7 @@ export interface ResultInput {
   now: Date;
 }
 
-export interface ResultFile {
+interface ResultFile {
   fileName: string; bytes: Uint8Array; verify: VerifyResult;
   review?: { fileName: string; bytes: Uint8Array };   // 검토 파일 (시트 모으기형이 아닐 때): 표시·메모가 붙은 같은 틀 시트 + 검토 사항 시트 하나
 }
@@ -196,9 +196,9 @@ export async function writeResult({ schema, res, methods, workbooks, now }: Resu
 }
 
 /** 검토 사항 시트 이름. 시트 모으기형은 결과 파일 안에, 그 밖은 검토 파일 안에 하나만 둔다 */
-export const REVIEW_SHEET = '검토 사항';
+const REVIEW_SHEET = '검토 사항';
 /** 검토 사항 시트의 단락 제목 앞 표시 (단락을 찾을 때도 쓴다) */
-export const SECTION_MARK = '■ ';
+const SECTION_MARK = '■ ';
 
 interface Section { title: string; table: Table; always: boolean; empty?: string }
 
@@ -388,7 +388,7 @@ function writeCollectSheets(wb: ExcelJS.Workbook, schema: FormSchema, res: Resol
   [12, 8, 30, 18, 24, 10].forEach((w, i) => { toc.getColumn(i + 1).width = w; });
 }
 
-export function copySheet(from: ExcelJS.Worksheet, to: ExcelJS.Worksheet) {
+function copySheet(from: ExcelJS.Worksheet, to: ExcelJS.Worksheet) {
   from.columns?.forEach((c, i) => { if (c.width) to.getColumn(i + 1).width = c.width; });
   from.eachRow({ includeEmpty: true }, (row, r) => {
     const t = to.getRow(r);

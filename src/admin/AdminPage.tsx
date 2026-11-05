@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { cloudEnabled, cloudFetch } from '../cloud';
 
-export interface AdminUser { email: string; enabled: boolean; isAdmin: boolean; userId: string | null; emailVerified: boolean | null; createdAt: string | null; updatedAt: string; aiDailyLimit: number | null; usedToday: number }
-export interface AiSettings { globalDailyLimit: number | null; defaultUserDailyLimit: number | null; usedTodayGlobal: number }
+interface AdminUser { email: string; enabled: boolean; isAdmin: boolean; userId: string | null; emailVerified: boolean | null; createdAt: string | null; updatedAt: string; aiDailyLimit: number | null; usedToday: number }
+interface AiSettings { globalDailyLimit: number | null; defaultUserDailyLimit: number | null; usedTodayGlobal: number }
 interface AdminData { users: AdminUser[]; settings: AiSettings }
 type Action = 'add' | 'enable' | 'disable' | 'remove';
 const limitText = (v: number | null) => (v == null ? '' : String(v));

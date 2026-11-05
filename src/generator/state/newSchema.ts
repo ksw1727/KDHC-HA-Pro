@@ -2,7 +2,7 @@ import type { Block, FormSchema, FreeSpec, Layout } from '../../contract/schema'
 import { availableAggregations, requiredAggregations } from '../../contract/aggregationIds';
 import { newField } from './fieldDefaults';
 
-export interface Ids {
+interface Ids {
   formId: string;
   key: () => string;   // 항목 key 발급 (화면에서는 무작위, 테스트에서는 고정)
 }

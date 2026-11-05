@@ -9,7 +9,7 @@ import { isSavedAsIs, loadCurrent, saveForm, type StoredForm } from '../storage/
 
 export type PanelId = Where;
 
-export interface Selection { blockId: string; key: string }
+interface Selection { blockId: string; key: string }
 
 function initial(): StoredForm {
   return loadCurrent() ?? { schema: newSchema('header-list', new Date(), { formId: randomFormId(), key: randomKey }), savedAt: '' };

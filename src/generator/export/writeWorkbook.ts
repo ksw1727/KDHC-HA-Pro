@@ -12,7 +12,7 @@ const argb = (hex: string) => 'FF' + hex.replace('#', '').toUpperCase();
 const LISTS_SHEET = '_lists';
 
 /** SheetModel → 워크시트 (02-generator.md 4절) */
-export function fillWorksheet(ws: ExcelJS.Worksheet, model: SheetModel, fieldsByKey: Map<string, Field>, listsSheet: () => ExcelJS.Worksheet) {
+function fillWorksheet(ws: ExcelJS.Worksheet, model: SheetModel, fieldsByKey: Map<string, Field>, listsSheet: () => ExcelJS.Worksheet) {
   model.columns.forEach((c, i) => { ws.getColumn(i + 1).width = c.width; });
 
   for (const c of model.cells) {
@@ -76,7 +76,7 @@ async function protect(ws: ExcelJS.Worksheet) {
   if (algorithmName && saltValue && spinCount !== undefined && hashValue) hashCache = { algorithmName, saltValue, spinCount, hashValue };
 }
 
-export interface WriteOptions {
+interface WriteOptions {
   orgName?: string;      // preset 모드의 이 파일 지사명
   shared?: boolean;      // preset 모드의 공용 파일 1개 (지사명을 목록에서 고름, 메타·속성에 지사 없음)
   now: Date;

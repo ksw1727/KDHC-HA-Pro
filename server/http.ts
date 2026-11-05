@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { SafeError, limits, uuid, parseInput, providerConfig, context, callProvider, checkedResult, ensureTitle, rejectReasons, freshTemplates, isNewForm, tidyAggregations, type Turn } from './ai';
 import { makeStore, type Store } from './store';
 export type Request = IncomingMessage & {body?:unknown};
-export interface Dependencies { env?:NodeJS.ProcessEnv; store?:Store; provider?:typeof callProvider }
+interface Dependencies { env?:NodeJS.ProcessEnv; store?:Store; provider?:typeof callProvider }
 async function body(req:Request):Promise<unknown> {
   if(req.body!==undefined) { if(typeof req.body==='string') { if(Buffer.byteLength(req.body)>limits.request) throw new SafeError(413,'요청이 너무 커요.'); return JSON.parse(req.body); } return req.body; }
   const chunks:Buffer[]=[]; let n=0;

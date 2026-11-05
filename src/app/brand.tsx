@@ -4,7 +4,7 @@ import slogan from '../assets/brand/slogan-ko.png';
  * 한국지역난방공사 브랜드 슬로건 (슬로건 디자인 가이드라인 1.01 워드마크 원본).
  * 가이드라인 4.06: 흰 바탕·아주 연한 바탕에만 둔다. 색·비율을 바꾸지 않는다.
  */
-export const SLOGAN_ALT = '깨끗한 에너지로 세상을 따뜻하게';
+const SLOGAN_ALT = '깨끗한 에너지로 세상을 따뜻하게';
 export function Slogan({ height, className }: { height?: number; className?: string }) {
   return <img src={slogan} alt={SLOGAN_ALT} style={height ? { height } : undefined} className={'block w-auto select-none ' + (className ?? '')} draggable={false} />;
 }

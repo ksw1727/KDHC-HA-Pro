@@ -6,7 +6,7 @@ import { cellStyle } from '@contract/layout/styles';
 import { parseAddr } from '@contract/layout/address';
 
 /** 미리보기에서 줄 모으기: rows = 자료 줄 중 위로 모을 시트 행, only = 나머지 자료 줄은 숨김(아니면 흐리게) */
-export interface PreviewFocus { rows: number[]; only?: boolean }
+interface PreviewFocus { rows: number[]; only?: boolean }
 
 /**
  * 취합 결과 미리보기: 같은 틀 시트(검토용 모양)를 화면 표로. 노란 칸 = 오류로 그대로 둔 값, 파란 칸 = 자동으로 고친 값 (03-aggregator.md 2.2)

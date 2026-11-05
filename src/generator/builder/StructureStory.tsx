@@ -49,7 +49,7 @@ const File = ({ name, children }: { name: string; children: ReactNode }) => (
 
 interface Story { p1: ReactNode; p2: ReactNode; p3: ReactNode; result: ReactNode }
 
-export const STORIES: Record<Layout, Story> = {
+const STORIES: Record<Layout, Story> = {
   list: {
     p1: <Tbl rows={[[h('이름 *'), h('직급'), h('참가일')], [rq(), null, null], [rq(), null, null], [rq(), null, null]]} />,
     p2: <div className="flex gap-1">

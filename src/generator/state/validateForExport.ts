@@ -82,7 +82,7 @@ const squash = (x: string) => x.replace(/[\s·・,/()（）]/g, '');
  * 제출처 이름을 받는 항목은 따로 두지 않는다: 위쪽 '{제출처}명' 칸에 자동으로 들어가고(잠김),
  * 취합하면 목록 오른쪽 자동 칸 '{제출처}'에 줄마다 채워진다. 여러 지사를 모아 둔 엑셀을 올리면 AI가 그 열을 그대로 옮기기 쉽다.
  */
-export function orgFieldNames(s: FormSchema): Set<string> {
+function orgFieldNames(s: FormSchema): Set<string> {
   const label = orgLabel(s);
   const names = [label, `${label}명`];
   if (/지사|사업소/.test(label)) names.push('지사', '지사명', '사업소', '사업소명', '지사사업소', '지사사업소명', '지사및사업소');

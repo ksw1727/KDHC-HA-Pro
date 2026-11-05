@@ -18,7 +18,7 @@ const isMedia = (path: string) => /^xl\/(media|embeddings)\//.test(path);
 const bytesOf = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
 
 /** Inspect central-directory sizes before ExcelJS can decompress workbook members. */
-export const ARCHIVE_LIMITS = { member: 120 * MB, total: 250 * MB };
+const ARCHIVE_LIMITS = { member: 120 * MB, total: 250 * MB };
 export async function inspectExcelArchive(bytes: Uint8Array, limits = ARCHIVE_LIMITS): Promise<void> {
   const zip = await JSZip.loadAsync(bytes, { checkCRC32: false });
   const entries = Object.values(zip.files);

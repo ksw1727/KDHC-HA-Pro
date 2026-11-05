@@ -107,7 +107,7 @@ export async function analyze(files: LoadedFile[], schemas: FormSchema[], fallba
 }
 
 /** ⑨ 수정된 회신 파일 사본: 직접 수정한 칸(+ 원하면 수정안 칸)을 원본 사본에 고쳐 zip으로 (3.10) */
-export interface CopiesResult { fileName: string; bytes: Uint8Array; count: number; skipped: { fileName: string; reason: string }[] }
+interface CopiesResult { fileName: string; bytes: Uint8Array; count: number; skipped: { fileName: string; reason: string }[] }
 
 export async function patchCopies(res: Resolved, files: LoadedFile[], includeProposals: boolean, now: Date, title: string): Promise<CopiesResult | null> {
   // 원본에 그 칸이 없는 직접 고침(예: 옛 버전 파일에 없는 항목)은 사본에 쓸 자리가 없다 → 이유와 함께 알린다
