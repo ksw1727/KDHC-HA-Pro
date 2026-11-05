@@ -92,7 +92,7 @@ export function chooseBase(files: IdentifiedFile[]): BaseForm | null {
 }
 
 /** 머리글 이름 일치율: 메타도 파일 속성도 없는 파일이 기준 양식의 목록 칸 이름을 얼마나 갖고 있나 */
-export function headerMatchRatio(wb: ExcelJS.Workbook, schema: FormSchema): number {
+function headerMatchRatio(wb: ExcelJS.Workbook, schema: FormSchema): number {
   const labels = formLabels(schema);
   if (!labels.length) return 0;
   const seen = new Set<string>();

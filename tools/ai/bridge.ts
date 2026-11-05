@@ -18,7 +18,7 @@ import type { Plugin } from 'vite';
 import { OPENAI_MODELS, isOpenAiModel, ollamaModels, openAiKey, runOpenAiAgent } from './openaiAgent';
 import { PROMPT_VERSIONS, type PromptVersion } from './prompts';
 
-export type AiEvent =
+type AiEvent =
   | { type: 'chat'; chatId: string }
   | { type: 'status'; text: string }
   | { type: 'text'; text: string }
@@ -26,7 +26,7 @@ export type AiEvent =
   | { type: 'error'; text: string }
   | { type: 'done' };
 
-export const HOME = process.env.MOA_AI_HOME ?? join(homedir(), '.hanan-moa', 'ai');
+const HOME = process.env.MOA_AI_HOME ?? join(homedir(), '.hanan-moa', 'ai');
 const OPENAI_PROMPT = (PROMPT_VERSIONS as readonly string[]).includes(process.env.MOA_OPENAI_PROMPT ?? '') ? process.env.MOA_OPENAI_PROMPT as PromptVersion : 'B';
 
 /** moa 도구를 node 하나로 도는 파일로 묶는다 */

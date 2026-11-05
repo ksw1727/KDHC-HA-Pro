@@ -18,7 +18,7 @@ export function inputName(g: GridData, r: number, c: number): string {
 /**
  * 겹치지 않는 자동 이름. 행 첫 칸이 같아 이름이 겹치면(12/24 주간·야간 등) "(n행)"을, 그래도 겹치면 "(n행 m열)"을 붙인다.
  */
-export function autoName(g: GridData, r: number, c: number): string {
+function autoName(g: GridData, r: number, c: number): string {
   const base = inputName(g, r, c);
   const same: [number, number][] = [];
   g.rows.forEach((row, ri) => row.forEach((cell, ci) => {

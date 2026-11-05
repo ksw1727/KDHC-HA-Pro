@@ -21,13 +21,13 @@ export const fmtTime = (iso: string) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
 /** 같은 틀 시트의 각 목록 줄이 어느 제출의 몇 행인지 (작성자 메모를 같은 칸에 옮길 때 씀) */
-export interface FrameRowRef { fileId: string; sourceRow: number }
+interface FrameRowRef { fileId: string; sourceRow: number }
 
 /** 소수 더하기 찌꺼기(0.1 + 0.2 = 0.30000000000000004)를 지운다 */
 const tidy = (n: number) => Number(n.toFixed(10));
 
 /** 숫자 표의 제출처 줄 하나가 어느 제출의 몇 번째 행 제목인지 (작성자 메모를 그 줄로 옮길 때 씀) */
-export interface MatrixRowRef { fileId: string; r: number }
+interface MatrixRowRef { fileId: string; r: number }
 
 export interface SameFrame {
   model: SheetModel; rowRefs: FrameRowRef[]; spareRefs: FrameRowRef[];

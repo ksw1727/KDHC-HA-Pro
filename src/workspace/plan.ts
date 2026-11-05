@@ -9,7 +9,7 @@ import type { AggregationRecord } from './history';
  * - waiting: 내보냈고, 그 뒤로 취합 기록이 없음
  * - done: 마지막으로 내보낸 뒤 취합한 기록이 있음
  */
-export type WorkState = 'draft' | 'waiting' | 'done';
+type WorkState = 'draft' | 'waiting' | 'done';
 
 export interface WorkItem {
   entry: StoredForm;
@@ -32,7 +32,7 @@ export function toDay(s: string): Date | undefined {
 }
 export function dayDiff(a: Date, b: Date): number { return Math.round((midnight(a).getTime() - midnight(b).getTime()) / DAY); }
 
-export function orgCount(schema: FormSchema): number | null {
+function orgCount(schema: FormSchema): number | null {
   return schema.org.mode === 'preset' || (schema.org.orgs?.length ?? 0) > 0 ? (schema.org.orgs?.length ?? 0) : null;
 }
 
@@ -59,7 +59,7 @@ export function byDeadline(a: WorkItem, b: WorkItem): number {
   return b.made.getTime() - a.made.getTime();
 }
 
-export interface Counts { waiting: number; dueThisWeek: number; overdue: number; doneThisMonth: number; noDeadline: number }
+interface Counts { waiting: number; dueThisWeek: number; overdue: number; doneThisMonth: number; noDeadline: number }
 
 export function counts(items: WorkItem[], aggs: AggregationRecord[], today: Date): Counts {
   const t = midnight(today);
@@ -75,7 +75,7 @@ export function counts(items: WorkItem[], aggs: AggregationRecord[], today: Date
 }
 
 /** 달력 한 주에 그릴 막대: 만든 날 → 제출 기한 (기한 없으면 만든 날 하루) */
-export interface Bar { item: WorkItem; from: number; to: number; starts: boolean; ends: boolean }
+interface Bar { item: WorkItem; from: number; to: number; starts: boolean; ends: boolean }
 
 export function weekBars(items: WorkItem[], weekStart: Date): Bar[] {
   const ws = midnight(weekStart), we = new Date(ws.getTime() + 6 * DAY);

@@ -8,7 +8,7 @@ import JSZip from 'jszip';
 /** 한난MOA 계산식이 아는 함수 (contract/formula). 나머지는 "옮길 수 없는 함수"로 알린다 */
 const KNOWN_FN = new Set(['SUM', 'AVERAGE', 'MIN', 'MAX', 'COUNTA', 'COUNT', 'ROUND', 'IF', 'IFERROR']);
 
-export interface ExcelFindings {
+interface ExcelFindings {
   macros: boolean;
   sheets: number;
   crossSheetFormulas: string[];   // 다른 시트를 참조하는 수식 (주소)
@@ -33,7 +33,7 @@ function text(v: ExcelJS.CellValue): string {
 }
 
 export interface SheetMeta { name: string; state: 'visible' | 'hidden' | 'veryHidden'; rows: number }
-export interface DumpOptions {
+interface DumpOptions {
   /** 옛 방식(moa read-excel): 이 줄 수를 넘으면 자른다 */
   maxLines?: number;
   /** AI로 보낼 때: 글자 수 한도. 넘으면 반복되는 자료 행부터 줄여 한도 안에 맞춘다 (오류를 내지 않는다) */
@@ -85,8 +85,8 @@ export async function listSheets(bytes: Uint8Array): Promise<SheetMeta[]> {
 }
 
 /** 아주 긴 시트는 앞 HEAD_ROWS행과 끝 TAIL_ROWS행만 읽는다 (요약에는 어차피 앞 몇 행과 마지막 행만 들어간다) */
-export const HEAD_ROWS = 2000;
-export const TAIL_ROWS = 20;
+const HEAD_ROWS = 2000;
+const TAIL_ROWS = 20;
 /** AI 요약용으로 가볍게: 그림·첨부 개체 내용은 비우고(개수는 남는다), 아주 긴 시트는 가운데 행을 덜어 낸다 */
 export async function slimWorkbook(bytes: Uint8Array): Promise<{ bytes: Uint8Array; trimmed: Map<string, number> }> {
   const zip = await JSZip.loadAsync(bytes);

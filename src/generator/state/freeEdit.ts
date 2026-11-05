@@ -1,7 +1,7 @@
 import type { Block, Field, FieldsBlock, FormSchema, FreeSpec, ListBlock, MatrixBlock } from '@contract/schema';
 import { availableAggregations, requiredAggregations } from '@contract/aggregationIds';
 import { addr, expandRange, parseAddr } from '@contract/layout';
-import { freeAggregationChecks, freeRegions, freeSize, inRegion, sheetAddr, type FreeRegion } from '@contract/free';
+import { freeAggregationChecks, freeRegions, freeSize, inRegion, sheetAddr } from '@contract/free';
 import { newField } from './fieldDefaults';
 
 /** 판 위 사각형 (판 좌표, 1부터, 양 끝 포함) */
@@ -12,7 +12,7 @@ export const rectOf = (a: string, b: string = a): Rect => {
   const q = parseAddr(b);
   return { r1: Math.min(p.row, q.row), c1: Math.min(p.col, q.col), r2: Math.max(p.row, q.row), c2: Math.max(p.col, q.col) };
 };
-export const rectText = (r: Rect) => (r.r1 === r.r2 && r.c1 === r.c2 ? addr(r.c1, r.r1) : `${addr(r.c1, r.r1)}:${addr(r.c2, r.r2)}`);
+const rectText = (r: Rect) => (r.r1 === r.r2 && r.c1 === r.c2 ? addr(r.c1, r.r1) : `${addr(r.c1, r.r1)}:${addr(r.c2, r.r2)}`);
 const cellsOf = (r: Rect) => expandRange(rectText(r));
 const hits = (a: Rect, b: Rect) => a.r1 <= b.r2 && b.r1 <= a.r2 && a.c1 <= b.c2 && b.c1 <= a.c2;
 
@@ -27,7 +27,7 @@ export type FreeOp =
   | { op: 'unmark'; rect: Rect }
   | { op: 'move'; blockId: string; key?: string; to: string };
 
-export type FreeResult = { schema: FormSchema; error?: undefined } | { schema?: undefined; error: string };
+type FreeResult = { schema: FormSchema; error?: undefined } | { schema?: undefined; error: string };
 
 const spec = (s: FormSchema): FreeSpec => s.free ?? { rows: 10, cols: 5, texts: {}, merges: [], places: {} };
 
@@ -208,10 +208,4 @@ function mark(s: FormSchema, free: FreeSpec, o: Extract<FreeOp, { op: 'mark' }>)
     rowLabels, colLabels, cell: { ...newField(nextKey(), 'number', '값'), thousands: true }, totalRow: false, totalCol: false,
   };
   return { schema: tidy({ ...s, blocks: [...s.blocks, block], free: { ...free, texts, places, merges } }) };
-}
-
-/** 판 주소의 영역 (없으면 undefined) */
-export function regionAt(s: FormSchema, a: string): FreeRegion | undefined {
-  const p = parseAddr(a);
-  return freeRegions(s).find((g) => inRegion(g, p.row, p.col));
 }

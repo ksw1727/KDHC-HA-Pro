@@ -2,7 +2,7 @@ import { neon } from '@neondatabase/serverless';
 import { SafeError, type Turn } from './ai';
 import { verifyAuthToken, type Identity } from './auth';
 import type { FormSchema } from '../src/contract/schema';
-export interface Chat { id:string; user_id:string; conversation:Turn[]; form:FormSchema|null }
+interface Chat { id:string; user_id:string; conversation:Turn[]; form:FormSchema|null }
 export interface Store {
   user(token:string):Promise<string>;
   account?(token:string):Promise<Identity>;
@@ -13,7 +13,7 @@ export interface Store {
   forget?(id:string,user:string):Promise<void>;
 }
 export type Query=(strings:TemplateStringsArray,...values:unknown[])=>Promise<Record<string,unknown>[]>;
-export interface StoreOptions { sql?:Query; verify?:(token:string,env:NodeJS.ProcessEnv)=>Promise<Identity> }
+interface StoreOptions { sql?:Query; verify?:(token:string,env:NodeJS.ProcessEnv)=>Promise<Identity> }
 export function makeStore(env:NodeJS.ProcessEnv, options:StoreOptions={}):Store {
   if(!env.DATABASE_URL) throw new SafeError(503,'서버 연결 설정이 필요해요.');
   const sql=options.sql ?? neon(env.DATABASE_URL) as unknown as Query;

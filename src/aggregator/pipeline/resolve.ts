@@ -7,7 +7,7 @@ import type { Decisions, IdentifiedFile, Issue, ParsedSubmission, Question, Slot
 
 /** ⑤ 결정 반영 — 03-aggregator.md 3.6 정책 표. 결정이 바뀌면 여기부터 다시 계산한다 */
 
-export type FileStatusKind =
+type FileStatusKind =
   | 'included' | 'duplicate' | 'operator' | 'form-sheet-missing'
   | 'other-form' | 'unreadable' | 'duplicate-content';
 
@@ -16,7 +16,7 @@ export const STATUS_LABEL: Record<FileStatusKind, string> = {
   'other-form': '다른 양식', unreadable: '건너뜀', 'duplicate-content': '내용 같음',
 };
 
-export interface CellMarkInfo { mark: 'auto-fixed' | 'error'; note: string }
+interface CellMarkInfo { mark: 'auto-fixed' | 'error'; note: string }
 
 export interface FinalSubmission extends ParsedSubmission {
   label: string;                                   // 화면·시트에 쓰는 이름 (지사명, 없으면 파일명)
@@ -41,7 +41,7 @@ export interface FileState {
   dupGroup?: string[];                             // 같은 지사 파일들 (fileId)
 }
 
-export interface DecisionLog { what: string; target: string; choice: string; defaulted: boolean }
+interface DecisionLog { what: string; target: string; choice: string; defaulted: boolean }
 
 export interface Resolved {
   files: FileState[];

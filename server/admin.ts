@@ -14,9 +14,9 @@ import { makeStore, type Query, type Store } from './store';
  * 관리자 = 승인 목록에서 is_admin=true인 계정. 매 요청마다 JWT + DB로 다시 확인한다.
  */
 export type AdminRequest = IncomingMessage & { body?: unknown };
-export interface AdminDeps { env?: NodeJS.ProcessEnv; store?: Store; sql?: Query }
-export interface AdminUser { email: string; enabled: boolean; isAdmin: boolean; userId: string | null; emailVerified: boolean | null; createdAt: string | null; updatedAt: string; aiDailyLimit: number | null; usedToday: number }
-export interface AiSettings { globalDailyLimit: number | null; defaultUserDailyLimit: number | null; usedTodayGlobal: number }
+interface AdminDeps { env?: NodeJS.ProcessEnv; store?: Store; sql?: Query }
+interface AdminUser { email: string; enabled: boolean; isAdmin: boolean; userId: string | null; emailVerified: boolean | null; createdAt: string | null; updatedAt: string; aiDailyLimit: number | null; usedToday: number }
+interface AiSettings { globalDailyLimit: number | null; defaultUserDailyLimit: number | null; usedTodayGlobal: number }
 /** 한도 값: 빈 값(null)은 무제한/기본값, 0~100000 정수 */
 export function parseLimit(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null;
@@ -49,12 +49,12 @@ async function readBody(req: AdminRequest): Promise<unknown> {
   return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
 }
 
-export async function isAdmin(sql: Query, userId: string): Promise<boolean> {
+async function isAdmin(sql: Query, userId: string): Promise<boolean> {
   const rows = await sql`select 1 from moa_private.moa_allowed_users where user_id=${userId}::uuid and enabled is true and is_admin is true limit 1`;
   return rows.length === 1;
 }
 
-export async function listUsers(sql: Query): Promise<AdminUser[]> {
+async function listUsers(sql: Query): Promise<AdminUser[]> {
   const rows = await sql`select a.email, a.enabled, a.is_admin, a.user_id::text as user_id, a.updated_at, a.ai_daily_limit, u."emailVerified" as verified, u."createdAt" as created,
       coalesce((select used from moa_private.moa_ai_usage g where g.day = (now() at time zone 'UTC')::date and g.scope = coalesce(a.user_id, u.id)::text), 0) as used_today
     from moa_private.moa_allowed_users a left join neon_auth."user" u on u.id = a.user_id or (a.user_id is null and lower(u.email) = a.email)
@@ -65,7 +65,7 @@ export async function listUsers(sql: Query): Promise<AdminUser[]> {
     aiDailyLimit: r.ai_daily_limit == null ? null : Number(r.ai_daily_limit), usedToday: Number(r.used_today ?? 0) }));
 }
 
-export async function readSettings(sql: Query): Promise<AiSettings> {
+async function readSettings(sql: Query): Promise<AiSettings> {
   const rows = await sql`select s.global_daily_limit, s.default_user_daily_limit,
       coalesce((select used from moa_private.moa_ai_usage g where g.day = (now() at time zone 'UTC')::date and g.scope = 'global'), 0) as used
     from moa_private.moa_ai_settings s where s.id`;
@@ -74,7 +74,7 @@ export async function readSettings(sql: Query): Promise<AiSettings> {
   return { globalDailyLimit: num(r.global_daily_limit), defaultUserDailyLimit: num(r.default_user_daily_limit), usedTodayGlobal: Number(r.used ?? 0) };
 }
 
-export async function applyAction(sql: Query, actor: { id: string; email: string }, action: unknown, emailRaw: unknown, body: Record<string, unknown> = {}): Promise<void> {
+async function applyAction(sql: Query, actor: { id: string; email: string }, action: unknown, emailRaw: unknown, body: Record<string, unknown> = {}): Promise<void> {
   if (action === 'setSettings') {
     const g = parseLimit(body.globalDailyLimit), d = parseLimit(body.defaultUserDailyLimit);
     await sql`update moa_private.moa_ai_settings set global_daily_limit = ${g}::integer, default_user_daily_limit = ${d}::integer, updated_at = now() where id`;

@@ -8,8 +8,8 @@ import { AGGREGATION_IDS, availableAggregations, requiredAggregations, type Aggr
 export class SafeError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
-export type Engine = 'claude' | 'codex';
-export interface Input { chatId?: string; engine: Engine; message: string; form?: FormSchema; sources?: {name: string; text: string}[] }
+type Engine = 'claude' | 'codex';
+interface Input { chatId?: string; engine: Engine; message: string; form?: FormSchema; sources?: {name: string; text: string}[] }
 export interface Turn { role: 'user' | 'assistant'; content: string }
 export const limits = { request: 480_000, form: 160_000, source: 30_000, sources: 5, message: 6_000, history: 60_000, output: 180_000, timeout: 55_000 };
 export const uuid = (x: unknown): x is string => typeof x === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(x);
@@ -53,7 +53,7 @@ export function parseInput(x: unknown): Input {
   if (x.sources !== undefined && (!Array.isArray(x.sources) || x.sources.length > limits.sources || x.sources.some(s => !object(s) || Object.keys(s).some(k => !['name','text'].includes(k)) || typeof s.name !== 'string' || !s.name.trim() || s.name.length > 120 || typeof s.text !== 'string' || !s.text.trim() || s.text.length > limits.source))) throw new SafeError(400, '분석 자료는 최대 5개, 각각 30,000자까지 보내 주세요. 원본 파일은 보내지 마세요.');
   return x as unknown as Input;
 }
-export interface ProviderConfig { key: string; model: string }
+interface ProviderConfig { key: string; model: string }
 export function providerConfig(engine: Engine, env: NodeJS.ProcessEnv): ProviderConfig | null {
   const key = env[engine === 'claude' ? 'ANTHROPIC_API_KEY' : 'OPENAI_API_KEY'];
   const model = env[engine === 'claude' ? 'ANTHROPIC_MODEL' : 'OPENAI_MODEL'];

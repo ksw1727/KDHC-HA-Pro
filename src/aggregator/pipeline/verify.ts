@@ -4,7 +4,7 @@ import type { Resolved } from './resolve';
 
 /** ⑦ 검산 — 한 줄도 잃지 않았는지, 숫자 합계가 맞는지 (03-aggregator.md 3.8) */
 
-export interface VerifyLine { check: string; detail: string; ok: boolean }
+interface VerifyLine { check: string; detail: string; ok: boolean }
 export interface VerifyResult { ok: boolean; lines: VerifyLine[] }
 
 const n = (v: unknown) => (typeof v === 'number' ? v : 0);

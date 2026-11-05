@@ -15,9 +15,9 @@ export interface LoadedFile {
   convertError?: string;
 }
 
-export type MetaSource = 'meta-sheet' | 'doc-props' | 'header-match' | 'none';
+type MetaSource = 'meta-sheet' | 'doc-props' | 'header-match' | 'none';
 
-export type FileStatus = 'ok' | 'other-form' | 'unreadable' | 'duplicate-content';
+type FileStatus = 'ok' | 'other-form' | 'unreadable' | 'duplicate-content';
 
 export interface IdentifiedFile {
   file: LoadedFile;
@@ -41,7 +41,7 @@ export interface BaseForm {
   meta?: FileMeta;
 }
 
-export type ExcludeReason = 'blank' | 'example' | 'total' | 'operator' | 'duplicate';
+type ExcludeReason = 'blank' | 'example' | 'total' | 'operator' | 'duplicate';
 
 export interface RawCell {
   raw: unknown;                    // 엑셀 값 그대로 (수식은 결과 값, 오류는 { error })
@@ -56,12 +56,12 @@ export interface ReadRow {
   flags: RowFlag[];
 }
 
-export type InfoCode =
+type InfoCode =
   | 'COLUMN_MISSING' | 'COLUMNS_REORDERED' | 'HEADER_MOVED' | 'VERSION_MISMATCH' | 'META_TAMPERED' | 'META_MISSING'
   | 'EXTRA_SHEET' | 'TEXT_OUTSIDE_INPUT' | 'FORM_SHEET_MISSING' | 'TOTAL_MISMATCH' | 'LABEL_MOVED'
   | 'FIXED_CELL_CHANGED' | 'IMAGE_NOT_COPIED' | 'OTHER_ORG_CELL' | 'FILTER_CLEARED' | 'EXAMPLE_ROW_USED';
 
-export interface Info {
+interface Info {
   code: InfoCode;
   message: string;                 // 화면·결과 파일용 한국어 문장
   address?: string;
@@ -127,7 +127,7 @@ export interface Issue {
   message: string;
 }
 
-export interface AutoFix { address: string; slot: Slot; from: unknown; to: CellValue }
+interface AutoFix { address: string; slot: Slot; from: unknown; to: CellValue }
 
 /** ③④ 결과: 정리된 값 + 확인할 칸. 결정 전 상태 */
 export interface ParsedSubmission extends NormalizedSubmission {
@@ -140,7 +140,7 @@ export interface ParsedSubmission extends NormalizedSubmission {
   fromAggregate?: boolean;         // 본부 취합본에서 풀어낸 제출 (②~④ 건너뜀)
 }
 
-export interface CellFix { mode: 'proposal' | 'manual' | 'keep'; value?: CellValue }
+interface CellFix { mode: 'proposal' | 'manual' | 'keep'; value?: CellValue }
 
 export interface Decisions {
   cellFix: Record<string, CellFix | undefined>;          // issueId →

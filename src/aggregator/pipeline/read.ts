@@ -2,7 +2,7 @@ import type ExcelJS from 'exceljs';
 import { META_SHEET } from '@contract/metaIO';
 import { addr, colLetter, colNumber, parseAddr } from '@contract/layout';
 import type { CellMap, FieldsBlockMap, GridBlockMap, ListBlockMap, MatrixBlockMap, RowFlag } from '@contract/meta';
-import { orgLabel, sameOrg, type Field, type FieldsBlock, type FormSchema, type GridBlock, type ListBlock, type MatrixBlock } from '@contract/schema';
+import { isCalc, orgLabel, sameOrg, type Field, type FieldsBlock, type FormSchema, type GridBlock, type ListBlock, type MatrixBlock } from '@contract/schema';
 import type { BaseForm, IdentifiedFile, Question, RawCell, ReadResult, ReadRow, Slot } from './types';
 import { normalize } from './normalize';
 import { cellText, formLabels, isBlank, noteText, normLabel, plainValue, similar } from './cellValue';
@@ -13,8 +13,6 @@ const HIDDEN_SHEETS = new Set([META_SHEET, '_records', '_lists']);
 const DITTO = new Set(['〃', '"', '”', '상동', '위와같음', '위와 같음', '동상']);
 const TOTAL_RE = /^(합\s*계|소\s*계|총\s*계|계)$/;
 const HEADER_SEARCH = 3;   // 머리글 행이 밀렸을 때 위아래로 찾아보는 줄 수
-
-const isCalc = (f: Field) => f.type === 'calc';
 
 /** 이 파일을 읽을 때 쓸 칸 지도와 양식 (파일 자신의 메타가 같은 버전이면 그것, 아니면 기준 양식 것) */
 function mapFor(f: IdentifiedFile, base: BaseForm): { cellMap?: CellMap; sheetName?: string; fileSchema?: FormSchema } {

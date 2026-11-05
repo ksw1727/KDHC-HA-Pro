@@ -2,7 +2,7 @@ import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
 import { SafeError, uuid } from './ai';
 export interface Identity { id:string; email:string; emailVerified:true }
 const keySets=new Map<string,JWTVerifyGetKey>();
-export const normalizeEmail=(email:string)=>email.trim().toLowerCase();
+const normalizeEmail=(email:string)=>email.trim().toLowerCase();
 export function authSettings(env:NodeJS.ProcessEnv):{origin:string;jwks:URL} {
   try {
     const base=new URL(env.NEON_AUTH_BASE_URL ?? '');

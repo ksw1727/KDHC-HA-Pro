@@ -8,7 +8,7 @@ import type { Field } from '@contract/schema';
  * 오전·오후가 없고 1~6시처럼 오후일 가능성이 큰 시각, 끝이 시작보다 이른데 '익일'이 없는 경우는 짐작이라 guessed.
  */
 
-export interface TimeFix { value: string; guessed: boolean }
+interface TimeFix { value: string; guessed: boolean }
 
 /** 시간 칸인가: 이름에 시간·시각(또는 time)이 있고, 소요·누적처럼 기간을 받는 칸이 아님 */
 export function isTimeField(field: Field): boolean {

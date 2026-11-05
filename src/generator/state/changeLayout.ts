@@ -5,7 +5,7 @@ import { freeRegions } from '@contract/free';
 import { defaultBlocks, defaultFree } from './newSchema';
 import { tidy } from './freeEdit';
 
-export interface LayoutChange {
+interface LayoutChange {
   schema: FormSchema;
   lost: Field[];          // 옮길 곳이 없어 지워지는 항목
   lostNotes: string[];    // 항목 외에 사라지는 것 (표 행·열 제목 등)

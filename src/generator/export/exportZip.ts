@@ -3,7 +3,7 @@ import type { FormSchema } from '@contract/schema';
 import { writeWorkbook } from './writeWorkbook';
 import { safeFileName } from './exportJson';
 
-export interface ExportFile { name: string; bytes: Uint8Array }
+interface ExportFile { name: string; bytes: Uint8Array }
 export interface ExportResult {
   download: { name: string; blob: Blob };   // 내려받을 파일 (zip 또는 xlsx 1개)
   files: ExportFile[];                       // 안에 든 엑셀들

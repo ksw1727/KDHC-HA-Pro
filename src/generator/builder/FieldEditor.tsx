@@ -21,7 +21,7 @@ function CalcFormat({ f, onPatch }: { f: Field; onPatch: (p: Partial<Field>) => 
 }
 
 /** 접힌 서식을 한 줄로: "원 단위 · 천 단위 쉼표 · 0~100" (기본값이면 짧게) */
-export function formatSummary(f: Field): string {
+function formatSummary(f: Field): string {
   const parts: string[] = [];
   if (f.type === 'number') {
     parts.push((f.decimals ?? 0) > 0 ? `소수 ${f.decimals}자리` : '정수');
